@@ -93,13 +93,8 @@
           </div>
         </div>
         
-        <div id="input-toolbar" hidden style="display:flex; justify-content:space-between; align-items:center; padding: 4px 10px; background: var(--surface2); border-bottom: 1px solid var(--border);">
-          <label style="font-size:11px; display:flex; align-items:center; gap:4px; color:var(--text); cursor:pointer;">
-            <input type="checkbox" id="chk-strict-mode" checked> Strict Typing Rules
-          </label>
-          <button id="btn-input-rules" title="View Input Rules" style="font-size:12px; background:none; border:none; color:var(--muted); cursor:pointer; padding:0; display:flex; align-items:center; gap:3px;">&#9416; Rules</button>
-        </div>
-        <textarea id="console-input" spellcheck="false" placeholder="Enter standard input (stdin) here.&#10;&#10;STRICT RULES:&#10;1. Strings MUST be wrapped in double quotes (&quot;Alice&quot;).&#10;   (Use backticks `...` for raw strings with quotes).&#10;2. Numbers &amp; Booleans do not need quotes (10, true).&#10;3. Arrays are supported! ([1, 2, 3]).&#10;4. Use newlines (Enter) to separate multiple inputs.&#10;&#10;Click ⓘ Rules for details." hidden></textarea>
+        <button id="btn-input-rules" title="View Input Rules" style="position: absolute; top: 8px; right: 12px; font-size:14px; background:none; border:none; color:var(--muted); cursor:pointer; padding:0; z-index:10;" hidden>&#9416;</button>
+        <textarea id="console-input" spellcheck="false" placeholder="Enter standard input (stdin) here.&#10;&#10;STRICT RULES:&#10;1. Strings MUST be wrapped in double quotes (&quot;Alice&quot;).&#10;   (Use backticks `...` for raw strings with quotes).&#10;2. Numbers &amp; Booleans do not need quotes (10, true).&#10;3. Arrays are supported! ([1, 2, 3]).&#10;4. Use newlines (Enter) to separate multiple inputs.&#10;&#10;Click ⓘ in the top right for details." hidden></textarea>
       </div>
     </div>
 
@@ -113,7 +108,7 @@
         <button id="btn-close-rules" class="modal-close-btn" title="Close Rules">&#10005;</button>
       </div>
       <div class="modal-body" style="font-size: 13px; line-height: 1.5; color: var(--text);">
-        <p>When <strong>Strict Typing Rules</strong> is enabled, Sidecode validates your input before sending it to the compiler:</p>
+        <p>Sidecode uses Strict Typing Rules to validate your input before sending it to the compiler:</p>
         <ul style="padding-left: 20px; margin-bottom: 10px;">
           <li><strong>Multiple Inputs:</strong> Use a new line (Enter key) to separate different inputs (e.g., if you have two <code>input()</code> calls, put the first value on line 1, and the second on line 2).</li>
           <li><strong>Numbers:</strong> Type normally (e.g., <code>10</code>, <code>-3.14</code>).</li>
@@ -122,7 +117,6 @@
           <li><strong>Raw Strings:</strong> You can also use backticks (e.g., <code>`Say "Hi" to me`</code>). Everything inside backticks is passed exactly as-is without needing to escape anything!</li>
           <li><strong>Arrays:</strong> Wrap comma-separated values in brackets (e.g., <code>[1, 2, "Alice"]</code>). Arrays are automatically flattened into space-separated values for the compiler.</li>
         </ul>
-        <p>If you uncheck Strict Mode, Sidecode acts like a raw Linux terminal (what you type is exactly what the program receives without any parsing).</p>
       </div>
     </div>
   </div>

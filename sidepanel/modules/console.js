@@ -34,7 +34,7 @@ function setupTabs() {
   const tabInput = $('tab-input');
   const outputArea = $('console-output');
   const inputArea = $('console-input');
-  const inputToolbar = $('input-toolbar');
+  const btnRules = $('btn-input-rules');
 
   if (!tabConsole || !tabInput) return;
 
@@ -43,7 +43,7 @@ function setupTabs() {
     tabInput.classList.remove('active');
     outputArea.hidden = false;
     inputArea.hidden = true;
-    if (inputToolbar) inputToolbar.hidden = true;
+    if (btnRules) btnRules.hidden = true;
     outputArea.scrollTop = outputArea.scrollHeight;
   });
 
@@ -52,7 +52,7 @@ function setupTabs() {
     tabConsole.classList.remove('active');
     inputArea.hidden = false;
     outputArea.hidden = true;
-    if (inputToolbar) inputToolbar.hidden = false;
+    if (btnRules) btnRules.hidden = false;
     inputArea.focus();
   });
 
@@ -75,11 +75,6 @@ export function getStdin() {
 
   const raw = input.value;
   if (!raw.trim()) return { valid: true, value: '' };
-
-  const isStrict = $('chk-strict-mode')?.checked ?? true;
-  if (!isStrict) {
-    return { valid: true, value: raw };
-  }
 
   let parsedValue = '';
   let i = 0;
