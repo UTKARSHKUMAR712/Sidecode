@@ -78,9 +78,8 @@
           -->
           <select id="runner-select" title="Select JavaScript runner" hidden>
             <option value="sandbox">&#x1F4BB; Browser</option>
-            <option value="piston">&#x2601; Piston</option>
+            <option value="cloud">&#x2601; Cloud</option>
           </select>
-
           <button id="btn-console-run"   title="Run (Ctrl+Enter)">&#9654; Run</button>
           <button id="btn-console-clear" title="Clear output">&#8856; Clear</button>
           <button id="btn-console-close" title="Close console (Ctrl+&#x60;)">&#10005;</button>
@@ -129,15 +128,24 @@
 
         <!-- JS runner preference -->
         <div class="setting-item">
-          <label for="setting-js-runner" class="setting-label">JavaScript Runner</label>
+          <label for="setting-js-runner" class="setting-label">JavaScript Execution Engine</label>
           <p class="setting-desc">
-            <strong>Browser</strong> runs JS instantly in an in-browser sandbox (offline, no network).<br>
-            <strong>Piston</strong> runs JS via the cloud, same as Python/C++/Java (requires internet).
+            <strong>Browser (sandbox)</strong> runs JS instantly offline with zero latency.<br>
+            <strong>Cloud Runner</strong> runs JS via cloud sandbox.
           </p>
           <select id="setting-js-runner" class="setting-select">
-            <option value="sandbox">&#x1F4BB; Browser (sandbox) — recommended</option>
-            <option value="piston">&#x2601; Piston (cloud)</option>
+            <option value="sandbox">&#x1F4BB; Browser (sandbox) — fast &amp; offline</option>
+            <option value="cloud">&#x2601; Cloud Runner</option>
           </select>
+        </div>
+
+        <!-- Custom Piston Endpoint (Optional) -->
+        <div class="setting-item">
+          <label for="setting-custom-piston" class="setting-label">Custom Piston Server (Optional)</label>
+          <p class="setting-desc">
+            Leave blank to use Compiler Explorer (100% free, no key needed). If you host a private Piston instance, enter its execute URL here.
+          </p>
+          <input id="setting-custom-piston" type="url" class="setting-input" placeholder="https://my-piston-server/api/v2/piston/execute" />
         </div>
 
       </div>

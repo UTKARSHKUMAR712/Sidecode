@@ -3,10 +3,11 @@
  *
  * Coordinates tabs, Monaco editor, console panel and code execution.
  * Supports two execution strategies:
- *   - Sandbox runner  (JS/TS, in-browser, offline)
- *   - Piston runner   (C, C++, Java, Python, Go, Rust, etc. — cloud API, no key needed)
- * For JavaScript/TypeScript the user can choose either runner via a VS Code-style
- * terminal picker in the console header or in Settings.
+ *   - Sandbox runner (in-browser sandbox iframe, offline, zero latency for JS/TS)
+ *   - Cloud runner   (Compiler Explorer / Godbolt by default: C, C++, Java, Python, Go, Rust)
+ *                     Also supports custom user-configured Piston server if provided.
+ *
+ * For JavaScript and TypeScript, users can choose between in-browser sandbox or Cloud runner.
  */
 
 import { storage } from './storage.js';
@@ -16,8 +17,8 @@ import {
   closeConsole,
   clearConsole
 } from './modules/console.js';
-import { initRunner, executeCode }          from './modules/runner.js';
-import { executeViaPiston, isPistonSupported } from './modules/piston.js';
+import { initRunner, executeCode } from './modules/runner.js';
+import { executeViaCloud, isCloudSupported } from './modules/cloudRunner.js';
 import {
   initMonaco,
   createModel,
@@ -49,28 +50,27 @@ import {
 
 const $ = (id) => document.getElementById(id);
 
-// ─── JS runner preference ('sandbox' | 'piston') ────────────────────────────
-let jsRunnerPreference = 'sandbox'; // default; overridden on load
+// ─── Settings state ─────────────────────────────────────────────────────────
+let jsRunnerPreference = 'sandbox'; // 'sandbox' | 'cloud'
+let customPistonUrl = '';
 
 function setJsRunnerPreference(val) {
   jsRunnerPreference = val;
-  // Sync both selects
-  const consoleSelect  = $('runner-select');
+  const consoleSelect = $('runner-select');
   const settingsSelect = $('setting-js-runner');
-  if (consoleSelect  && consoleSelect.value  !== val) consoleSelect.value  = val;
+  if (consoleSelect && consoleSelect.value !== val) consoleSelect.value = val;
   if (settingsSelect && settingsSelect.value !== val) settingsSelect.value = val;
 }
 
 // ─── Decide which runner to use for a given language ────────────────────────
 function pickRunner(language) {
   if (SANDBOX_LANGUAGES.has(language)) {
-    // JS/TS: user's choice
     return jsRunnerPreference;
   }
-  if (isPistonSupported(language)) {
-    return 'piston';
+  if (isCloudSupported(language) || customPistonUrl) {
+    return 'cloud';
   }
-  return null; // not runnable
+  return null;
 }
 
 // ─── Execute current tab's code ─────────────────────────────────────────────
@@ -81,14 +81,13 @@ async function handleRunCode() {
   const model = getModel(tab.id);
   if (!model) return;
 
-  const code     = model.getValue();
-  const runner   = pickRunner(tab.language);
+  const code = model.getValue();
+  const runner = pickRunner(tab.language);
 
   if (!runner) {
-    // Language not runnable — show a friendly message
     import('./modules/console.js').then(({ openConsole, appendLine, appendRunBadge, setExecTime }) => {
       openConsole();
-      appendLine('warn', `"${tab.language}" does not have a runner configured yet.`);
+      appendLine('warn', `Language "${tab.language}" does not have an execution engine configured.`);
       appendRunBadge('Not runnable', true);
       setExecTime('—');
     });
@@ -98,19 +97,19 @@ async function handleRunCode() {
   if (runner === 'sandbox') {
     await executeCode(code, tab.language, model);
   } else {
-    await executeViaPiston(code, tab.language);
+    await executeViaCloud(code, tab.language, customPistonUrl);
   }
 }
 
 // ─── Show/hide Run button & runner selector based on active language ─────────
 function updateRunControls(language) {
-  const runBtn        = $('btn-run');
-  const runnerSelect  = $('runner-select');
+  const runBtn = $('btn-run');
+  const runnerSelect = $('runner-select');
 
-  const canRun      = RUNNABLE_LANGUAGES.has(language);
-  const isJsOrTs    = SANDBOX_LANGUAGES.has(language);
+  const canRun = RUNNABLE_LANGUAGES.has(language) || (!!customPistonUrl && isCloudSupported(language));
+  const isJsOrTs = SANDBOX_LANGUAGES.has(language);
 
-  if (runBtn)       runBtn.hidden       = !canRun;
+  if (runBtn) runBtn.hidden = !canRun;
   if (runnerSelect) runnerSelect.hidden = !isJsOrTs;
 }
 
@@ -161,7 +160,7 @@ function setupKeyboard() {
     const num = parseInt(e.key, 10);
     if (num >= 1 && num <= 9) {
       const allTabs = getTabs();
-      const target  = allTabs[num - 1];
+      const target = allTabs[num - 1];
       if (target) {
         e.preventDefault();
         activateTab(target.id);
@@ -210,6 +209,12 @@ function wireEventListeners() {
     storage.saveJsRunner(val);
   });
 
+  // Custom Piston endpoint URL
+  $('setting-custom-piston')?.addEventListener('change', (e) => {
+    customPistonUrl = e.target.value.trim();
+    storage.saveCustomPistonUrl(customPistonUrl);
+  });
+
   // Console buttons
   $('btn-console-run')?.addEventListener('click', () => handleRunCode());
   $('btn-console-clear')?.addEventListener('click', clearConsole);
@@ -251,28 +256,31 @@ async function init() {
   setupKeyboard();
 
   // Load saved state from storage
-  const saved             = await storage.load();
-  const savedTabs         = saved.tabs            || [];
-  const savedActiveId     = saved.activeTabId     || null;
-  const savedConsoleHeight= saved.consoleHeight   || 200;
-  const savedDefaultLang  = saved.defaultLanguage || 'javascript';
-  const savedJsRunner     = saved.jsRunner        || 'sandbox';
+  const saved = await storage.load();
+  const savedTabs = saved.tabs || [];
+  const savedActiveId = saved.activeTabId || null;
+  const savedConsoleHeight = saved.consoleHeight || 200;
+  const savedDefaultLang = saved.defaultLanguage || 'javascript';
+  const savedJsRunner = saved.jsRunner || 'sandbox';
+  customPistonUrl = saved.customPistonUrl || '';
 
-  // Apply persisted JS runner preference
+  // Apply persisted settings
   setJsRunnerPreference(savedJsRunner);
 
-  // Initialize Settings UI values
   const defaultLangSelect = $('setting-default-lang');
   if (defaultLangSelect) defaultLangSelect.value = savedDefaultLang;
 
   const jsRunnerSettingEl = $('setting-js-runner');
   if (jsRunnerSettingEl) jsRunnerSettingEl.value = savedJsRunner;
 
+  const customPistonEl = $('setting-custom-piston');
+  if (customPistonEl) customPistonEl.value = customPistonUrl;
+
   // Initialize Console module
   initConsole({
     initialHeight: savedConsoleHeight,
-    onLayout:      layoutEditor,
-    onSaveHeight:  (h) => storage.saveConsoleHeight(h)
+    onLayout: layoutEditor,
+    onSaveHeight: (h) => storage.saveConsoleHeight(h)
   });
 
   // Initialize Sandboxed Runner (for JS/TS)

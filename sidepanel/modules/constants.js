@@ -6,18 +6,17 @@
 export const SANDBOX_LANGUAGES = new Set(['javascript', 'typescript']);
 
 /**
- * Languages supported by the Piston cloud runner.
- * These can be executed by sending code to https://emkc.org/api/v2/piston/execute
+ * Languages supported by the Cloud runner (Godbolt / Compiler Explorer).
+ * These can be executed online via Docker/nsjail containers without any API key.
  */
-export const PISTON_LANGUAGES = new Set([
-  'c', 'cpp', 'java', 'python', 'go', 'rust', 'kotlin',
-  'ruby', 'php', 'swift', 'typescript', 'javascript', 'shell',
+export const CLOUD_LANGUAGES = new Set([
+  'c', 'cpp', 'java', 'python', 'go', 'rust'
 ]);
 
-/** All languages that have a Run button (sandbox or Piston) */
+/** All languages that have a Run button (sandbox or cloud) */
 export const RUNNABLE_LANGUAGES = new Set([
   ...SANDBOX_LANGUAGES,
-  ...PISTON_LANGUAGES,
+  ...CLOUD_LANGUAGES,
 ]);
 
 export const LANG_BADGE = {

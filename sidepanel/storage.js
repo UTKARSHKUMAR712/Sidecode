@@ -64,9 +64,15 @@ export const storage = {
     this._flush();
   },
 
-  /** Persist JS runner preference: 'sandbox' (in-browser) or 'piston' (cloud) */
+  /** Persist JS runner preference: 'sandbox' (in-browser) or 'cloud' */
   saveJsRunner(runner) {
     _cache = { ..._cache, jsRunner: runner };
+    this._flush();
+  },
+
+  /** Persist optional custom Piston URL for self-hosted instances */
+  saveCustomPistonUrl(url) {
+    _cache = { ..._cache, customPistonUrl: url };
     this._flush();
   },
 };
