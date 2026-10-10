@@ -61,12 +61,28 @@ function setupTabs() {
     } else if (activeId === 'input') {
       inputArea.focus();
     }
+
+    const activeTabEl = $(`tab-${activeId}`);
+    if (activeTabEl && typeof activeTabEl.scrollIntoView === 'function') {
+      activeTabEl.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+    }
   }
 
   tabConsole.addEventListener('click', () => switchTab('console'));
   if (tabProblems) tabProblems.addEventListener('click', () => switchTab('problems'));
   tabInput.addEventListener('click', () => switchTab('input'));
   if (tabAssembly) tabAssembly.addEventListener('click', () => switchTab('assembly'));
+
+  // Support mouse wheel horizontal scrolling on the tabs row
+  const tabsRow = $('console-tabs-row');
+  if (tabsRow) {
+    tabsRow.addEventListener('wheel', (e) => {
+      if (e.deltaY !== 0) {
+        tabsRow.scrollLeft += e.deltaY;
+        e.preventDefault();
+      }
+    }, { passive: false });
+  }
 
   // Rules Modal
   const rulesModal = $('rules-modal');

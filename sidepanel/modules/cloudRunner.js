@@ -253,9 +253,9 @@ async function executeViaGodbolt(code, language, stdin = '', libraries = [], tab
       hasError
     );
 
-    // 5. Assembly output
+    // 5. Assembly output (only for compiled system languages, never for JS or TS)
     const asmArray = data.asm || [];
-    if (asmArray.length > 0) {
+    if (language !== 'javascript' && language !== 'typescript' && asmArray.length > 0) {
       setAssemblyTabVisibility(true);
       appendAssemblyLines(asmArray);
     } else {
