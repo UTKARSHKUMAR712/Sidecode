@@ -1,0 +1,348 @@
+/* =========================================================
+   Sidecode — Side Panel Stylesheet v2.0
+   ========================================================= */
+
+/* ── Custom properties ── */
+:root {
+  --bg:          #1e1e1e;
+  --surface:     #252526;
+  --surface2:    #2d2d2d;
+  --surface3:    #333333;
+  --border:      #3c3c3c;
+  --text:        #cccccc;
+  --muted:       #6a6a6a;
+  --accent:      #0e7afe;
+  --accent-h:    #0b68d4;
+  --danger:      #f14c4c;
+  --warn:        #cca700;
+  --ok:          #4ec9b0;
+  --run-green:   #3fb950;
+  --run-green-h: #2ea043;
+  --bar-h:       28px;
+  --console-h:   200px;   /* default console height */
+  --console-min: 80px;
+  --console-max: 70vh;
+  --handle-h:    5px;
+  --r:           4px;
+  --font:        'Segoe UI', system-ui, -apple-system, sans-serif;
+  --mono:        'JetBrains Mono', 'Cascadia Code', 'Fira Code', Consolas, monospace;
+}
+
+/* ── Reset ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  width: 100%; height: 100%; overflow: hidden;
+  font-family: var(--font); font-size: 13px;
+  background: var(--bg); color: var(--text);
+  display: flex; flex-direction: column;
+}
+
+/* ═══════════════════════════════════════════
+   TOP NAV BAR  (slim 28px)
+═══════════════════════════════════════════ */
+#top-bar {
+  flex-shrink: 0;
+  height: var(--bar-h);
+  display: flex;
+  align-items: center;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0 2px;
+  min-width: 0;
+  overflow: hidden;
+  gap: 0;
+}
+
+/* Tab scroll strip */
+#tabs {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  scroll-behavior: smooth;
+  height: 100%;
+}
+#tabs::-webkit-scrollbar { display: none; }
+
+/* Individual tab */
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  height: 100%;
+  padding: 0 8px 0 10px;
+  cursor: pointer;
+  font-size: 11px;
+  color: var(--muted);
+  background: transparent;
+  flex-shrink: 0;
+  max-width: 120px;
+  border-right: 1px solid var(--border);
+  transition: background 0.1s, color 0.1s;
+  user-select: none;
+}
+.tab:hover  { background: var(--surface2); color: var(--text); }
+.tab.active { background: var(--bg); color: var(--text); border-bottom: 2px solid var(--accent); }
+
+.tab-label {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 70px;
+}
+.tab-lang-badge {
+  font-size: 9px; color: var(--muted); background: var(--surface2);
+  padding: 1px 3px; border-radius: 2px; flex-shrink: 0;
+}
+.tab.active .tab-lang-badge { background: var(--border); }
+
+.tab-close {
+  flex-shrink: 0; display: none; align-items: center; justify-content: center;
+  width: 14px; height: 14px; border-radius: 50%;
+  font-size: 10px; line-height: 1; border: none; background: transparent;
+  color: var(--muted); cursor: pointer; padding: 0; margin-left: 2px;
+}
+.tab:hover .tab-close,
+.tab.active .tab-close { display: flex; }
+.tab-close:hover { background: var(--border); color: var(--text); }
+
+/* Bar right actions */
+#bar-actions {
+  display: flex; align-items: center; flex-shrink: 0;
+  gap: 1px; padding-left: 2px; border-left: 1px solid var(--border);
+}
+#bar-actions button {
+  width: 24px; height: 22px; border: none; background: transparent;
+  color: var(--muted); font-size: 13px; cursor: pointer;
+  border-radius: var(--r); display: flex; align-items: center; justify-content: center;
+  transition: background 0.1s, color 0.1s; flex-shrink: 0;
+}
+#bar-actions button:hover { background: var(--surface2); color: var(--text); }
+#btn-close-panel:hover    { color: var(--danger) !important; }
+
+/* Run button */
+#btn-run {
+  color: var(--run-green) !important;
+  font-size: 11px !important;
+}
+#btn-run:hover { background: rgba(63,185,80,0.12) !important; color: var(--run-green) !important; }
+
+/* Language select */
+#lang-select {
+  height: 20px; font-size: 10.5px; background: var(--surface2);
+  border: 1px solid var(--border); border-radius: var(--r); color: var(--text);
+  padding: 0 4px; cursor: pointer; outline: none; max-width: 72px; margin: 0 2px;
+}
+#lang-select:focus { border-color: var(--accent); }
+#lang-select option { background: var(--surface); }
+
+/* ═══════════════════════════════════════════
+   MAIN SPLIT AREA
+═══════════════════════════════════════════ */
+#main-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* ── Editor container ── */
+#editor-container {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  min-height: 60px;
+}
+#editor-container.loading::after {
+  content: 'Loading editor…';
+  position: absolute; inset: 0; display: flex;
+  align-items: center; justify-content: center;
+  color: var(--muted); font-size: 12px;
+}
+
+/* No-tabs placeholder */
+#no-tabs-msg {
+  position: absolute; inset: 0; display: flex;
+  flex-direction: column; align-items: center; justify-content: center;
+  gap: 10px; color: var(--muted); font-size: 12px; pointer-events: none;
+}
+#no-tabs-msg button {
+  pointer-events: all; padding: 5px 14px;
+  border: 1px solid var(--border); border-radius: var(--r);
+  background: var(--surface); color: var(--text); font-size: 12px; cursor: pointer;
+}
+#no-tabs-msg button:hover { background: var(--surface2); border-color: var(--accent); }
+
+/* ═══════════════════════════════════════════
+   RESIZE HANDLE  (VS Code style)
+═══════════════════════════════════════════ */
+#console-resize-handle {
+  flex-shrink: 0;
+  height: var(--handle-h);
+  cursor: ns-resize;
+  background: transparent;
+  position: relative;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+#console-resize-handle[hidden] { display: none; }
+
+#console-resize-bar {
+  width: 100%; height: 1px;
+  background: var(--border);
+  transition: background 0.15s, height 0.1s;
+}
+#console-resize-handle:hover #console-resize-bar,
+#console-resize-handle.dragging #console-resize-bar {
+  background: var(--accent);
+  height: 2px;
+}
+
+/* ═══════════════════════════════════════════
+   CONSOLE PANEL
+═══════════════════════════════════════════ */
+#console-panel {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  height: var(--console-h);
+  min-height: var(--console-min);
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+  overflow: hidden;
+}
+#console-panel[hidden] { display: none; }
+
+/* Console header */
+#console-header {
+  flex-shrink: 0;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0 6px 0 0;
+  gap: 4px;
+}
+
+#console-tabs-row {
+  display: flex;
+  align-items: center;
+  height: 100%;
+}
+
+.console-tab {
+  padding: 0 12px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  font-size: 11.5px;
+  color: var(--muted);
+  cursor: default;
+  border-right: 1px solid var(--border);
+  user-select: none;
+}
+.console-tab.active {
+  color: var(--text);
+  border-bottom: 1px solid var(--accent);
+  background: var(--bg);
+}
+
+#console-actions {
+  display: flex; align-items: center; gap: 3px; flex-shrink: 0;
+}
+
+#console-exec-time {
+  font-size: 10px; color: var(--muted); font-family: var(--mono);
+  padding: 0 4px; user-select: none;
+}
+
+#console-actions button {
+  height: 20px; padding: 0 7px; border: none; border-radius: var(--r);
+  background: transparent; color: var(--muted); font-size: 11px;
+  cursor: pointer; display: flex; align-items: center; gap: 3px;
+  transition: background 0.1s, color 0.1s; white-space: nowrap;
+}
+#console-actions button:hover { background: var(--surface2); color: var(--text); }
+
+#btn-console-run   { color: var(--run-green) !important; }
+#btn-console-run:hover { background: rgba(63,185,80,0.12) !important; }
+#btn-console-close:hover { color: var(--danger) !important; }
+
+/* Console output area */
+#console-output {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 6px 0;
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.55;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+#console-output::-webkit-scrollbar       { width: 5px; }
+#console-output::-webkit-scrollbar-track { background: transparent; }
+#console-output::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+/* Welcome hint */
+#console-welcome { padding: 4px 10px; }
+.cw-dim { color: var(--muted); font-size: 11.5px; }
+.cw-dim kbd {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 3px; padding: 0 4px; font-family: var(--mono); font-size: 10px;
+}
+
+/* ── Console log lines ── */
+.con-line {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 1px 10px;
+  min-height: 20px;
+  white-space: pre-wrap;
+  word-break: break-all;
+  border-left: 2px solid transparent;
+}
+.con-line:hover { background: rgba(255,255,255,0.03); }
+
+.con-line.log   { color: var(--text); }
+.con-line.info  { color: #9cdcfe; border-left-color: #9cdcfe44; }
+.con-line.warn  { color: var(--warn); background: rgba(204,167,0,0.05); border-left-color: var(--warn); }
+.con-line.error { color: var(--danger); background: rgba(241,76,76,0.07); border-left-color: var(--danger); }
+.con-line.system { color: var(--muted); font-style: italic; }
+.con-line.result { color: var(--ok); }
+
+.con-prefix {
+  flex-shrink: 0;
+  width: 14px;
+  text-align: center;
+  font-size: 11px;
+  margin-top: 2px;
+  opacity: 0.7;
+}
+
+.con-text { flex: 1; min-width: 0; }
+
+/* Divider between runs */
+.con-divider {
+  height: 1px; background: var(--border);
+  margin: 4px 10px; opacity: 0.5;
+}
+
+/* Run badge */
+.con-run-badge {
+  display: flex; align-items: center; gap: 6px;
+  padding: 2px 10px; font-size: 10.5px;
+  color: var(--muted); font-family: var(--mono);
+}
+.con-run-badge .badge-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--run-green); flex-shrink: 0;
+}
+.con-run-badge.error-run .badge-dot { background: var(--danger); }

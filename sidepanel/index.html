@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sidecode</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ── Top Nav Bar ── -->
+  <div id="top-bar">
+    <div id="tabs" role="tablist"></div>
+
+    <div id="bar-actions">
+      <button id="btn-new-tab" title="New tab (Ctrl+T)" aria-label="New tab">+</button>
+
+      <select id="lang-select" title="Select language" aria-label="Select language">
+        <option value="plaintext">Text</option>
+        <option value="javascript">JS</option>
+        <option value="typescript">TS</option>
+        <option value="html">HTML</option>
+        <option value="css">CSS</option>
+        <option value="json">JSON</option>
+        <option value="python">Python</option>
+        <option value="java">Java</option>
+        <option value="csharp">C#</option>
+        <option value="cpp">C++</option>
+        <option value="c">C</option>
+        <option value="go">Go</option>
+        <option value="rust">Rust</option>
+        <option value="php">PHP</option>
+        <option value="ruby">Ruby</option>
+        <option value="swift">Swift</option>
+        <option value="kotlin">Kotlin</option>
+        <option value="sql">SQL</option>
+        <option value="shell">Shell</option>
+        <option value="yaml">YAML</option>
+        <option value="markdown">MD</option>
+        <option value="xml">XML</option>
+      </select>
+
+      <!-- Run button — shown only for JS/TS -->
+      <button id="btn-run" title="Run code (Ctrl+Enter)" aria-label="Run" hidden>&#9654;</button>
+
+      <button id="btn-close-panel" title="Close Sidecode (Ctrl+Shift+Z)" aria-label="Close">&#10005;</button>
+    </div>
+  </div>
+
+  <!-- ── Main split area ── -->
+  <div id="main-area">
+
+    <!-- Editor -->
+    <div id="editor-container"></div>
+
+    <!-- Drag-to-resize handle (VS Code style) -->
+    <div id="console-resize-handle" hidden>
+      <div id="console-resize-bar"></div>
+    </div>
+
+    <!-- Console panel -->
+    <div id="console-panel" hidden>
+      <div id="console-header">
+        <div id="console-tabs-row">
+          <span class="console-tab active">Console</span>
+        </div>
+        <div id="console-actions">
+          <span id="console-exec-time"></span>
+          <button id="btn-console-run"   title="Run (Ctrl+Enter)">&#9654; Run</button>
+          <button id="btn-console-clear" title="Clear output">&#8856; Clear</button>
+          <button id="btn-console-close" title="Close terminal (Ctrl+\`)">&#10005;</button>
+        </div>
+      </div>
+      <div id="console-output">
+        <div id="console-welcome">
+          <span class="cw-dim">// Press <kbd>Ctrl+Enter</kbd> or click <strong>&#9654; Run</strong> to execute JS</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Monaco (local bundle) -->
+  <script src="vs/loader.js"></script>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
