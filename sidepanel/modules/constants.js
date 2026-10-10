@@ -30,15 +30,18 @@ export const LANG_BADGE = {
 };
 
 export const DEFAULT_TEMPLATES = {
-  javascript: '// JavaScript\nconsole.log("Hello, World!");\n',
-  typescript: '// TypeScript\nconst greet = (name: string): string => `Hello, ${name}!`;\nconsole.log(greet("World"));\n',
-  html: '<!DOCTYPE html>\n<html lang="en">\n<head>\n  <meta charset="UTF-8" />\n  <title>Document</title>\n</head>\n<body>\n  <h1>Hello, World!</h1>\n</body>\n</html>\n',
-  css: '/* Styles */\nbody {\n  margin: 0;\n  font-family: system-ui, sans-serif;\n  background: #1e1e1e;\n  color: #fff;\n}\n',
-  python: '# Python\nprint("Hello, World!")\n',
-  json: '{\n  "name": "sidecode",\n  "version": "1.0.0"\n}\n',
-  sql: '-- SQL Query\nSELECT *\nFROM users\nWHERE active = 1;\n',
-  shell: '#!/bin/bash\necho "Hello, World!"\n',
-  markdown: '# Sidecode\n\nA lightweight Monaco-powered code editor in your sidebar.\n\n- Multi-tab\n- Persistent storage\n- JS/TS runner\n',
+  javascript: '',
+  typescript: '',
+  c: '#include <stdio.h>\n\nint main() {\n    \n    return 0;\n}\n',
+  cpp: '#include <iostream>\n\nusing namespace std;\n\nint main() {\n    \n    return 0;\n}\n',
+  java: 'public class Main {\n    public static void main(String[] args) {\n        \n    }\n}\n',
+  python: '',
+  html: '<!DOCTYPE html>\n<html lang="en">\n<head>\n  <meta charset="UTF-8" />\n  <title>Document</title>\n</head>\n<body>\n  \n</body>\n</html>\n',
+  css: '/* Styles */\nbody {\n  margin: 0;\n  padding: 0;\n  box-sizing: border-box;\n}\n',
+  json: '{\n  \n}\n',
+  sql: '',
+  shell: '#!/bin/bash\n\n',
+  markdown: '',
 };
 
 export function getDefaultContent(lang) {

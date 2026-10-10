@@ -1,9 +1,4 @@
-/**
- * editor.js — Monaco Editor Manager for Sidecode
- *
- * Configures static web workers (compliant with MV3 CSP),
- * editor options, auto-completion, model swapping and syntax services.
- */
+import { registerAllLanguageCompletions } from './completions.js';
 
 let editor = null;
 let isMonacoReady = false;
@@ -71,7 +66,7 @@ export function initMonaco(containerEl, onRunCommand) {
         acceptSuggestionOnEnter: 'smart',
         tabCompletion: 'on',
         snippetSuggestions: 'top',
-        wordBasedSuggestions: 'currentDocument',
+        wordBasedSuggestions: 'allDocuments',
         bracketPairColorization: { enabled: true },
         guides: { indentation: true, bracketPairs: true },
         suggest: {
@@ -107,9 +102,10 @@ export function initMonaco(containerEl, onRunCommand) {
         });
         window.monaco.languages.typescript.javascriptDefaults.setEagerModelSync(true);
         window.monaco.languages.typescript.typescriptDefaults.setEagerModelSync(true);
-
-        registerJsCompletions();
       }
+
+      // Register rich completions and snippets for Python, C, C++, Java, Go, Rust, SQL, JS, TS, etc.
+      registerAllLanguageCompletions(window.monaco);
 
       // Add Ctrl+Enter command to run code
       if (onRunCommand) {
@@ -123,99 +119,6 @@ export function initMonaco(containerEl, onRunCommand) {
       resolve(editor);
     });
   });
-}
-
-function registerJsCompletions() {
-  const snippets = [
-    {
-      label: 'console.log',
-      kind: window.monaco.languages.CompletionItemKind.Snippet,
-      insertText: 'console.log(${1:value});',
-      insertTextRules: window.monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-      documentation: 'Log output to console',
-      detail: 'console.log(...)'
-    },
-    {
-      label: 'console.error',
-      kind: window.monaco.languages.CompletionItemKind.Snippet,
-      insertText: 'console.error(${1:error});',
-      insertTextRules: window.monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-      documentation: 'Log error to console',
-      detail: 'console.error(...)'
-    },
-    {
-      label: 'console.warn',
-      kind: window.monaco.languages.CompletionItemKind.Snippet,
-      insertText: 'console.warn(${1:warning});',
-      insertTextRules: window.monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-      documentation: 'Log warning to console',
-      detail: 'console.warn(...)'
-    },
-    {
-      label: 'console.table',
-      kind: window.monaco.languages.CompletionItemKind.Snippet,
-      insertText: 'console.table(${1:data});',
-      insertTextRules: window.monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-      documentation: 'Display tabular data as a table',
-      detail: 'console.table(...)'
-    },
-    {
-      label: 'console.clear',
-      kind: window.monaco.languages.CompletionItemKind.Snippet,
-      insertText: 'console.clear();',
-      insertTextRules: window.monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-      documentation: 'Clear console output',
-      detail: 'console.clear()'
-    },
-    {
-      label: 'console',
-      kind: window.monaco.languages.CompletionItemKind.Variable,
-      insertText: 'console',
-      documentation: 'The console object provides access to the browser debugging console',
-      detail: 'Console'
-    },
-    {
-      label: 'const',
-      kind: window.monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'const ${1:name} = ${2:value};',
-      insertTextRules: window.monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-      documentation: 'Declare a block-scoped constant',
-      detail: 'const declaration'
-    },
-    {
-      label: 'let',
-      kind: window.monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'let ${1:name} = ${2:value};',
-      insertTextRules: window.monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-      documentation: 'Declare a block-scoped variable',
-      detail: 'let declaration'
-    },
-    {
-      label: 'function',
-      kind: window.monaco.languages.CompletionItemKind.Snippet,
-      insertText: 'function ${1:name}(${2:params}) {\n\t${3}\n}',
-      insertTextRules: window.monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-      documentation: 'Declare a function',
-      detail: 'function statement'
-    }
-  ];
-
-  const provider = {
-    provideCompletionItems(model, position) {
-      const word = model.getWordUntilPosition(position);
-      const range = {
-        startLineNumber: position.lineNumber,
-        endLineNumber: position.lineNumber,
-        startColumn: word.startColumn,
-        endColumn: word.endColumn
-      };
-      const suggestions = snippets.map((s) => ({ ...s, range }));
-      return { suggestions };
-    }
-  };
-
-  window.monaco.languages.registerCompletionItemProvider('javascript', provider);
-  window.monaco.languages.registerCompletionItemProvider('typescript', provider);
 }
 
 export function createModel(tab, onContentChange) {
