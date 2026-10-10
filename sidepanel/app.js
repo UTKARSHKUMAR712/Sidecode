@@ -16,8 +16,7 @@ import {
   toggleConsole,
   closeConsole,
   clearConsole,
-  getStdin,
-  setAssemblyTabVisibility
+  getStdin
 } from './modules/console.js';
 import { initRunner, executeCode } from './modules/runner.js';
 import { executeViaCloud, isCloudSupported } from './modules/cloudRunner.js';
@@ -134,11 +133,6 @@ function updateRunControls(language) {
 
   if (runBtn) runBtn.hidden = !canRun;
   if (runnerSelect) runnerSelect.hidden = !isJsOrTs;
-
-  // Never show Assembly tab for JS / TS
-  if (isJsOrTs) {
-    setAssemblyTabVisibility(false);
-  }
 }
 
 // ─── Keyboard shortcuts ──────────────────────────────────────────────────────

@@ -68,8 +68,8 @@
         <div id="console-tabs-row">
           <span class="console-tab active" id="tab-console">Console</span>
           <span class="console-tab" id="tab-input">Input (stdin)</span>
-          <span class="console-tab" id="tab-assembly" hidden>Assembly</span>
           <span class="console-tab" id="tab-problems">Problems <span id="problems-badge" class="problems-badge" hidden>0</span></span>
+          <span class="console-tab" id="tab-assembly">Assembly</span>
         </div>
         <div id="console-actions">
           <!--
@@ -96,12 +96,6 @@
         <button id="btn-input-rules" title="View Input Rules" style="position: absolute; top: 8px; right: 12px; font-size:14px; background:none; border:none; color:var(--muted); cursor:pointer; padding:0; z-index:10;" hidden>&#9416;</button>
         <textarea id="console-input" spellcheck="false" placeholder="Enter standard input (stdin) here.&#10;&#10;STRICT RULES:&#10;1. Strings MUST be wrapped in double quotes (&quot;Alice&quot;).&#10;   (Use backticks `...` for raw strings with quotes).&#10;2. Numbers &amp; Booleans do not need quotes (10, true).&#10;3. Arrays are supported! ([1, 2, 3]).&#10;4. Use newlines (Enter) to separate multiple inputs.&#10;&#10;Click ⓘ in the top right for details." hidden></textarea>
         
-        <div id="console-assembly" hidden>
-          <div id="assembly-welcome">
-            <span class="cw-dim">// Assembly output will appear here after compilation.</span>
-          </div>
-        </div>
-
         <!-- Problems panel -->
         <div id="console-problems" hidden>
           <div class="problems-header-bar">
@@ -112,6 +106,13 @@
             <span class="cw-dim">// No problems detected in the workspace.</span>
           </div>
           <div id="problems-list" class="problems-list" hidden></div>
+        </div>
+
+        <!-- Assembly panel -->
+        <div id="console-assembly" hidden>
+          <div id="assembly-welcome">
+            <span class="cw-dim">// Assembly output will appear here after compilation.</span>
+          </div>
         </div>
       </div>
     </div>

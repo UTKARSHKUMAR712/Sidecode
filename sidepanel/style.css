@@ -260,6 +260,9 @@ html, body {
   white-space: nowrap;
   flex-shrink: 0;
 }
+.console-tab[hidden] {
+  display: none !important;
+}
 .console-tab:hover {
   color: var(--text);
   background: var(--surface2);

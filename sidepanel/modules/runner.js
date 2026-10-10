@@ -5,7 +5,7 @@
  * without violating Chrome Extension MV3 Content Security Policy.
  */
 
-import { openConsole, isConsoleOpen, appendLine, appendDivider, appendRunBadge, setExecTime, setAssemblyTabVisibility } from './console.js';
+import { openConsole, isConsoleOpen, appendLine, appendDivider, appendRunBadge, setExecTime } from './console.js';
 
 let sandboxIframe = null;
 let currentRunId = 0;
@@ -42,7 +42,6 @@ export async function executeCode(rawCode, language = 'javascript', monacoModel 
   }
 
   appendDivider();
-  setAssemblyTabVisibility(false);
   setExecTime('Running...');
 
   let codeToRun = rawCode;
