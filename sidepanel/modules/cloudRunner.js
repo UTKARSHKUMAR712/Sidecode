@@ -128,11 +128,16 @@ async function executeViaGodbolt(code, language, stdin = '') {
         labels: true,
         directives: true,
         commentOnly: true
-      }
+      },
+      tools: []
     },
     lang: config.lang,
     allowStoreCodeDebug: true
   };
+
+  if (language === 'c' || language === 'cpp') {
+    asmPayload.options.tools.push({ id: 'clangtidytrunk', args: '-checks=*' });
+  }
 
   debugLog('info', `Starting Godbolt compilation for ${language}`, { execPayload });
 
@@ -163,6 +168,7 @@ async function executeViaGodbolt(code, language, stdin = '') {
     if (resAsm.ok) {
       asmData = await resAsm.json();
       data.asm = asmData.asm; // Merge assembly back into the data object
+      data.tools = asmData.tools; // Merge tools back into the data object
     }
     const duration = Math.round(performance.now() - startTime);
     const timeStr = duration < 1 ? '<1ms' : `${duration}ms`;
@@ -206,6 +212,24 @@ async function executeViaGodbolt(code, language, stdin = '') {
       if (text.trim()) {
         appendLine('error', text);
         hasError = true;
+      }
+    }
+
+    // 4.5 Tool Output (clang-tidy / cppcheck)
+    const tools = data.tools || [];
+    for (const tool of tools) {
+      if (tool.stdout && tool.stdout.length > 0) {
+        appendLine('system', `--- ${tool.name} ---`);
+        for (const item of tool.stdout) {
+          if (item.tag) {
+            // Godbolt gives us nice tags with line/col and severity
+            const { line, column, text: tagText, severity } = item.tag;
+            const prefix = severity === 2 ? 'error' : (severity === 1 ? 'warn' : 'info');
+            appendLine(prefix, `L${line}:${column} - ${tagText}`);
+          } else if (item.text) {
+            appendLine('system', item.text);
+          }
+        }
       }
     }
 

@@ -126,7 +126,12 @@ async function handleFormatCode() {
   if (builtinFormatters.includes(lang)) {
     import('./modules/editor.js').then(({ getEditor }) => {
       const ed = getEditor();
-      if (ed) ed.getAction('editor.action.formatDocument').run();
+      if (ed) {
+        ed.trigger('anyString', 'editor.action.formatDocument');
+        import('./modules/console.js').then(({ appendLine }) => {
+          appendLine('system', `Formatted using browser built-in formatter.`);
+        });
+      }
     });
     return;
   }
@@ -137,10 +142,12 @@ async function handleFormatCode() {
   else if (lang === 'go') formatter = 'gofmt';
 
   if (!formatter) {
-    import('./modules/console.js').then(({ openConsole, appendLine }) => {
-      openConsole();
-      appendLine('warn', `No remote formatter available for language: ${lang}`);
-    });
+    if (lang !== 'python') {
+      import('./modules/console.js').then(({ openConsole, appendLine }) => {
+        openConsole();
+        appendLine('warn', `No remote formatter available for language: ${lang}`);
+      });
+    }
     return;
   }
 
