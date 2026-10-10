@@ -34,6 +34,7 @@ function setupTabs() {
   const tabInput = $('tab-input');
   const outputArea = $('console-output');
   const inputArea = $('console-input');
+  const inputToolbar = $('input-toolbar');
 
   if (!tabConsole || !tabInput) return;
 
@@ -42,6 +43,7 @@ function setupTabs() {
     tabInput.classList.remove('active');
     outputArea.hidden = false;
     inputArea.hidden = true;
+    if (inputToolbar) inputToolbar.hidden = true;
     outputArea.scrollTop = outputArea.scrollHeight;
   });
 
@@ -50,7 +52,20 @@ function setupTabs() {
     tabConsole.classList.remove('active');
     inputArea.hidden = false;
     outputArea.hidden = true;
+    if (inputToolbar) inputToolbar.hidden = false;
     inputArea.focus();
+  });
+
+  // Rules Modal
+  const rulesModal = $('rules-modal');
+  $('btn-input-rules')?.addEventListener('click', () => {
+    if (rulesModal) rulesModal.hidden = false;
+  });
+  $('btn-close-rules')?.addEventListener('click', () => {
+    if (rulesModal) rulesModal.hidden = true;
+  });
+  rulesModal?.addEventListener('click', (e) => {
+    if (e.target === rulesModal) rulesModal.hidden = true;
   });
 }
 
@@ -61,24 +76,38 @@ export function getStdin() {
   const raw = input.value;
   if (!raw.trim()) return { valid: true, value: '' };
 
+  const isStrict = $('chk-strict-mode')?.checked ?? true;
+  if (!isStrict) {
+    return { valid: true, value: raw };
+  }
+
   let parsedValue = '';
   let i = 0;
   
   while (i < raw.length) {
+    // 1. Whitespace
     if (/\s/.test(raw[i])) {
       parsedValue += raw[i];
       i++;
       continue;
     }
     
+    // 2. String
     if (raw[i] === '"') {
       i++;
       let str = '';
-      while (i < raw.length && raw[i] !== '"') {
-        str += raw[i];
-        i++;
+      while (i < raw.length) {
+        if (raw[i] === '\\' && raw[i+1] === '"') {
+          str += '"';
+          i += 2;
+        } else if (raw[i] === '"') {
+          break;
+        } else {
+          str += raw[i];
+          i++;
+        }
       }
-      if (i >= raw.length) {
+      if (i >= raw.length || raw[i] !== '"') {
         return { valid: false, error: 'Unclosed double quote in input.' };
       }
       i++; // Skip closing quote
@@ -86,17 +115,60 @@ export function getStdin() {
       continue;
     }
     
+    // 3. Array
+    if (raw[i] === '[') {
+      let arrayStr = '';
+      let brackets = 0;
+      let inString = false;
+      while (i < raw.length) {
+        let char = raw[i];
+        if (char === '"' && raw[i-1] !== '\\') {
+          inString = !inString;
+        }
+        if (!inString) {
+          if (char === '[') brackets++;
+          if (char === ']') brackets--;
+        }
+        
+        arrayStr += char;
+        i++;
+        
+        if (brackets === 0) break;
+      }
+      
+      if (brackets > 0) {
+        return { valid: false, error: 'Unclosed array bracket "[".' };
+      }
+      
+      try {
+        let arr = JSON.parse(arrayStr);
+        let flatten = arr.flat(Infinity).map(item => String(item)).join(' ');
+        parsedValue += flatten;
+      } catch (e) {
+        return { valid: false, error: `Invalid array format: ${arrayStr}. Ensure it uses double quotes for strings.` };
+      }
+      continue;
+    }
+    
+    // 4. Numbers & Booleans
     let token = '';
-    while (i < raw.length && !/\s/.test(raw[i]) && raw[i] !== '"') {
+    while (i < raw.length && !/\s/.test(raw[i]) && raw[i] !== '"' && raw[i] !== '[' && raw[i] !== ']') {
       token += raw[i];
       i++;
     }
     
-    // Check if the token is a valid number
+    if (!token) {
+      if (raw[i] === ']') return { valid: false, error: 'Unexpected closing bracket "]".' };
+      i++;
+      continue;
+    }
+    
     if (!isNaN(Number(token)) && token.trim() !== '') {
       parsedValue += token;
+    } else if (token === 'true' || token === 'false' || token === 'null') {
+      parsedValue += token;
     } else {
-      return { valid: false, error: `Validation Error: '${token}' is not a valid number. All text strings must be wrapped in double quotes ("").` };
+      return { valid: false, error: `Validation Error: '${token}' is not recognized. Strings must be wrapped in quotes ("").` };
     }
   }
 

@@ -92,10 +92,37 @@
             <span class="cw-dim">// Press <kbd>Ctrl+Enter</kbd> or click <strong>&#9654; Run</strong> to execute code</span>
           </div>
         </div>
-        <textarea id="console-input" spellcheck="false" placeholder="Enter standard input (stdin) here.&#10;&#10;STRICT RULES:&#10;1. All text strings MUST be wrapped in double quotes (e.g., &quot;Alice&quot;).&#10;2. Numbers do not need quotes (e.g., 10, 20.5).&#10;3. Separate multiple inputs with newlines.&#10;&#10;Example:&#10;10&#10;&quot;Alice&quot;" hidden></textarea>
+        
+        <div id="input-toolbar" hidden style="display:flex; justify-content:space-between; align-items:center; padding: 4px 10px; background: var(--surface2); border-bottom: 1px solid var(--border);">
+          <label style="font-size:11px; display:flex; align-items:center; gap:4px; color:var(--text); cursor:pointer;">
+            <input type="checkbox" id="chk-strict-mode" checked> Strict Typing Rules
+          </label>
+          <button id="btn-input-rules" style="font-size:11px; background:none; border:none; color:var(--accent); cursor:pointer; padding:0;">View Rules</button>
+        </div>
+        <textarea id="console-input" spellcheck="false" placeholder="Enter standard input (stdin) here.&#10;&#10;STRICT RULES:&#10;1. Strings MUST be wrapped in double quotes (&quot;Alice&quot;).&#10;2. Numbers &amp; Booleans do not need quotes (10, true).&#10;3. Arrays are supported! ([1, 2, 3]).&#10;&#10;Click 'View Rules' for details." hidden></textarea>
       </div>
     </div>
 
+  </div>
+
+  <!-- ── Rules Modal ── -->
+  <div id="rules-modal" class="modal-overlay" hidden>
+    <div class="modal-card">
+      <div class="modal-header">
+        <span class="modal-title">Input Typing Rules</span>
+        <button id="btn-close-rules" class="modal-close-btn" title="Close Rules">&#10005;</button>
+      </div>
+      <div class="modal-body" style="font-size: 13px; line-height: 1.5; color: var(--text);">
+        <p>When <strong>Strict Typing Rules</strong> is enabled, Sidecode validates your input before sending it to the compiler:</p>
+        <ul style="padding-left: 20px; margin-bottom: 10px;">
+          <li><strong>Numbers:</strong> Type normally (e.g., <code>10</code>, <code>-3.14</code>).</li>
+          <li><strong>Booleans:</strong> Type <code>true</code>, <code>false</code>, or <code>null</code>.</li>
+          <li><strong>Strings:</strong> MUST be wrapped in double quotes (e.g., <code>"Hello"</code>). To include a quote inside a string, escape it (e.g., <code>"Say \"Hi\""</code>).</li>
+          <li><strong>Arrays:</strong> Wrap comma-separated values in brackets (e.g., <code>[1, 2, "Alice"]</code>). Arrays are automatically flattened into space-separated values for the compiler.</li>
+        </ul>
+        <p>If you uncheck Strict Mode, Sidecode acts like a raw Linux terminal (what you type is exactly what the program receives without any parsing).</p>
+      </div>
+    </div>
   </div>
 
   <!-- ── Settings Modal ── -->
