@@ -75,4 +75,10 @@ export const storage = {
     _cache = { ..._cache, customPistonUrl: url };
     this._flush();
   },
+
+  /** Persist IDE settings */
+  saveIdeSettings(settings) {
+    _cache = { ..._cache, ideSettings: settings };
+    this._flush();
+  }
 };

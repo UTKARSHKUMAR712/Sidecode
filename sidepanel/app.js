@@ -27,7 +27,8 @@ import {
   setEditorModel,
   setModelLanguage,
   getModel,
-  layoutEditor
+  layoutEditor,
+  applyIdeSettingsToEditor
 } from './modules/editor.js';
 import {
   getDefaultContent,
@@ -226,6 +227,31 @@ function wireEventListeners() {
     storage.saveCustomPistonUrl(customPistonUrl);
   });
 
+  // IDE Settings
+  const ideSettings = {
+    fontSize: 12,
+    tabSize: 2,
+    wordWrap: false
+  };
+
+  function updateIdeSettings() {
+    ideSettings.fontSize = parseInt($('setting-font-size').value, 10);
+    ideSettings.tabSize = parseInt($('setting-tab-size').value, 10);
+    ideSettings.wordWrap = $('setting-word-wrap').checked;
+    
+    // Apply to monaco
+    applyIdeSettingsToEditor(ideSettings);
+    
+    // Apply to console
+    document.documentElement.style.setProperty('--ide-font-size', `${ideSettings.fontSize}px`);
+
+    storage.saveIdeSettings(ideSettings);
+  }
+
+  $('setting-font-size')?.addEventListener('change', updateIdeSettings);
+  $('setting-tab-size')?.addEventListener('change', updateIdeSettings);
+  $('setting-word-wrap')?.addEventListener('change', updateIdeSettings);
+
   // Open Debug Zone
   $('btn-open-debug')?.addEventListener('click', () => {
     chrome.tabs.create({ url: chrome.runtime.getURL('debug/index.html') });
@@ -292,6 +318,13 @@ async function init() {
   const customPistonEl = $('setting-custom-piston');
   if (customPistonEl) customPistonEl.value = customPistonUrl;
 
+  // Apply IDE settings
+  const savedIdeSettings = saved.ideSettings || { fontSize: 13, tabSize: 2, wordWrap: true };
+  if ($('setting-font-size')) $('setting-font-size').value = savedIdeSettings.fontSize;
+  if ($('setting-tab-size')) $('setting-tab-size').value = savedIdeSettings.tabSize;
+  if ($('setting-word-wrap')) $('setting-word-wrap').checked = savedIdeSettings.wordWrap;
+  document.documentElement.style.setProperty('--ide-font-size', `${savedIdeSettings.fontSize}px`);
+
   // Initialize Console module
   initConsole({
     initialHeight: savedConsoleHeight,
@@ -333,6 +366,7 @@ async function init() {
 
   // Boot Monaco Editor
   await initMonaco(editorContainer, handleRunCode);
+  applyIdeSettingsToEditor(savedIdeSettings);
   if (editorContainer) editorContainer.classList.remove('loading');
 
   // Create Monaco models for all saved tabs

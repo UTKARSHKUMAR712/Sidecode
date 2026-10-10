@@ -155,6 +155,16 @@ export function deleteModel(tabId) {
   }
 }
 
+export function applyIdeSettingsToEditor(settings) {
+  if (editor) {
+    editor.updateOptions({
+      fontSize: settings.fontSize || 13,
+      tabSize: settings.tabSize || 2,
+      wordWrap: settings.wordWrap ? 'on' : 'off'
+    });
+  }
+}
+
 export function setEditorModel(tabId) {
   if (!editor) return;
   const model = models.get(tabId);

@@ -152,7 +152,32 @@
             <option value="plaintext">Plain Text</option>
           </select>
         </div>
+        <!-- IDE Settings -->
+        <div class="setting-item">
+          <label for="setting-font-size" class="setting-label">Font Size</label>
+          <select id="setting-font-size" class="setting-select">
+            <option value="12">12px</option>
+            <option value="13">13px</option>
+            <option value="14">14px</option>
+            <option value="16">16px</option>
+            <option value="18">18px</option>
+            <option value="20">20px</option>
+          </select>
+        </div>
 
+        <div class="setting-item">
+          <label for="setting-tab-size" class="setting-label">Tab Size</label>
+          <select id="setting-tab-size" class="setting-select">
+            <option value="2">2 Spaces</option>
+            <option value="4">4 Spaces</option>
+          </select>
+        </div>
+
+        <div class="setting-item">
+          <label class="setting-label" style="display:flex; align-items:center; gap:8px;">
+            <input type="checkbox" id="setting-word-wrap"> Enable Word Wrap
+          </label>
+        </div>
         <!-- JS runner preference -->
         <div class="setting-item">
           <label for="setting-js-runner" class="setting-label">JavaScript Execution Engine</label>

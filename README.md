@@ -8,11 +8,11 @@ Sidecode is a lightweight, Monaco-powered Integrated Development Environment (ID
 - **Multi-Language Support:** Write code in JavaScript, TypeScript, Python, C, C++, Java, Rust, and Go.
 - **Smart Boilerplates:** Switching to a compiled language like C or Java automatically populates the editor with the minimum required boilerplate so you can start coding immediately.
 - **Integrated Console:** View your program's standard output (stdout), errors (stderr), and execution time directly in the IDE.
-- **Standard Input (`stdin`) Support:** An integrated "Input" tab allows you to supply standard input for algorithms requiring user input.
+- **Standard Input (`stdin`) Support:** An integrated "Input" tab allows you to supply standard input for algorithms requiring user input. Includes a **Strict Typing Parser** that enforces data types (Booleans, Strings, Arrays) before executing.
 - **Hybrid Execution Engine:**
   - **Browser Sandbox:** JavaScript and TypeScript run 100% offline via an isolated sandbox.
   - **Cloud Runner:** System languages (C/C++, Java, Rust, Go, Python) are compiled and executed instantly using a fast Cloud API.
-- **Custom Piston Engine (Self-Hosted):** Privacy-conscious users or power users can provide a custom Piston URL in the Settings menu to bypass public APIs and route execution to their own local Docker container.
+- **Advanced Debug Zone:** A dedicated, real-time logging dashboard to monitor exact API payloads, compiler execution errors, and standard input/output streams. Accessible via Settings.
 
 ## Installation (Developer Mode)
 
@@ -31,8 +31,9 @@ Sidecode is a lightweight, Monaco-powered Integrated Development Environment (ID
 
 - **Run Shortcut:** Press `Ctrl+Enter` while inside the editor to quickly run your code.
 - **Clear Console:** Press the `Clear` button in the console header or re-run code.
-- **Standard Input:** Since cloud execution happens in batches, interactive prompts (like Python's `input()` or C's `scanf()`) will immediately hit EOF unless you provide input upfront. Use the **Input (stdin)** tab in the console panel to write your input before hitting Run.
-- **Settings:** Click the gear icon `⚙` to set your default language or provide a custom execution server URL.
+- **Standard Input:** Since cloud execution happens in batches, interactive prompts (like Python's `input()` or C's `scanf()`) will immediately hit EOF unless you provide input upfront. Use the **Input (stdin)** tab to write your input before hitting Run.
+- **Strict Typing Mode:** Our custom parser enforces data typing. Wrap strings in `"double quotes"`, arrays in `[1,2,3]`, or use `` `backticks` `` for raw strings.
+- **Developer Settings:** Click the gear icon `⚙` to adjust your Font Size, Word Wrap, Tab Size, set your default language, or provide a custom execution server URL.
 
 ## Security
 
