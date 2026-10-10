@@ -113,6 +113,70 @@ async function handleRunCode() {
   }
 }
 
+// ─── Format current tab's code ──────────────────────────────────────────────
+async function handleFormatCode() {
+  const tab = getActiveTab();
+  if (!tab) return;
+  const model = getModel(tab.id);
+  if (!model) return;
+
+  const lang = tab.language;
+  const builtinFormatters = ['javascript', 'typescript', 'html', 'css', 'json', 'markdown'];
+
+  if (builtinFormatters.includes(lang)) {
+    import('./modules/editor.js').then(({ getEditor }) => {
+      const ed = getEditor();
+      if (ed) ed.getAction('editor.action.formatDocument').run();
+    });
+    return;
+  }
+
+  let formatter = null;
+  if (lang === 'c' || lang === 'cpp' || lang === 'java') formatter = 'clangformat';
+  else if (lang === 'rust') formatter = 'rustfmt';
+  else if (lang === 'go') formatter = 'gofmt';
+
+  if (!formatter) {
+    import('./modules/console.js').then(({ openConsole, appendLine }) => {
+      openConsole();
+      appendLine('warn', `No remote formatter available for language: ${lang}`);
+    });
+    return;
+  }
+
+  import('./modules/console.js').then(({ openConsole, appendLine }) => {
+    openConsole();
+    appendLine('system', `Formatting with ${formatter}...`);
+  });
+
+  try {
+    const res = await fetch(`https://godbolt.org/api/format/${formatter}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({ source: model.getValue(), base: 'Google' })
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      if (data.answer) {
+        model.setValue(data.answer);
+        import('./modules/console.js').then(({ appendLine }) => {
+          appendLine('system', `Code formatted successfully.`);
+        });
+      }
+    } else {
+      const err = await res.text();
+      import('./modules/console.js').then(({ appendLine }) => {
+        appendLine('error', `Format failed: ${err}`);
+      });
+    }
+  } catch (err) {
+    import('./modules/console.js').then(({ appendLine }) => {
+      appendLine('error', `Network error during formatting: ${err.message}`);
+    });
+  }
+}
+
 // ─── Show/hide Run button & runner selector based on active language ─────────
 function updateRunControls(language) {
   const runBtn = $('btn-run');
@@ -153,6 +217,13 @@ function setupKeyboard() {
       return;
     }
 
+    // Ctrl+S — format code
+    if (e.key === 's' || e.key === 'S') {
+      e.preventDefault();
+      handleFormatCode();
+      return;
+    }
+
     // Ctrl+T — new tab
     if (e.key === 't' || e.key === 'T') {
       e.preventDefault();
@@ -187,6 +258,7 @@ function wireEventListeners() {
   $('btn-new-tab')?.addEventListener('click', () => createTab());
   $('btn-close-panel')?.addEventListener('click', () => window.close());
   $('btn-run')?.addEventListener('click', () => handleRunCode());
+  $('btn-format')?.addEventListener('click', () => handleFormatCode());
 
   // ── Runner selector in console header (JS/TS only) ──
   $('runner-select')?.addEventListener('change', (e) => {
@@ -365,7 +437,7 @@ async function init() {
   }, savedDefaultLang);
 
   // Boot Monaco Editor
-  await initMonaco(editorContainer, handleRunCode);
+  await initMonaco(editorContainer, handleRunCode, handleFormatCode);
   applyIdeSettingsToEditor(savedIdeSettings);
   if (editorContainer) editorContainer.classList.remove('loading');
 

@@ -4,12 +4,16 @@ let editor = null;
 let isMonacoReady = false;
 const models = new Map();
 
+export function getEditor() {
+  return editor;
+}
+
 /**
  * Initialize Monaco editor
  * @param {HTMLElement} containerEl - DOM container for the editor
- * @param {Function} onRunCommand - Triggered on Ctrl+Enter
+ * @param {Function} onFormatCommand - Triggered on Ctrl+S
  */
-export function initMonaco(containerEl, onRunCommand) {
+export function initMonaco(containerEl, onRunCommand, onFormatCommand) {
   return new Promise((resolve) => {
     // eslint-disable-next-line no-undef
     require.config({ paths: { vs: 'vs' } });
@@ -114,6 +118,14 @@ export function initMonaco(containerEl, onRunCommand) {
         editor.addCommand(
           window.monaco.KeyMod.CtrlCmd | window.monaco.KeyCode.Enter,
           onRunCommand
+        );
+      }
+
+      // Add Ctrl+S command to format code
+      if (onFormatCommand) {
+        editor.addCommand(
+          window.monaco.KeyMod.CtrlCmd | window.monaco.KeyCode.KeyS,
+          onFormatCommand
         );
       }
 
