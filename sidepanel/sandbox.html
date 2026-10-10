@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Sidecode Sandbox</title>
+</head>
+<body>
+  <script>
+    (function() {
+      'use strict';
+
+      function serializeArg(arg) {
+        if (arg === null) return 'null';
+        if (arg === undefined) return 'undefined';
+        if (typeof arg === 'string') return arg;
+        if (typeof arg === 'number' || typeof arg === 'boolean') return String(arg);
+        if (typeof arg === 'function') return '[Function: ' + (arg.name || 'anonymous') + ']';
+        if (typeof arg === 'symbol') return arg.toString();
+        if (arg instanceof Error) {
+          return arg.stack || (arg.name + ': ' + arg.message);
+        }
+        if (typeof arg === 'object') {
+          try {
+            return JSON.stringify(arg, null, 2);
+          } catch (e) {
+            return String(arg);
+          }
+        }
+        return String(arg);
+      }
+
+      function serializeArgs(args) {
+        return Array.from(args).map(serializeArg).join(' ');
+      }
+
+      window.addEventListener('message', async function(event) {
+        const data = event.data;
+        if (!data || data.action !== 'execute') return;
+
+        const { code, runId } = data;
+        const origin = '*';
+        const startTime = performance.now();
+        let hasError = false;
+
+        function post(type, payload) {
+          window.parent.postMessage(Object.assign({ __sidecode: true, runId: runId, type: type }, payload), origin);
+        }
+
+        // Intercept console
+        const origConsole = {
+          log: console.log.bind(console),
+          info: console.info.bind(console),
+          warn: console.warn.bind(console),
+          error: console.error.bind(console),
+          clear: console.clear.bind(console),
+          table: console.table ? console.table.bind(console) : null
+        };
+
+        console.log = function() {
+          origConsole.log.apply(console, arguments);
+          post('output', { level: 'log', text: serializeArgs(arguments) });
+        };
+        console.info = function() {
+          origConsole.info.apply(console, arguments);
+          post('output', { level: 'info', text: serializeArgs(arguments) });
+        };
+        console.warn = function() {
+          origConsole.warn.apply(console, arguments);
+          post('output', { level: 'warn', text: serializeArgs(arguments) });
+        };
+        console.error = function() {
+          hasError = true;
+          origConsole.error.apply(console, arguments);
+          post('output', { level: 'error', text: serializeArgs(arguments) });
+        };
+        console.clear = function() {
+          origConsole.clear.apply(console, arguments);
+          post('clear', {});
+        };
+        console.table = function(tableData) {
+          if (origConsole.table) origConsole.table.apply(console, arguments);
+          post('output', { level: 'log', text: serializeArg(tableData) });
+        };
+
+        const onWindowError = function(msg, url, line, col, error) {
+          hasError = true;
+          const text = error ? (error.stack || error.toString()) : (msg + (line ? ' (line ' + line + ')' : ''));
+          post('output', { level: 'error', text: text });
+          return true;
+        };
+
+        const onUnhandledRejection = function(e) {
+          hasError = true;
+          const reason = e.reason;
+          const text = reason ? (reason.stack || reason.toString()) : 'Unhandled Promise Rejection';
+          post('output', { level: 'error', text: text });
+        };
+
+        window.onerror = onWindowError;
+        window.addEventListener('unhandledrejection', onUnhandledRejection);
+
+        try {
+          // Execute asynchronously allowing top-level await if supported
+          const AsyncFunction = Object.getPrototypeOf(async function(){}).constructor;
+          let fn;
+          try {
+            fn = new AsyncFunction(code);
+          } catch (syntaxErr) {
+            // Direct eval fallback for expressions
+            fn = new AsyncFunction('return (' + code + ')');
+          }
+          const result = await fn();
+          if (result !== undefined) {
+            post('output', { level: 'result', text: serializeArg(result) });
+          }
+        } catch (err) {
+          hasError = true;
+          post('output', { level: 'error', text: err.stack || (err.name + ': ' + err.message) });
+        } finally {
+          const duration = Math.round(performance.now() - startTime);
+          post('done', { hasError: hasError, duration: duration });
+
+          // Restore console
+          console.log = origConsole.log;
+          console.info = origConsole.info;
+          console.warn = origConsole.warn;
+          console.error = origConsole.error;
+          console.clear = origConsole.clear;
+          if (origConsole.table) console.table = origConsole.table;
+          window.onerror = null;
+          window.removeEventListener('unhandledrejection', onUnhandledRejection);
+        }
+      });
+
+      // Signal to parent that sandbox is ready
+      window.parent.postMessage({ __sidecode: true, type: 'sandbox-ready' }, '*');
+    })();
+  </script>
+</body>
+</html>
