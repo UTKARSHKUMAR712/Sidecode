@@ -21,6 +21,8 @@ Sidecode offers a hybrid execution environment for code snippets: an in-browser 
 ### 1. Default Cloud API: Compiler Explorer (Godbolt)
 Sidecode interfaces with `https://godbolt.org/api/compiler/<compiler-id>/compile`.
 
+**Assembly Output:** Because Godbolt is inherently designed for compiler exploration, it natively returns mapped Assembly instructions alongside standard execution stdout. Sidecode parses this response to dynamically populate a dedicated **Assembly tab** in the IDE UI for supported languages.
+
 **Compiler IDs used:**
 - C: `cg141` (GCC 14.1)
 - C++: `cg141` (G++ 14.1)

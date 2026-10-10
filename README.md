@@ -12,6 +12,7 @@ Sidecode is a lightweight, Monaco-powered Integrated Development Environment (ID
 - **Hybrid Execution Engine:**
   - **Browser Sandbox:** JavaScript and TypeScript run 100% offline via an isolated sandbox.
   - **Cloud Runner:** System languages (C/C++, Java, Rust, Go, Python) are compiled and executed instantly using a fast Cloud API.
+- **Assembly Viewer:** A dedicated Assembly tab dynamically displays compiler-generated machine code (mapped to your source code lines) whenever a supported cloud language is compiled (e.g. C, C++, Rust, Go, etc.).
 - **Advanced Debug Zone:** A dedicated, real-time logging dashboard to monitor exact API payloads, compiler execution errors, and standard input/output streams. Accessible via Settings.
 
 ## Installation (Developer Mode)

@@ -34,27 +34,33 @@ function setupTabs() {
   const tabInput = $('tab-input');
   const outputArea = $('console-output');
   const inputArea = $('console-input');
+  const tabAssembly = $('tab-assembly');
+  const asmArea = $('console-assembly');
   const btnRules = $('btn-input-rules');
 
   if (!tabConsole || !tabInput) return;
 
-  tabConsole.addEventListener('click', () => {
-    tabConsole.classList.add('active');
-    tabInput.classList.remove('active');
-    outputArea.hidden = false;
-    inputArea.hidden = true;
-    if (btnRules) btnRules.hidden = true;
-    outputArea.scrollTop = outputArea.scrollHeight;
-  });
+  function switchTab(activeId) {
+    tabConsole.classList.toggle('active', activeId === 'console');
+    tabInput.classList.toggle('active', activeId === 'input');
+    if (tabAssembly) tabAssembly.classList.toggle('active', activeId === 'assembly');
 
-  tabInput.addEventListener('click', () => {
-    tabInput.classList.add('active');
-    tabConsole.classList.remove('active');
-    inputArea.hidden = false;
-    outputArea.hidden = true;
-    if (btnRules) btnRules.hidden = false;
-    inputArea.focus();
-  });
+    outputArea.hidden = activeId !== 'console';
+    inputArea.hidden = activeId !== 'input';
+    if (asmArea) asmArea.hidden = activeId !== 'assembly';
+    
+    if (btnRules) btnRules.hidden = activeId !== 'input';
+
+    if (activeId === 'console') {
+      outputArea.scrollTop = outputArea.scrollHeight;
+    } else if (activeId === 'input') {
+      inputArea.focus();
+    }
+  }
+
+  tabConsole.addEventListener('click', () => switchTab('console'));
+  tabInput.addEventListener('click', () => switchTab('input'));
+  if (tabAssembly) tabAssembly.addEventListener('click', () => switchTab('assembly'));
 
   // Rules Modal
   const rulesModal = $('rules-modal');
@@ -324,9 +330,65 @@ export function clearConsole() {
   if (output) output.innerHTML = '';
   const time = $('console-exec-time');
   if (time) time.textContent = '';
+  clearAssembly();
 }
 
 export function setExecTime(text) {
   const time = $('console-exec-time');
   if (time) time.textContent = text;
+}
+
+// ── Assembly functions ──
+export function setAssemblyTabVisibility(visible) {
+  const tab = $('tab-assembly');
+  if (tab) {
+    if (visible) {
+      tab.hidden = false;
+    } else {
+      tab.hidden = true;
+      if (tab.classList.contains('active')) {
+        $('tab-console')?.click(); // Switch to console if assembly hides
+      }
+    }
+  }
+}
+
+export function clearAssembly() {
+  const asmArea = $('console-assembly');
+  if (asmArea) {
+    asmArea.innerHTML = '<div id="assembly-welcome"><span class="cw-dim">// Assembly output will appear here after compilation.</span></div>';
+  }
+}
+
+export function appendAssemblyLines(asmArray) {
+  const asmArea = $('console-assembly');
+  if (!asmArea) return;
+  
+  const welcome = $('assembly-welcome');
+  if (welcome) welcome.remove();
+
+  const frag = document.createDocumentFragment();
+  for (const item of asmArray) {
+    const text = item.text || '';
+    const srcLine = item.source?.line;
+    
+    const div = document.createElement('div');
+    div.className = 'asm-line';
+    
+    const tSpan = document.createElement('span');
+    tSpan.className = 'asm-text';
+    tSpan.textContent = text;
+    div.appendChild(tSpan);
+    
+    if (srcLine) {
+      const sSpan = document.createElement('span');
+      sSpan.className = 'asm-source';
+      sSpan.textContent = `L${srcLine}`;
+      div.appendChild(sSpan);
+    }
+    
+    frag.appendChild(div);
+  }
+  
+  asmArea.appendChild(frag);
 }

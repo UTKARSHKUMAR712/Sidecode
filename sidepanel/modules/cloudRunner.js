@@ -18,7 +18,9 @@ import {
   appendLine,
   appendDivider,
   appendRunBadge,
-  setExecTime
+  setExecTime,
+  setAssemblyTabVisibility,
+  appendAssemblyLines
 } from './console.js';
 
 import { debugLog } from './logger.js';
@@ -110,7 +112,12 @@ async function executeViaGodbolt(code, language, stdin = '') {
         executorRequest: true
       },
       filters: {
-        execute: true
+        execute: true,
+        intel: true,
+        demangle: true,
+        labels: true,
+        directives: true,
+        commentOnly: true
       },
       executeParameters: {
         args: [],
@@ -203,6 +210,15 @@ async function executeViaGodbolt(code, language, stdin = '') {
       hasError
     );
 
+    // 5. Assembly output
+    const asmArray = data.asm || [];
+    if (asmArray.length > 0) {
+      setAssemblyTabVisibility(true);
+      appendAssemblyLines(asmArray);
+    } else {
+      setAssemblyTabVisibility(false);
+    }
+
     return { hasError, duration };
 
   } catch (err) {
@@ -245,6 +261,7 @@ export async function executeViaCloud(code, language, customPistonUrl = null, st
  * Optional custom Piston execution (for users hosting their own Piston container)
  */
 async function executeViaCustomPiston(code, language, endpoint, stdin = '') {
+  setAssemblyTabVisibility(false);
   appendLine('system', `▶ Running via Custom Piston (${endpoint})`);
 
   const langMap = {
