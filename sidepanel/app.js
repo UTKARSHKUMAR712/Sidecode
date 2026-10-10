@@ -118,7 +118,7 @@ async function handleRunCode() {
       return;
     }
     const activeLibs = getSelectedLibrariesForLanguage(tab.language);
-    await executeViaCloud(code, tab.language, customPistonUrl, stdin.value, activeLibs);
+    await executeViaCloud(code, tab.language, customPistonUrl, stdin.value, activeLibs, tab.id);
   }
 }
 
@@ -178,6 +178,15 @@ function setupKeyboard() {
       return;
     }
 
+    // Ctrl+Alt+A — analyze code
+    if (e.altKey && (e.key === 'a' || e.key === 'A')) {
+      e.preventDefault();
+      import('./modules/analysis.js').then(({ runStandaloneAnalysis }) => {
+        runStandaloneAnalysis(getActiveTab());
+      });
+      return;
+    }
+
     // Ctrl+T — new tab
     if (e.key === 't' || e.key === 'T') {
       e.preventDefault();
@@ -219,6 +228,13 @@ function wireEventListeners() {
     if (modal) modal.hidden = true;
     const tab = getActiveTab();
     openDependenciesModal(tab ? tab.language : 'cpp');
+  });
+
+  // Re-analyze button in Problems panel
+  $('btn-reanalyze')?.addEventListener('click', () => {
+    import('./modules/analysis.js').then(({ runStandaloneAnalysis }) => {
+      runStandaloneAnalysis(getActiveTab());
+    });
   });
 
   // ── Runner selector in console header (JS/TS only) ──
@@ -377,11 +393,17 @@ async function init() {
         setEditorModel(tab.id);
         updateRunControls(tab.language);
         updateDependenciesBadge(tab.language);
+        import('./modules/analysis.js').then(({ restoreProblemsForTab }) => {
+          restoreProblemsForTab(tab.id);
+        });
         storage.saveActiveTab(tab.id);
       } else {
         setEditorModel(null);
         updateRunControls('plaintext');
         updateDependenciesBadge('plaintext');
+        import('./modules/analysis.js').then(({ updateProblemsView }) => {
+          updateProblemsView([]);
+        });
         storage.saveActiveTab(null);
       }
     },

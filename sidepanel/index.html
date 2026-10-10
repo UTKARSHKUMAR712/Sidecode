@@ -67,12 +67,11 @@
       <div id="console-header">
         <div id="console-tabs-row">
           <span class="console-tab active" id="tab-console">Console</span>
+          <span class="console-tab" id="tab-problems">Problems <span id="problems-badge" class="problems-badge" hidden>0</span></span>
           <span class="console-tab" id="tab-input">Input (stdin)</span>
           <span class="console-tab" id="tab-assembly" hidden>Assembly</span>
         </div>
         <div id="console-actions">
-          <span id="console-exec-time"></span>
-
           <!--
             Runner selector — VS Code-style terminal picker.
             Visible only when active language is JavaScript or TypeScript,
@@ -92,6 +91,18 @@
           <div id="console-welcome">
             <span class="cw-dim">// Press <kbd>Ctrl+Enter</kbd> or click <strong>&#9654; Run</strong> to execute code</span>
           </div>
+        </div>
+
+        <!-- Problems panel -->
+        <div id="console-problems" hidden>
+          <div class="problems-header-bar">
+            <span id="problems-summary-text" class="problems-summary-text">No problems detected</span>
+            <button id="btn-reanalyze" class="btn-problems-reanalyze" title="Run Static Analysis">↻ Analyze</button>
+          </div>
+          <div id="problems-empty" class="problems-empty">
+            <span class="cw-dim">// No problems detected in the workspace.</span>
+          </div>
+          <div id="problems-list" class="problems-list" hidden></div>
         </div>
         
         <button id="btn-input-rules" title="View Input Rules" style="position: absolute; top: 8px; right: 12px; font-size:14px; background:none; border:none; color:var(--muted); cursor:pointer; padding:0; z-index:10;" hidden>&#9416;</button>

@@ -163,6 +163,22 @@ export function initMonaco(containerEl, onRunCommand) {
         }
       });
 
+      // Add right-click context menu item: Analyze Code (Static Analysis)
+      editor.addAction({
+        id: 'sidecode.run-static-analysis',
+        label: 'Analyze Code (Static Analysis)',
+        keybindings: [window.monaco.KeyMod.CtrlCmd | window.monaco.KeyMod.Alt | window.monaco.KeyCode.KeyA],
+        contextMenuGroupId: '1_modification',
+        contextMenuOrder: 2.1,
+        run: () => {
+          import('./analysis.js').then(({ runStandaloneAnalysis }) => {
+            import('./tabs.js').then(({ getActiveTab }) => {
+              runStandaloneAnalysis(getActiveTab());
+            });
+          });
+        }
+      });
+
       isMonacoReady = true;
       resolve(editor);
     });
@@ -311,4 +327,37 @@ export function getEditorValue() {
 
 export function isReady() {
   return isMonacoReady;
+}
+
+export function setDiagnostics(tabId, diagnostics = []) {
+  if (!window.monaco) return;
+  const model = models.get(tabId);
+  if (!model) return;
+
+  const markers = diagnostics.map(d => {
+    let severity = window.monaco.MarkerSeverity.Warning;
+    if (d.severity === 'error') severity = window.monaco.MarkerSeverity.Error;
+    else if (d.severity === 'info') severity = window.monaco.MarkerSeverity.Info;
+
+    return {
+      severity,
+      startLineNumber: Math.max(1, d.line),
+      startColumn: Math.max(1, d.column),
+      endLineNumber: Math.max(1, d.line),
+      endColumn: Math.max(1, d.column + 2),
+      message: d.ruleId ? `${d.message} [${d.ruleId}]` : d.message,
+      source: d.source || 'Static Analysis'
+    };
+  });
+
+  window.monaco.editor.setModelMarkers(model, 'static-analysis', markers);
+}
+
+export function revealLocation(lineNumber, column = 1) {
+  if (!editor || !window.monaco) return;
+  const line = Math.max(1, lineNumber);
+  const col = Math.max(1, column);
+  editor.revealPositionInCenter({ lineNumber: line, column: col }, window.monaco.editor.ScrollType.Smooth);
+  editor.setPosition({ lineNumber: line, column: col });
+  editor.focus();
 }

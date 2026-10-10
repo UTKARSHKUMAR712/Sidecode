@@ -31,10 +31,13 @@ export function initConsole(options = {}) {
 
 function setupTabs() {
   const tabConsole = $('tab-console');
+  const tabProblems = $('tab-problems');
   const tabInput = $('tab-input');
-  const outputArea = $('console-output');
-  const inputArea = $('console-input');
   const tabAssembly = $('tab-assembly');
+
+  const outputArea = $('console-output');
+  const problemsArea = $('console-problems');
+  const inputArea = $('console-input');
   const asmArea = $('console-assembly');
   const btnRules = $('btn-input-rules');
 
@@ -42,10 +45,12 @@ function setupTabs() {
 
   function switchTab(activeId) {
     tabConsole.classList.toggle('active', activeId === 'console');
+    if (tabProblems) tabProblems.classList.toggle('active', activeId === 'problems');
     tabInput.classList.toggle('active', activeId === 'input');
     if (tabAssembly) tabAssembly.classList.toggle('active', activeId === 'assembly');
 
     outputArea.hidden = activeId !== 'console';
+    if (problemsArea) problemsArea.hidden = activeId !== 'problems';
     inputArea.hidden = activeId !== 'input';
     if (asmArea) asmArea.hidden = activeId !== 'assembly';
     
@@ -59,6 +64,7 @@ function setupTabs() {
   }
 
   tabConsole.addEventListener('click', () => switchTab('console'));
+  if (tabProblems) tabProblems.addEventListener('click', () => switchTab('problems'));
   tabInput.addEventListener('click', () => switchTab('input'));
   if (tabAssembly) tabAssembly.addEventListener('click', () => switchTab('assembly'));
 
@@ -328,14 +334,16 @@ export function appendRunBadge(label, hasError = false) {
 export function clearConsole() {
   const output = $('console-output');
   if (output) output.innerHTML = '';
-  const time = $('console-exec-time');
-  if (time) time.textContent = '';
   clearAssembly();
 }
 
 export function setExecTime(text) {
-  const time = $('console-exec-time');
-  if (time) time.textContent = text;
+  // Exec time removed in favor of Problems tab
+}
+
+export function switchConsoleTab(activeId) {
+  const tab = $(`tab-${activeId}`);
+  if (tab) tab.click();
 }
 
 // ── Assembly functions ──

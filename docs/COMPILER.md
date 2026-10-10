@@ -33,6 +33,18 @@ Sidecode interfaces with `https://godbolt.org/api/compiler/<compiler-id>/compile
 - Go: `go122` (Go 1.22)
 - Rust: `r180` (Rust 1.80)
 
+**Cloud Static Analysis (Problems Panel):**
+Sidecode interfaces with Godbolt's `/api/tools/<language>` endpoint to discover and run real-time static analyzers alongside compilation or on-demand:
+- **Separation of Concerns:** The runtime Console is kept 100% clean for program output (stdout/stderr). Diagnostic messages and compiler errors are routed to a dedicated **Problems** tab.
+- **Analyzers Supported:**
+  - **C++:** Clang-Tidy (`clangtidytrunk`) configured with student-friendly, actionable checks: `-checks=-*,bugprone-*,clang-analyzer-*,readability-*,performance-*,misc-*,-llvmlibc-*,-llvm-header-guard,-modernize-use-trailing-return-type`. Noisy internal libc checks and trailing return type enforcement are filtered.
+  - **C:** Clang-Tidy (`clangtidytrunk`) tailored strictly for C: `-checks=-*,bugprone-*,clang-analyzer-*,misc-*,-llvmlibc-*,-llvm-header-guard` (C++ specific checks like `modernize-*` or `cppcoreguidelines-*` are excluded).
+  - **Rust:** Rust Clippy (`clippy`) for idiomatic Rust linting.
+  - **Other Languages:** Handled gracefully with zero tool injection when no analyzer is available.
+- **Sanitization & Parsing:** Raw ANSI sequences, pointer arrow markers (`-->`), and terminal headers are stripped. Structured diagnostic objects contain severity, rule ID, line, column, and message.
+- **Monaco Underlines & Navigation:** Diagnostics are fed into Monaco's `setModelMarkers` to display inline squiggly underlines. Clicking any issue in the Problems panel immediately reveals and centers the line and column in the editor.
+- **On-Demand Analysis:** Run static analysis without executing code by pressing `Ctrl+Alt+A`, clicking "Re-analyze" in the Problems tab, or right-clicking in the editor -> "Analyze Code (Static Analysis)".
+
 **Limitations:**
 - **Standard Input (`stdin`) is NOT interactive.** 
   Because this is a stateless batch API, you cannot interact with `scanf()`, `cin`, or `input()` while the program is running. **All standard input must be provided *before* running the code.**

@@ -24,12 +24,13 @@ import {
 } from './console.js';
 
 import { debugLog } from './logger.js';
+import { getAnalyzerForLanguage, parseDiagnostics, updateProblemsView } from './analysis.js';
 
 // Godbolt Compiler Explorer API
 const GODBOLT_BASE = 'https://godbolt.org/api';
 
 // Language to Godbolt compiler mapping
-const GODBOLT_MAP = {
+export const GODBOLT_MAP = {
   c: {
     lang: 'c',
     compiler: 'g141',
@@ -84,7 +85,7 @@ export function isCloudSupported(lang) {
 /**
  * Execute code via Godbolt Compiler Explorer
  */
-async function executeViaGodbolt(code, language, stdin = '', libraries = []) {
+async function executeViaGodbolt(code, language, stdin = '', libraries = [], tabId = null) {
   const config = GODBOLT_MAP[language];
   if (!config) {
     appendLine('error', `✖ Language "${language}" is not supported by cloud runner.`);
@@ -135,8 +136,9 @@ async function executeViaGodbolt(code, language, stdin = '', libraries = []) {
     allowStoreCodeDebug: true
   };
 
-  if (language === 'c' || language === 'cpp') {
-    asmPayload.options.tools.push({ id: 'clangtidytrunk', args: '-checks=*' });
+  const analyzer = await getAnalyzerForLanguage(language);
+  if (analyzer) {
+    asmPayload.options.tools.push({ id: analyzer.id, args: analyzer.args });
   }
 
   // Inject requested third-party libraries (e.g. boost:192 or { id, version })
@@ -230,23 +232,9 @@ async function executeViaGodbolt(code, language, stdin = '', libraries = []) {
       }
     }
 
-    // 4.5 Tool Output (clang-tidy / cppcheck)
-    const tools = data.tools || [];
-    for (const tool of tools) {
-      if (tool.stdout && tool.stdout.length > 0) {
-        appendLine('system', `--- ${tool.name} ---`);
-        for (const item of tool.stdout) {
-          if (item.tag) {
-            // Godbolt gives us nice tags with line/col and severity
-            const { line, column, text: tagText, severity } = item.tag;
-            const prefix = severity === 2 ? 'error' : (severity === 1 ? 'warn' : 'info');
-            appendLine(prefix, `L${line}:${column} - ${tagText}`);
-          } else if (item.text) {
-            appendLine('system', item.text);
-          }
-        }
-      }
-    }
+    // 4.5 Static Analysis Diagnostics (routed to Problems panel & Monaco markers, not Console)
+    const diagnostics = parseDiagnostics(data.tools, language, data.buildResult?.stderr);
+    updateProblemsView(diagnostics, tabId);
 
     // Check exit code
     if (data.code !== undefined && data.code !== 0 && data.code !== null) {
@@ -297,7 +285,7 @@ async function executeViaGodbolt(code, language, stdin = '', libraries = []) {
 /**
  * Main entry point for Cloud Execution
  */
-export async function executeViaCloud(code, language, customPistonUrl = null, stdin = '', libraries = []) {
+export async function executeViaCloud(code, language, customPistonUrl = null, stdin = '', libraries = [], tabId = null) {
   if (!isConsoleOpen()) openConsole();
 
   appendDivider();
@@ -309,7 +297,7 @@ export async function executeViaCloud(code, language, customPistonUrl = null, st
   }
 
   // Otherwise default to Godbolt
-  return executeViaGodbolt(code, language, stdin, libraries);
+  return executeViaGodbolt(code, language, stdin, libraries, tabId);
 }
 
 /**
