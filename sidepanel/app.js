@@ -15,7 +15,8 @@ import {
   initConsole,
   toggleConsole,
   closeConsole,
-  clearConsole
+  clearConsole,
+  getStdin
 } from './modules/console.js';
 import { initRunner, executeCode } from './modules/runner.js';
 import { executeViaCloud, isCloudSupported } from './modules/cloudRunner.js';
@@ -97,7 +98,8 @@ async function handleRunCode() {
   if (runner === 'sandbox') {
     await executeCode(code, tab.language, model);
   } else {
-    await executeViaCloud(code, tab.language, customPistonUrl);
+    const stdin = getStdin();
+    await executeViaCloud(code, tab.language, customPistonUrl, stdin);
   }
 }
 

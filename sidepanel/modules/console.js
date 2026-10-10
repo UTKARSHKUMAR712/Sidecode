@@ -26,6 +26,37 @@ export function initConsole(options = {}) {
   saveHeightCallback = options.onSaveHeight || null;
 
   setupResize();
+  setupTabs();
+}
+
+function setupTabs() {
+  const tabConsole = $('tab-console');
+  const tabInput = $('tab-input');
+  const outputArea = $('console-output');
+  const inputArea = $('console-input');
+
+  if (!tabConsole || !tabInput) return;
+
+  tabConsole.addEventListener('click', () => {
+    tabConsole.classList.add('active');
+    tabInput.classList.remove('active');
+    outputArea.hidden = false;
+    inputArea.hidden = true;
+    outputArea.scrollTop = outputArea.scrollHeight;
+  });
+
+  tabInput.addEventListener('click', () => {
+    tabInput.classList.add('active');
+    tabConsole.classList.remove('active');
+    inputArea.hidden = false;
+    outputArea.hidden = true;
+    inputArea.focus();
+  });
+}
+
+export function getStdin() {
+  const input = $('console-input');
+  return input ? input.value : '';
 }
 
 export function isConsoleOpen() {
@@ -40,6 +71,18 @@ export function openConsole() {
   if (handle) handle.hidden = false;
 
   applyHeight(panelHeight);
+
+  // Auto-switch to Console tab
+  const tabConsole = $('tab-console');
+  const tabInput = $('tab-input');
+  const outputArea = $('console-output');
+  const inputArea = $('console-input');
+  if (tabConsole && tabInput) {
+    tabConsole.classList.add('active');
+    tabInput.classList.remove('active');
+    outputArea.hidden = false;
+    inputArea.hidden = true;
+  }
 
   const output = $('console-output');
   if (output) output.scrollTop = output.scrollHeight;

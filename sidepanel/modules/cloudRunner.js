@@ -75,7 +75,7 @@ export function isCloudSupported(lang) {
 /**
  * Execute code via Godbolt Compiler Explorer
  */
-async function executeViaGodbolt(code, language) {
+async function executeViaGodbolt(code, language, stdin = '') {
   const config = GODBOLT_MAP[language];
   if (!config) {
     appendLine('error', `✖ Language "${language}" is not supported by cloud runner.`);
@@ -107,7 +107,7 @@ async function executeViaGodbolt(code, language) {
       },
       executeParameters: {
         args: [],
-        stdin: ''
+        stdin: stdin
       }
     },
     lang: config.lang,
@@ -213,7 +213,7 @@ async function executeViaGodbolt(code, language) {
 /**
  * Main entry point for Cloud Execution
  */
-export async function executeViaCloud(code, language, customPistonUrl = null) {
+export async function executeViaCloud(code, language, customPistonUrl = null, stdin = '') {
   if (!isConsoleOpen()) openConsole();
 
   appendDivider();
@@ -221,17 +221,17 @@ export async function executeViaCloud(code, language, customPistonUrl = null) {
 
   // If user configured a custom Piston endpoint, use it
   if (customPistonUrl && customPistonUrl.trim()) {
-    return executeViaCustomPiston(code, language, customPistonUrl.trim());
+    return executeViaCustomPiston(code, language, customPistonUrl.trim(), stdin);
   }
 
   // Otherwise default to Godbolt
-  return executeViaGodbolt(code, language);
+  return executeViaGodbolt(code, language, stdin);
 }
 
 /**
  * Optional custom Piston execution (for users hosting their own Piston container)
  */
-async function executeViaCustomPiston(code, language, endpoint) {
+async function executeViaCustomPiston(code, language, endpoint, stdin = '') {
   appendLine('system', `▶ Running via Custom Piston (${endpoint})`);
 
   const langMap = {
@@ -253,7 +253,8 @@ async function executeViaCustomPiston(code, language, endpoint) {
       body: JSON.stringify({
         language: config.language,
         version: config.version,
-        files: [{ content: code }]
+        files: [{ content: code }],
+        stdin: stdin
       })
     });
 

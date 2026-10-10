@@ -66,7 +66,8 @@
     <div id="console-panel" hidden>
       <div id="console-header">
         <div id="console-tabs-row">
-          <span class="console-tab active">Console</span>
+          <span class="console-tab active" id="tab-console">Console</span>
+          <span class="console-tab" id="tab-input">Input (stdin)</span>
         </div>
         <div id="console-actions">
           <span id="console-exec-time"></span>
@@ -85,10 +86,13 @@
           <button id="btn-console-close" title="Close console (Ctrl+&#x60;)">&#10005;</button>
         </div>
       </div>
-      <div id="console-output">
-        <div id="console-welcome">
-          <span class="cw-dim">// Press <kbd>Ctrl+Enter</kbd> or click <strong>&#9654; Run</strong> to execute code</span>
+      <div id="console-body">
+        <div id="console-output">
+          <div id="console-welcome">
+            <span class="cw-dim">// Press <kbd>Ctrl+Enter</kbd> or click <strong>&#9654; Run</strong> to execute code</span>
+          </div>
         </div>
+        <textarea id="console-input" spellcheck="false" placeholder="Enter standard input (stdin) here...&#10;This text will be provided to your program when you click Run." hidden></textarea>
       </div>
     </div>
 
