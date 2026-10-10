@@ -66,6 +66,8 @@ export function initMonaco(containerEl, onRunCommand) {
         acceptSuggestionOnEnter: 'smart',
         tabCompletion: 'on',
         snippetSuggestions: 'top',
+        suggestSelection: 'first',
+        parameterHints: { enabled: true, cycle: true },
         wordBasedSuggestions: 'allDocuments',
         bracketPairColorization: { enabled: true },
         guides: { indentation: true, bracketPairs: true },
