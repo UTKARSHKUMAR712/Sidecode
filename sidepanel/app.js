@@ -217,6 +217,11 @@ function wireEventListeners() {
     storage.saveCustomPistonUrl(customPistonUrl);
   });
 
+  // Open Debug Zone
+  $('btn-open-debug')?.addEventListener('click', () => {
+    chrome.tabs.create({ url: chrome.runtime.getURL('debug/index.html') });
+  });
+
   // Console buttons
   $('btn-console-run')?.addEventListener('click', () => handleRunCode());
   $('btn-console-clear')?.addEventListener('click', clearConsole);

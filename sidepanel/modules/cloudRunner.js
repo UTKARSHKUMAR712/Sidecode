@@ -21,6 +21,8 @@ import {
   setExecTime
 } from './console.js';
 
+import { debugLog } from './logger.js';
+
 // Godbolt Compiler Explorer API
 const GODBOLT_BASE = 'https://godbolt.org/api';
 
@@ -114,6 +116,8 @@ async function executeViaGodbolt(code, language, stdin = '') {
     allowStoreCodeDebug: true
   };
 
+  debugLog('info', `Starting Godbolt compilation for ${language}`, { payload });
+
   const startTime = performance.now();
 
   try {
@@ -134,6 +138,8 @@ async function executeViaGodbolt(code, language, stdin = '') {
     const data = await res.json();
     const duration = Math.round(performance.now() - startTime);
     const timeStr = duration < 1 ? '<1ms' : `${duration}ms`;
+
+    debugLog('info', `Godbolt compilation finished in ${timeStr}`, { data });
 
     let hasError = false;
 
@@ -198,6 +204,8 @@ async function executeViaGodbolt(code, language, stdin = '') {
     const duration = Math.round(performance.now() - startTime);
     const timeStr = `${duration}ms`;
 
+    debugLog('error', `Godbolt compilation failed`, { error: err.message, stack: err.stack });
+
     if (err.name === 'TypeError' && err.message.includes('fetch')) {
       appendLine('error', '✖ Network error — unable to reach execution server.');
     } else {
@@ -244,18 +252,22 @@ async function executeViaCustomPiston(code, language, endpoint, stdin = '') {
   };
 
   const config = langMap[language] || { language, version: '*' };
+  const payload = {
+    language: config.language,
+    version: config.version,
+    files: [{ content: code }],
+    stdin: stdin
+  };
+
+  debugLog('info', `Starting Custom Piston execution for ${language}`, { endpoint, payload });
+
   const startTime = performance.now();
 
   try {
     const res = await fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        language: config.language,
-        version: config.version,
-        files: [{ content: code }],
-        stdin: stdin
-      })
+      body: JSON.stringify(payload)
     });
 
     if (!res.ok) {
@@ -268,6 +280,9 @@ async function executeViaCustomPiston(code, language, endpoint, stdin = '') {
     const compile = data.compile || null;
     const duration = Math.round(performance.now() - startTime);
     const timeStr = `${duration}ms`;
+
+    debugLog('info', `Custom Piston execution finished in ${timeStr}`, { data });
+
     let hasError = false;
 
     if (compile && compile.stderr) {
@@ -288,6 +303,7 @@ async function executeViaCustomPiston(code, language, endpoint, stdin = '') {
 
   } catch (err) {
     const duration = Math.round(performance.now() - startTime);
+    debugLog('error', `Custom Piston execution failed`, { error: err.message, stack: err.stack });
     appendLine('error', `✖ ${err.message}`);
     appendRunBadge('Failed', true);
     setExecTime(`${duration}ms`);
