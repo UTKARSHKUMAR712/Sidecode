@@ -56,7 +56,51 @@ function setupTabs() {
 
 export function getStdin() {
   const input = $('console-input');
-  return input ? input.value : '';
+  if (!input) return { valid: true, value: '' };
+
+  const raw = input.value;
+  if (!raw.trim()) return { valid: true, value: '' };
+
+  let parsedValue = '';
+  let i = 0;
+  
+  while (i < raw.length) {
+    if (/\s/.test(raw[i])) {
+      parsedValue += raw[i];
+      i++;
+      continue;
+    }
+    
+    if (raw[i] === '"') {
+      i++;
+      let str = '';
+      while (i < raw.length && raw[i] !== '"') {
+        str += raw[i];
+        i++;
+      }
+      if (i >= raw.length) {
+        return { valid: false, error: 'Unclosed double quote in input.' };
+      }
+      i++; // Skip closing quote
+      parsedValue += str;
+      continue;
+    }
+    
+    let token = '';
+    while (i < raw.length && !/\s/.test(raw[i]) && raw[i] !== '"') {
+      token += raw[i];
+      i++;
+    }
+    
+    // Check if the token is a valid number
+    if (!isNaN(Number(token)) && token.trim() !== '') {
+      parsedValue += token;
+    } else {
+      return { valid: false, error: `Validation Error: '${token}' is not a valid number. All text strings must be wrapped in double quotes ("").` };
+    }
+  }
+
+  return { valid: true, value: parsedValue };
 }
 
 export function isConsoleOpen() {

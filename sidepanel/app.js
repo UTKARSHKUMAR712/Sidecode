@@ -99,7 +99,16 @@ async function handleRunCode() {
     await executeCode(code, tab.language, model);
   } else {
     const stdin = getStdin();
-    await executeViaCloud(code, tab.language, customPistonUrl, stdin);
+    if (!stdin.valid) {
+      import('./modules/console.js').then(({ openConsole, appendLine, appendRunBadge, setExecTime }) => {
+        openConsole();
+        appendLine('error', `✖ ${stdin.error}`);
+        appendRunBadge('Input Error', true);
+        setExecTime('—');
+      });
+      return;
+    }
+    await executeViaCloud(code, tab.language, customPistonUrl, stdin.value);
   }
 }
 
