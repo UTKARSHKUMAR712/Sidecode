@@ -43,6 +43,9 @@
       <!-- Run button — shown for all runnable languages -->
       <button id="btn-run" title="Run code (Ctrl+Enter)" aria-label="Run" hidden>&#9654;</button>
 
+      <!-- Dependencies button -->
+      <button id="btn-dependencies" title="Manage Third-Party Libraries (Boost, fmt, serde, etc.)" aria-label="Dependencies">&#128218;<span id="dep-badge" class="dep-badge" hidden>0</span></button>
+
       <!-- Settings button -->
       <button id="btn-settings" title="Settings" aria-label="Settings">&#9881;</button>
 
@@ -128,6 +131,40 @@
     </div>
   </div>
 
+  <!-- ── Dependencies Modal ── -->
+  <div id="dependencies-modal" class="modal-overlay" hidden>
+    <div class="modal-card modal-card-large">
+      <div class="modal-header">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span class="modal-title">&#128218; Dependencies</span>
+          <select id="dep-lang-select" class="setting-select" style="padding: 2px 6px; font-size: 11.5px; width: auto; height: 24px;">
+            <option value="c++">C++ (200+ libs)</option>
+            <option value="c">C (17 libs)</option>
+            <option value="rust">Rust (130+ crates)</option>
+            <option value="go">Go (modules)</option>
+            <option value="d">D (12 libs)</option>
+            <option value="fortran">Fortran (7 libs)</option>
+            <option value="zig">Zig</option>
+          </select>
+        </div>
+        <button id="btn-close-dependencies" class="modal-close-btn" title="Close Dependencies">&#10005;</button>
+      </div>
+      <div class="modal-body" style="display: flex; flex-direction: column; gap: 10px; max-height: 75vh;">
+        <!-- Search bar & clear all -->
+        <div style="display:flex; gap:8px; align-items:center;">
+          <input id="dep-search-input" type="text" class="setting-input" placeholder="Search libraries (e.g. boost, fmt, serde, json)..." style="flex:1;" />
+          <button id="btn-clear-deps" class="btn-secondary" style="padding:4px 8px; font-size:11px; white-space:nowrap; height:26px;">Clear All</button>
+        </div>
+
+        <!-- Selected libraries chips bar -->
+        <div id="dep-active-container" style="display: flex; flex-wrap: wrap; gap: 6px; min-height: 24px; align-items: center;"></div>
+
+        <!-- Scrollable libraries list -->
+        <div id="dep-list-container" class="dep-list-container" style="overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 6px; max-height: 48vh; padding-right: 4px;"></div>
+      </div>
+    </div>
+  </div>
+
   <!-- ── Settings Modal ── -->
   <div id="settings-modal" class="modal-overlay" hidden>
     <div class="modal-card">
@@ -188,17 +225,9 @@
 
         <!-- Third-Party Libraries -->
         <div class="setting-item">
-          <label class="setting-label">Include Third-Party Libraries (C++/Rust)</label>
-          <p class="setting-desc">Check the libraries you want to be automatically included in Cloud Execution.</p>
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px;">
-            <label style="display:flex; align-items:center; gap:6px;"><input type="checkbox" id="lib-boost" class="setting-lib" value="boost:192"> Boost (C++)</label>
-            <label style="display:flex; align-items:center; gap:6px;"><input type="checkbox" id="lib-fmt" class="setting-lib" value="fmt:1200"> fmt (C++)</label>
-            <label style="display:flex; align-items:center; gap:6px;"><input type="checkbox" id="lib-json" class="setting-lib" value="nlohmann_json:3111"> nlohmann/json (C++)</label>
-            <label style="display:flex; align-items:center; gap:6px;"><input type="checkbox" id="lib-catch2" class="setting-lib" value="catch2:trunk"> Catch2 (C++)</label>
-            <label style="display:flex; align-items:center; gap:6px;"><input type="checkbox" id="lib-serde" class="setting-lib" value="serde:10219"> serde (Rust)</label>
-            <label style="display:flex; align-items:center; gap:6px;"><input type="checkbox" id="lib-rand" class="setting-lib" value="rand:091"> rand (Rust)</label>
-            <label style="display:flex; align-items:center; gap:6px;"><input type="checkbox" id="lib-tokio" class="setting-lib" value="tokio:1460"> tokio (Rust)</label>
-          </div>
+          <label class="setting-label">Instant Third-Party Libraries</label>
+          <p class="setting-desc">Easily include 350+ libraries (Boost, fmt, nlohmann/json, serde, tokio, etc.) across C, C++, Rust, Go without installing anything.</p>
+          <button id="btn-open-deps-from-settings" class="btn-secondary" style="margin-top: 4px; padding: 6px 12px; font-size: 11.5px; display: flex; align-items: center; justify-content: center; gap: 6px;">&#128218; Open Dependencies Menu</button>
         </div>
         <!-- JS runner preference -->
         <div class="setting-item">

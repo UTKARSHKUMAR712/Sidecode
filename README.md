@@ -13,6 +13,8 @@ Sidecode is a lightweight, Monaco-powered Integrated Development Environment (ID
   - **Browser Sandbox:** JavaScript and TypeScript run 100% offline via an isolated sandbox.
   - **Cloud Runner:** System languages (C/C++, Java, Rust, Go, Python) are compiled and executed instantly using a fast Cloud API.
 - **Assembly Viewer:** A dedicated Assembly tab dynamically displays compiler-generated machine code (mapped to your source code lines) whenever a supported cloud language is compiled (e.g. C, C++, Rust, Go, etc.).
+- **Instant Third-Party Libraries (Dependencies Menu):** Click the `📚` Dependencies button to instantly attach from 350+ precompiled libraries (such as Boost, fmt, nlohmann/json, Catch2, serde, tokio, etc.) across C++, Rust, C, Go, D, and Zig without downloading or configuring anything.
+- **Code Formatting:** Press `Ctrl+Alt+F` (or right-click inside the editor -> "Format Document") to format code using Monaco's native formatters or cloud formatters (`clang-format`, `rustfmt`, `gofmt`).
 - **Advanced Debug Zone:** A dedicated, real-time logging dashboard to monitor exact API payloads, compiler execution errors, and standard input/output streams. Accessible via Settings.
 
 ## Installation (Developer Mode)
@@ -31,6 +33,7 @@ Sidecode is a lightweight, Monaco-powered Integrated Development Environment (ID
 ## Usage Tips
 
 - **Run Shortcut:** Press `Ctrl+Enter` while inside the editor to quickly run your code.
+- **Format Shortcut:** Press `Ctrl+Alt+F` or right-click and choose "Format Document" to format your code.
 - **Clear Console:** Press the `Clear` button in the console header or re-run code.
 - **Standard Input:** Since cloud execution happens in batches, interactive prompts (like Python's `input()` or C's `scanf()`) will immediately hit EOF unless you provide input upfront. Use the **Input (stdin)** tab to write your input before hitting Run.
 - **Strict Typing Mode:** Our custom parser enforces data typing. Wrap strings in `"double quotes"`, arrays in `[1,2,3]`, or use `` `backticks` `` for raw strings.

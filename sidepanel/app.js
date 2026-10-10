@@ -21,6 +21,13 @@ import {
 import { initRunner, executeCode } from './modules/runner.js';
 import { executeViaCloud, isCloudSupported } from './modules/cloudRunner.js';
 import {
+  initLibraries,
+  openDependenciesModal,
+  closeDependenciesModal,
+  updateDependenciesBadge,
+  getSelectedLibrariesForLanguage
+} from './modules/libraries.js';
+import {
   initMonaco,
   createModel,
   deleteModel,
@@ -110,7 +117,8 @@ async function handleRunCode() {
       });
       return;
     }
-    await executeViaCloud(code, tab.language, customPistonUrl, stdin.value, currentIdeSettings.libraries);
+    const activeLibs = getSelectedLibrariesForLanguage(tab.language);
+    await executeViaCloud(code, tab.language, customPistonUrl, stdin.value, activeLibs);
   }
 }
 
@@ -155,8 +163,8 @@ function setupKeyboard() {
       return;
     }
 
-    // Ctrl+S — format code
-    if (e.key === 's' || e.key === 'S') {
+    // Ctrl+Alt+F — format code
+    if (e.altKey && (e.key === 'f' || e.key === 'F')) {
       e.preventDefault();
       import('./modules/editor.js').then(({ getEditor }) => {
         const ed = getEditor();
@@ -205,6 +213,20 @@ function wireEventListeners() {
   $('btn-close-panel')?.addEventListener('click', () => window.close());
   $('btn-run')?.addEventListener('click', () => handleRunCode());
 
+  // Dependencies modal button in toolbar
+  $('btn-dependencies')?.addEventListener('click', () => {
+    const tab = getActiveTab();
+    openDependenciesModal(tab ? tab.language : 'cpp');
+  });
+
+  // Open dependencies from Settings modal
+  $('btn-open-deps-from-settings')?.addEventListener('click', () => {
+    const modal = $('settings-modal');
+    if (modal) modal.hidden = true;
+    const tab = getActiveTab();
+    openDependenciesModal(tab ? tab.language : 'cpp');
+  });
+
   // ── Runner selector in console header (JS/TS only) ──
   $('runner-select')?.addEventListener('change', (e) => {
     const val = e.target.value;
@@ -248,7 +270,6 @@ function wireEventListeners() {
     currentIdeSettings.fontSize = parseInt($('setting-font-size').value, 10);
     currentIdeSettings.tabSize = parseInt($('setting-tab-size').value, 10);
     currentIdeSettings.wordWrap = $('setting-word-wrap').checked;
-    currentIdeSettings.libraries = Array.from(document.querySelectorAll('.setting-lib:checked')).map(cb => cb.value);
 
     // Apply to monaco
     applyIdeSettingsToEditor(currentIdeSettings);
@@ -262,7 +283,6 @@ function wireEventListeners() {
   $('setting-font-size')?.addEventListener('change', updateIdeSettings);
   $('setting-tab-size')?.addEventListener('change', updateIdeSettings);
   $('setting-word-wrap')?.addEventListener('change', updateIdeSettings);
-  document.querySelectorAll('.setting-lib').forEach(el => el.addEventListener('change', updateIdeSettings));
 
   // Open Debug Zone
   $('btn-open-debug')?.addEventListener('click', () => {
@@ -286,6 +306,7 @@ function wireEventListeners() {
 
     // Update Run button and runner selector visibility
     updateRunControls(newLang);
+    updateDependenciesBadge(newLang);
 
     // If file is empty or only whitespace, auto-load boilerplate for chosen language
     const model = getModel(activeId);
@@ -336,14 +357,14 @@ async function init() {
   if ($('setting-font-size')) $('setting-font-size').value = savedIdeSettings.fontSize;
   if ($('setting-tab-size')) $('setting-tab-size').value = savedIdeSettings.tabSize;
   if ($('setting-word-wrap')) $('setting-word-wrap').checked = savedIdeSettings.wordWrap;
-  
-  if (savedIdeSettings.libraries && savedIdeSettings.libraries.length > 0) {
-    document.querySelectorAll('.setting-lib').forEach(cb => {
-      if (savedIdeSettings.libraries.includes(cb.value)) cb.checked = true;
-    });
-  }
 
   document.documentElement.style.setProperty('--ide-font-size', `${savedIdeSettings.fontSize}px`);
+
+  // Initialize Instant Libraries module
+  initLibraries(savedIdeSettings, (lang) => {
+    const tab = getActiveTab();
+    if (tab) updateDependenciesBadge(tab.language);
+  });
 
   // Initialize Console module
   initConsole({
@@ -361,10 +382,12 @@ async function init() {
       if (tab) {
         setEditorModel(tab.id);
         updateRunControls(tab.language);
+        updateDependenciesBadge(tab.language);
         storage.saveActiveTab(tab.id);
       } else {
         setEditorModel(null);
         updateRunControls('plaintext');
+        updateDependenciesBadge('plaintext');
         storage.saveActiveTab(null);
       }
     },

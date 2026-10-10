@@ -139,14 +139,19 @@ async function executeViaGodbolt(code, language, stdin = '', libraries = []) {
     asmPayload.options.tools.push({ id: 'clangtidytrunk', args: '-checks=*' });
   }
 
-  // Inject requested third-party libraries (e.g. boost:192)
+  // Inject requested third-party libraries (e.g. boost:192 or { id, version })
   if (libraries && libraries.length > 0) {
-    const libsForPayload = libraries.map(libStr => {
-      const [id, version] = libStr.split(':');
-      return { id, version };
+    const libsForPayload = libraries.map(libItem => {
+      if (typeof libItem === 'object' && libItem !== null) {
+        return { id: libItem.id, version: libItem.version };
+      }
+      const [id, version] = String(libItem).split(':');
+      return { id, version: version || 'trunk' };
     });
     execPayload.options.libraries = libsForPayload;
     asmPayload.options.libraries = libsForPayload;
+
+    appendLine('system', `Libraries linked: ${libsForPayload.map(l => `${l.id} (${l.version})`).join(', ')}`);
   }
 
   debugLog('info', `Starting Godbolt compilation for ${language}`, { execPayload });

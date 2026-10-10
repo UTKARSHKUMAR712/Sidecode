@@ -126,11 +126,12 @@ export function initMonaco(containerEl, onRunCommand) {
         );
       }
 
-      // Add Ctrl+S command to trigger Monaco's native format document
+      // Add Ctrl+Alt+F command to trigger Monaco's native format document
       editor.addCommand(
-        window.monaco.KeyMod.CtrlCmd | window.monaco.KeyCode.KeyS,
+        window.monaco.KeyMod.CtrlCmd | window.monaco.KeyMod.Alt | window.monaco.KeyCode.KeyF,
         () => {
-          editor.getAction('editor.action.formatDocument').run();
+          const action = editor.getAction('editor.action.formatDocument');
+          if (action) action.run();
           
           // Optionally notify in console
           const model = editor.getModel();

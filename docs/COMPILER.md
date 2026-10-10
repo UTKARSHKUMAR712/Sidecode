@@ -23,6 +23,8 @@ Sidecode interfaces with `https://godbolt.org/api/compiler/<compiler-id>/compile
 
 **Assembly Output:** Because Godbolt is inherently designed for compiler exploration, it natively returns mapped Assembly instructions alongside standard execution stdout. Sidecode parses this response to dynamically populate a dedicated **Assembly tab** in the IDE UI for supported languages.
 
+**Instant Third-Party Libraries:** Sidecode connects to `https://godbolt.org/api/libraries/<language>` to query hundreds of pre-hosted third-party libraries (e.g. Boost, fmt, nlohmann/json, Catch2, serde, tokio, etc.). Users can select and version-lock dependencies in the "Dependencies" menu, which are then passed in the `options.libraries` compiler payload.
+
 **Compiler IDs used:**
 - C: `cg141` (GCC 14.1)
 - C++: `cg141` (G++ 14.1)
