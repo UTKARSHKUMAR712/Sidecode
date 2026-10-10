@@ -2,7 +2,23 @@
  * constants.js — Shared constants and language configurations for Sidecode
  */
 
-export const RUNNABLE_LANGUAGES = new Set(['javascript', 'typescript']);
+/** Languages runnable in-browser via the sandbox iframe (JS/TS only) */
+export const SANDBOX_LANGUAGES = new Set(['javascript', 'typescript']);
+
+/**
+ * Languages supported by the Piston cloud runner.
+ * These can be executed by sending code to https://emkc.org/api/v2/piston/execute
+ */
+export const PISTON_LANGUAGES = new Set([
+  'c', 'cpp', 'java', 'python', 'go', 'rust', 'kotlin',
+  'ruby', 'php', 'swift', 'typescript', 'javascript', 'shell',
+]);
+
+/** All languages that have a Run button (sandbox or Piston) */
+export const RUNNABLE_LANGUAGES = new Set([
+  ...SANDBOX_LANGUAGES,
+  ...PISTON_LANGUAGES,
+]);
 
 export const LANG_BADGE = {
   plaintext: 'TXT',

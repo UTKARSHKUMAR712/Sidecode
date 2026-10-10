@@ -2,6 +2,11 @@
  * app.js — Main application entry point for Sidecode
  *
  * Coordinates tabs, Monaco editor, console panel and code execution.
+ * Supports two execution strategies:
+ *   - Sandbox runner  (JS/TS, in-browser, offline)
+ *   - Piston runner   (C, C++, Java, Python, Go, Rust, etc. — cloud API, no key needed)
+ * For JavaScript/TypeScript the user can choose either runner via a VS Code-style
+ * terminal picker in the console header or in Settings.
  */
 
 import { storage } from './storage.js';
@@ -11,7 +16,8 @@ import {
   closeConsole,
   clearConsole
 } from './modules/console.js';
-import { initRunner, executeCode } from './modules/runner.js';
+import { initRunner, executeCode }          from './modules/runner.js';
+import { executeViaPiston, isPistonSupported } from './modules/piston.js';
 import {
   initMonaco,
   createModel,
@@ -21,7 +27,11 @@ import {
   getModel,
   layoutEditor
 } from './modules/editor.js';
-import { getDefaultContent } from './modules/constants.js';
+import {
+  getDefaultContent,
+  SANDBOX_LANGUAGES,
+  RUNNABLE_LANGUAGES
+} from './modules/constants.js';
 import {
   initTabs,
   createTab,
@@ -39,6 +49,31 @@ import {
 
 const $ = (id) => document.getElementById(id);
 
+// ─── JS runner preference ('sandbox' | 'piston') ────────────────────────────
+let jsRunnerPreference = 'sandbox'; // default; overridden on load
+
+function setJsRunnerPreference(val) {
+  jsRunnerPreference = val;
+  // Sync both selects
+  const consoleSelect  = $('runner-select');
+  const settingsSelect = $('setting-js-runner');
+  if (consoleSelect  && consoleSelect.value  !== val) consoleSelect.value  = val;
+  if (settingsSelect && settingsSelect.value !== val) settingsSelect.value = val;
+}
+
+// ─── Decide which runner to use for a given language ────────────────────────
+function pickRunner(language) {
+  if (SANDBOX_LANGUAGES.has(language)) {
+    // JS/TS: user's choice
+    return jsRunnerPreference;
+  }
+  if (isPistonSupported(language)) {
+    return 'piston';
+  }
+  return null; // not runnable
+}
+
+// ─── Execute current tab's code ─────────────────────────────────────────────
 async function handleRunCode() {
   const tab = getActiveTab();
   if (!tab) return;
@@ -46,10 +81,40 @@ async function handleRunCode() {
   const model = getModel(tab.id);
   if (!model) return;
 
-  const code = model.getValue();
-  await executeCode(code, tab.language, model);
+  const code     = model.getValue();
+  const runner   = pickRunner(tab.language);
+
+  if (!runner) {
+    // Language not runnable — show a friendly message
+    import('./modules/console.js').then(({ openConsole, appendLine, appendRunBadge, setExecTime }) => {
+      openConsole();
+      appendLine('warn', `"${tab.language}" does not have a runner configured yet.`);
+      appendRunBadge('Not runnable', true);
+      setExecTime('—');
+    });
+    return;
+  }
+
+  if (runner === 'sandbox') {
+    await executeCode(code, tab.language, model);
+  } else {
+    await executeViaPiston(code, tab.language);
+  }
 }
 
+// ─── Show/hide Run button & runner selector based on active language ─────────
+function updateRunControls(language) {
+  const runBtn        = $('btn-run');
+  const runnerSelect  = $('runner-select');
+
+  const canRun      = RUNNABLE_LANGUAGES.has(language);
+  const isJsOrTs    = SANDBOX_LANGUAGES.has(language);
+
+  if (runBtn)       runBtn.hidden       = !canRun;
+  if (runnerSelect) runnerSelect.hidden = !isJsOrTs;
+}
+
+// ─── Keyboard shortcuts ──────────────────────────────────────────────────────
 function setupKeyboard() {
   window.addEventListener('keydown', (e) => {
     const mod = e.ctrlKey || e.metaKey;
@@ -96,7 +161,7 @@ function setupKeyboard() {
     const num = parseInt(e.key, 10);
     if (num >= 1 && num <= 9) {
       const allTabs = getTabs();
-      const target = allTabs[num - 1];
+      const target  = allTabs[num - 1];
       if (target) {
         e.preventDefault();
         activateTab(target.id);
@@ -105,13 +170,21 @@ function setupKeyboard() {
   });
 }
 
+// ─── Wire all event listeners ────────────────────────────────────────────────
 function wireEventListeners() {
   // Navigation & Toolbar buttons
   $('btn-new-tab')?.addEventListener('click', () => createTab());
   $('btn-close-panel')?.addEventListener('click', () => window.close());
   $('btn-run')?.addEventListener('click', () => handleRunCode());
 
-  // Settings Modal controls
+  // ── Runner selector in console header (JS/TS only) ──
+  $('runner-select')?.addEventListener('change', (e) => {
+    const val = e.target.value;
+    setJsRunnerPreference(val);
+    storage.saveJsRunner(val);
+  });
+
+  // ── Settings Modal controls ──
   const modal = $('settings-modal');
   $('btn-settings')?.addEventListener('click', () => {
     if (modal) modal.hidden = false;
@@ -130,6 +203,13 @@ function wireEventListeners() {
     storage.saveDefaultLanguage(chosenLang);
   });
 
+  // JS runner preference in Settings
+  $('setting-js-runner')?.addEventListener('change', (e) => {
+    const val = e.target.value;
+    setJsRunnerPreference(val);
+    storage.saveJsRunner(val);
+  });
+
   // Console buttons
   $('btn-console-run')?.addEventListener('click', () => handleRunCode());
   $('btn-console-clear')?.addEventListener('click', clearConsole);
@@ -145,6 +225,9 @@ function wireEventListeners() {
     setModelLanguage(activeId, newLang);
     storage.saveTabLanguage(activeId, newLang);
 
+    // Update Run button and runner selector visibility
+    updateRunControls(newLang);
+
     // If file is empty or only whitespace, auto-load boilerplate for chosen language
     const model = getModel(activeId);
     if (model) {
@@ -159,6 +242,7 @@ function wireEventListeners() {
   });
 }
 
+// ─── App initialisation ──────────────────────────────────────────────────────
 async function init() {
   const editorContainer = $('editor-container');
   if (editorContainer) editorContainer.classList.add('loading');
@@ -167,26 +251,31 @@ async function init() {
   setupKeyboard();
 
   // Load saved state from storage
-  const saved = await storage.load();
-  const savedTabs = saved.tabs || [];
-  const savedActiveId = saved.activeTabId || null;
-  const savedConsoleHeight = saved.consoleHeight || 200;
-  const savedDefaultLang = saved.defaultLanguage || 'javascript';
+  const saved             = await storage.load();
+  const savedTabs         = saved.tabs            || [];
+  const savedActiveId     = saved.activeTabId     || null;
+  const savedConsoleHeight= saved.consoleHeight   || 200;
+  const savedDefaultLang  = saved.defaultLanguage || 'javascript';
+  const savedJsRunner     = saved.jsRunner        || 'sandbox';
 
-  // Initialize Settings UI value
+  // Apply persisted JS runner preference
+  setJsRunnerPreference(savedJsRunner);
+
+  // Initialize Settings UI values
   const defaultLangSelect = $('setting-default-lang');
-  if (defaultLangSelect) {
-    defaultLangSelect.value = savedDefaultLang;
-  }
+  if (defaultLangSelect) defaultLangSelect.value = savedDefaultLang;
+
+  const jsRunnerSettingEl = $('setting-js-runner');
+  if (jsRunnerSettingEl) jsRunnerSettingEl.value = savedJsRunner;
 
   // Initialize Console module
   initConsole({
     initialHeight: savedConsoleHeight,
-    onLayout: layoutEditor,
-    onSaveHeight: (h) => storage.saveConsoleHeight(h)
+    onLayout:      layoutEditor,
+    onSaveHeight:  (h) => storage.saveConsoleHeight(h)
   });
 
-  // Initialize Sandboxed Runner
+  // Initialize Sandboxed Runner (for JS/TS)
   initRunner();
 
   // Initialize Tabs module with saved default language
@@ -194,9 +283,11 @@ async function init() {
     onTabActivate: (tab) => {
       if (tab) {
         setEditorModel(tab.id);
+        updateRunControls(tab.language);
         storage.saveActiveTab(tab.id);
       } else {
         setEditorModel(null);
+        updateRunControls('plaintext');
         storage.saveActiveTab(null);
       }
     },

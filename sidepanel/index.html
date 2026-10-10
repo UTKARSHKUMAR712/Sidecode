@@ -40,7 +40,7 @@
         <option value="xml">XML</option>
       </select>
 
-      <!-- Run button — shown only for JS/TS -->
+      <!-- Run button — shown for all runnable languages -->
       <button id="btn-run" title="Run code (Ctrl+Enter)" aria-label="Run" hidden>&#9654;</button>
 
       <!-- Settings button -->
@@ -70,14 +70,25 @@
         </div>
         <div id="console-actions">
           <span id="console-exec-time"></span>
+
+          <!--
+            Runner selector — VS Code-style terminal picker.
+            Visible only when active language is JavaScript or TypeScript,
+            giving the user a choice between the in-browser sandbox and Piston cloud.
+          -->
+          <select id="runner-select" title="Select JavaScript runner" hidden>
+            <option value="sandbox">&#x1F4BB; Browser</option>
+            <option value="piston">&#x2601; Piston</option>
+          </select>
+
           <button id="btn-console-run"   title="Run (Ctrl+Enter)">&#9654; Run</button>
           <button id="btn-console-clear" title="Clear output">&#8856; Clear</button>
-          <button id="btn-console-close" title="Close terminal (Ctrl+\`)">&#10005;</button>
+          <button id="btn-console-close" title="Close console (Ctrl+&#x60;)">&#10005;</button>
         </div>
       </div>
       <div id="console-output">
         <div id="console-welcome">
-          <span class="cw-dim">// Press <kbd>Ctrl+Enter</kbd> or click <strong>&#9654; Run</strong> to execute JS</span>
+          <span class="cw-dim">// Press <kbd>Ctrl+Enter</kbd> or click <strong>&#9654; Run</strong> to execute code</span>
         </div>
       </div>
     </div>
@@ -92,6 +103,8 @@
         <button id="btn-close-settings" class="modal-close-btn" title="Close Settings">&#10005;</button>
       </div>
       <div class="modal-body">
+
+        <!-- Default language -->
         <div class="setting-item">
           <label for="setting-default-lang" class="setting-label">Default Language for New Tabs</label>
           <p class="setting-desc">Choose which language newly created tabs will open with by default.</p>
@@ -113,6 +126,20 @@
             <option value="plaintext">Plain Text</option>
           </select>
         </div>
+
+        <!-- JS runner preference -->
+        <div class="setting-item">
+          <label for="setting-js-runner" class="setting-label">JavaScript Runner</label>
+          <p class="setting-desc">
+            <strong>Browser</strong> runs JS instantly in an in-browser sandbox (offline, no network).<br>
+            <strong>Piston</strong> runs JS via the cloud, same as Python/C++/Java (requires internet).
+          </p>
+          <select id="setting-js-runner" class="setting-select">
+            <option value="sandbox">&#x1F4BB; Browser (sandbox) — recommended</option>
+            <option value="piston">&#x2601; Piston (cloud)</option>
+          </select>
+        </div>
+
       </div>
     </div>
   </div>

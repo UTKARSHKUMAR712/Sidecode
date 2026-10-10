@@ -63,4 +63,10 @@ export const storage = {
     _cache = { ..._cache, defaultLanguage: language };
     this._flush();
   },
+
+  /** Persist JS runner preference: 'sandbox' (in-browser) or 'piston' (cloud) */
+  saveJsRunner(runner) {
+    _cache = { ..._cache, jsRunner: runner };
+    this._flush();
+  },
 };

@@ -4,6 +4,9 @@
   "version": "1.0.0",
   "description": "A Monaco-powered code editor in your browser sidebar with tabs, language selection and persistent storage.",
   "permissions": ["sidePanel", "storage"],
+  "host_permissions": [
+    "https://emkc.org/*"
+  ],
   "content_security_policy": {
     "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
   },
