@@ -9,7 +9,7 @@
  */
 
 import { debugLog } from './logger.js';
-import { setDiagnostics, revealLocation, getEditorValue, getActiveTabLanguage } from './editor.js';
+import { setDiagnostics, revealLocation, getEditorValue } from './editor.js';
 
 // Cache discovered tools per language to avoid redundant network calls
 const toolCache = new Map();
@@ -377,11 +377,13 @@ export async function runStandaloneAnalysis(tab) {
   const summaryEl = document.getElementById('problems-summary-text');
   if (summaryEl) summaryEl.textContent = `Analyzing with ${analyzer.name}...`;
 
-  const { GODBOLT_MAP, getIncludedLibrariesForLang } = await import('./cloudRunner.js');
+  const { GODBOLT_MAP } = await import('./cloudRunner.js');
+  const { getSelectedLibrariesForLanguage } = await import('./libraries.js');
   const config = GODBOLT_MAP[tab.language];
   if (!config) return;
 
   const code = getEditorValue();
+  const libraries = getSelectedLibrariesForLanguage(tab.language);
   const payload = {
     source: code,
     compiler: config.compiler,
@@ -396,6 +398,17 @@ export async function runStandaloneAnalysis(tab) {
     lang: config.lang,
     allowStoreCodeDebug: true
   };
+
+  if (libraries && libraries.length > 0) {
+    const libsForPayload = libraries.map(libItem => {
+      if (typeof libItem === 'object' && libItem !== null) {
+        return { id: libItem.id, version: libItem.version };
+      }
+      const [id, version] = String(libItem).split(':');
+      return { id, version: version || 'trunk' };
+    });
+    payload.options.libraries = libsForPayload;
+  }
 
   try {
     const res = await fetch(`https://godbolt.org/api/compiler/${config.compiler}/compile`, {
