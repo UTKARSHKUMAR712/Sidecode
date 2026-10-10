@@ -99,7 +99,7 @@
           </label>
           <button id="btn-input-rules" title="View Input Rules" style="font-size:12px; background:none; border:none; color:var(--muted); cursor:pointer; padding:0; display:flex; align-items:center; gap:3px;">&#9416; Rules</button>
         </div>
-        <textarea id="console-input" spellcheck="false" placeholder="Enter standard input (stdin) here.&#10;&#10;STRICT RULES:&#10;1. Strings MUST be wrapped in double quotes (&quot;Alice&quot;).&#10;2. Numbers &amp; Booleans do not need quotes (10, true).&#10;3. Arrays are supported! ([1, 2, 3]).&#10;4. Use newlines (Enter) to separate multiple inputs.&#10;&#10;Click ⓘ Rules for details." hidden></textarea>
+        <textarea id="console-input" spellcheck="false" placeholder="Enter standard input (stdin) here.&#10;&#10;STRICT RULES:&#10;1. Strings MUST be wrapped in double quotes (&quot;Alice&quot;).&#10;   (Use backticks `...` for raw strings with quotes).&#10;2. Numbers &amp; Booleans do not need quotes (10, true).&#10;3. Arrays are supported! ([1, 2, 3]).&#10;4. Use newlines (Enter) to separate multiple inputs.&#10;&#10;Click ⓘ Rules for details." hidden></textarea>
       </div>
     </div>
 
@@ -119,6 +119,7 @@
           <li><strong>Numbers:</strong> Type normally (e.g., <code>10</code>, <code>-3.14</code>).</li>
           <li><strong>Booleans:</strong> Type <code>true</code>, <code>false</code>, or <code>null</code>.</li>
           <li><strong>Strings:</strong> MUST be wrapped in double quotes (e.g., <code>"Hello"</code>). To include a quote inside a string, escape it (e.g., <code>"Say \"Hi\""</code>).</li>
+          <li><strong>Raw Strings:</strong> You can also use backticks (e.g., <code>`Say "Hi" to me`</code>). Everything inside backticks is passed exactly as-is without needing to escape anything!</li>
           <li><strong>Arrays:</strong> Wrap comma-separated values in brackets (e.g., <code>[1, 2, "Alice"]</code>). Arrays are automatically flattened into space-separated values for the compiler.</li>
         </ul>
         <p>If you uncheck Strict Mode, Sidecode acts like a raw Linux terminal (what you type is exactly what the program receives without any parsing).</p>

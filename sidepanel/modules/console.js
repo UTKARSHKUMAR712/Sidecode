@@ -92,7 +92,7 @@ export function getStdin() {
       continue;
     }
     
-    // 2. String
+    // 2. String (Double quotes)
     if (raw[i] === '"') {
       i++;
       let str = '';
@@ -111,6 +111,22 @@ export function getStdin() {
         return { valid: false, error: 'Unclosed double quote in input.' };
       }
       i++; // Skip closing quote
+      parsedValue += str;
+      continue;
+    }
+
+    // 2.5 Raw String (Backticks)
+    if (raw[i] === '`') {
+      i++;
+      let str = '';
+      while (i < raw.length && raw[i] !== '`') {
+        str += raw[i];
+        i++;
+      }
+      if (i >= raw.length || raw[i] !== '`') {
+        return { valid: false, error: 'Unclosed backtick (`) in input.' };
+      }
+      i++; // Skip closing backtick
       parsedValue += str;
       continue;
     }
@@ -152,7 +168,7 @@ export function getStdin() {
     
     // 4. Numbers & Booleans
     let token = '';
-    while (i < raw.length && !/\s/.test(raw[i]) && raw[i] !== '"' && raw[i] !== '[' && raw[i] !== ']') {
+    while (i < raw.length && !/\s/.test(raw[i]) && raw[i] !== '"' && raw[i] !== '`' && raw[i] !== '[' && raw[i] !== ']') {
       token += raw[i];
       i++;
     }
