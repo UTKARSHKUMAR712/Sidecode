@@ -35,7 +35,7 @@ export const DEFAULT_TEMPLATES = {
   c: '#include <stdio.h>\n\nint main() {\n    \n    return 0;\n}\n',
   cpp: '#include <iostream>\n\nusing namespace std;\n\nint main() {\n    \n    return 0;\n}\n',
   java: 'public class Main {\n    public static void main(String[] args) {\n        \n    }\n}\n',
-  python: '',
+  python: 'def main():\n    pass\n\nif __name__ == "__main__":\n    main()\n',
   html: '<!DOCTYPE html>\n<html lang="en">\n<head>\n  <meta charset="UTF-8" />\n  <title>Document</title>\n</head>\n<body>\n  \n</body>\n</html>\n',
   css: '/* Styles */\nbody {\n  margin: 0;\n  padding: 0;\n  box-sizing: border-box;\n}\n',
   json: '{\n  \n}\n',

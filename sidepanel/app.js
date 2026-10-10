@@ -21,6 +21,7 @@ import {
   getModel,
   layoutEditor
 } from './modules/editor.js';
+import { getDefaultContent } from './modules/constants.js';
 import {
   initTabs,
   createTab,
@@ -31,7 +32,9 @@ import {
   getActiveTab,
   getActiveTabId,
   getTabs,
-  renderTabs
+  renderTabs,
+  setDefaultLanguage,
+  getDefaultLanguage
 } from './modules/tabs.js';
 
 const $ = (id) => document.getElementById(id);
@@ -108,6 +111,25 @@ function wireEventListeners() {
   $('btn-close-panel')?.addEventListener('click', () => window.close());
   $('btn-run')?.addEventListener('click', () => handleRunCode());
 
+  // Settings Modal controls
+  const modal = $('settings-modal');
+  $('btn-settings')?.addEventListener('click', () => {
+    if (modal) modal.hidden = false;
+  });
+  $('btn-close-settings')?.addEventListener('click', () => {
+    if (modal) modal.hidden = true;
+  });
+  modal?.addEventListener('click', (e) => {
+    if (e.target === modal) modal.hidden = true;
+  });
+
+  // Default language setting change
+  $('setting-default-lang')?.addEventListener('change', (e) => {
+    const chosenLang = e.target.value;
+    setDefaultLanguage(chosenLang);
+    storage.saveDefaultLanguage(chosenLang);
+  });
+
   // Console buttons
   $('btn-console-run')?.addEventListener('click', () => handleRunCode());
   $('btn-console-clear')?.addEventListener('click', clearConsole);
@@ -122,6 +144,18 @@ function wireEventListeners() {
     setTabLanguage(activeId, newLang);
     setModelLanguage(activeId, newLang);
     storage.saveTabLanguage(activeId, newLang);
+
+    // If file is empty or only whitespace, auto-load boilerplate for chosen language
+    const model = getModel(activeId);
+    if (model) {
+      const currentCode = model.getValue();
+      if (!currentCode.trim()) {
+        const template = getDefaultContent(newLang);
+        model.setValue(template);
+        updateTabContent(activeId, template);
+        storage.saveTabContent(activeId, template);
+      }
+    }
   });
 }
 
@@ -137,6 +171,13 @@ async function init() {
   const savedTabs = saved.tabs || [];
   const savedActiveId = saved.activeTabId || null;
   const savedConsoleHeight = saved.consoleHeight || 200;
+  const savedDefaultLang = saved.defaultLanguage || 'javascript';
+
+  // Initialize Settings UI value
+  const defaultLangSelect = $('setting-default-lang');
+  if (defaultLangSelect) {
+    defaultLangSelect.value = savedDefaultLang;
+  }
 
   // Initialize Console module
   initConsole({
@@ -148,7 +189,7 @@ async function init() {
   // Initialize Sandboxed Runner
   initRunner();
 
-  // Initialize Tabs module
+  // Initialize Tabs module with saved default language
   initTabs(savedTabs, savedActiveId, {
     onTabActivate: (tab) => {
       if (tab) {
@@ -173,7 +214,7 @@ async function init() {
     onTabsChange: (allTabs) => {
       storage.saveTabs(allTabs);
     }
-  });
+  }, savedDefaultLang);
 
   // Boot Monaco Editor
   await initMonaco(editorContainer, handleRunCode);
@@ -187,9 +228,9 @@ async function init() {
     });
   }
 
-  // Activate initial tab or create first tab if none exist
+  // Activate initial tab or create first tab with default language if none exist
   if (getTabs().length === 0) {
-    createTab('javascript');
+    createTab();
   } else {
     const initialId = savedActiveId && getTabs().some((t) => t.id === savedActiveId)
       ? savedActiveId

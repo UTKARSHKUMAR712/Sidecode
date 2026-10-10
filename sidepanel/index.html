@@ -43,6 +43,10 @@
       <!-- Run button — shown only for JS/TS -->
       <button id="btn-run" title="Run code (Ctrl+Enter)" aria-label="Run" hidden>&#9654;</button>
 
+      <!-- Settings button -->
+      <button id="btn-settings" title="Settings" aria-label="Settings">&#9881;</button>
+
+      <!-- Close panel button -->
       <button id="btn-close-panel" title="Close Sidecode (Ctrl+Shift+Z)" aria-label="Close">&#10005;</button>
     </div>
   </div>
@@ -78,6 +82,39 @@
       </div>
     </div>
 
+  </div>
+
+  <!-- ── Settings Modal ── -->
+  <div id="settings-modal" class="modal-overlay" hidden>
+    <div class="modal-card">
+      <div class="modal-header">
+        <span class="modal-title">&#9881; Settings</span>
+        <button id="btn-close-settings" class="modal-close-btn" title="Close Settings">&#10005;</button>
+      </div>
+      <div class="modal-body">
+        <div class="setting-item">
+          <label for="setting-default-lang" class="setting-label">Default Language for New Tabs</label>
+          <p class="setting-desc">Choose which language newly created tabs will open with by default.</p>
+          <select id="setting-default-lang" class="setting-select">
+            <option value="javascript">JavaScript (JS)</option>
+            <option value="typescript">TypeScript (TS)</option>
+            <option value="python">Python</option>
+            <option value="cpp">C++</option>
+            <option value="c">C</option>
+            <option value="java">Java</option>
+            <option value="go">Go</option>
+            <option value="rust">Rust</option>
+            <option value="html">HTML</option>
+            <option value="css">CSS</option>
+            <option value="json">JSON</option>
+            <option value="sql">SQL</option>
+            <option value="shell">Shell</option>
+            <option value="markdown">Markdown</option>
+            <option value="plaintext">Plain Text</option>
+          </select>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- Monaco (local bundle) -->

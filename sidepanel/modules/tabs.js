@@ -6,6 +6,7 @@ import { uid, escapeHtml, LANG_BADGE, getDefaultContent, RUNNABLE_LANGUAGES } fr
 
 let tabs = [];
 let activeTabId = null;
+let defaultLang = 'javascript';
 
 let onTabActivate = null;
 let onTabCreate = null;
@@ -14,14 +15,23 @@ let onTabsChange = null;
 
 const $ = (id) => document.getElementById(id);
 
-export function initTabs(savedTabs = [], savedActiveId = null, listeners = {}) {
+export function initTabs(savedTabs = [], savedActiveId = null, listeners = {}, initialDefaultLang = 'javascript') {
   tabs = savedTabs || [];
   activeTabId = savedActiveId || (tabs.length > 0 ? tabs[0].id : null);
+  defaultLang = initialDefaultLang || 'javascript';
 
   onTabActivate = listeners.onTabActivate || null;
   onTabCreate = listeners.onTabCreate || null;
   onTabClose = listeners.onTabClose || null;
   onTabsChange = listeners.onTabsChange || null;
+}
+
+export function setDefaultLanguage(lang) {
+  if (lang) defaultLang = lang;
+}
+
+export function getDefaultLanguage() {
+  return defaultLang;
 }
 
 export function getTabs() {
@@ -36,13 +46,14 @@ export function getActiveTab() {
   return tabs.find((t) => t.id === activeTabId) || null;
 }
 
-export function createTab(language = 'javascript') {
+export function createTab(language = null) {
+  const chosenLang = language || defaultLang;
   const id = uid();
   const tab = {
     id,
     label: `Tab ${tabs.length + 1}`,
-    language,
-    content: getDefaultContent(language)
+    language: chosenLang,
+    content: getDefaultContent(chosenLang)
   };
 
   tabs.push(tab);

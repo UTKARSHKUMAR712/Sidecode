@@ -57,4 +57,10 @@ export const storage = {
     _cache = { ..._cache, consoleHeight: height };
     this._flush();
   },
+
+  /** Persist default language for newly created tabs */
+  saveDefaultLanguage(language) {
+    _cache = { ..._cache, defaultLanguage: language };
+    this._flush();
+  },
 };
