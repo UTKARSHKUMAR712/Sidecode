@@ -30,18 +30,32 @@ export const LANG_BADGE = {
 };
 
 export const DEFAULT_TEMPLATES = {
+  // Scripting / Top-level languages: NO boilerplate (runs directly top-level)
   javascript: '',
   typescript: '',
+  python: '',
+  ruby: '',
+  swift: '',
+  sql: '',
+  markdown: '',
+  plaintext: '',
+
+  // Compiled / Strictly structured languages: Mandatory scaffolding only (no print statements)
   c: '#include <stdio.h>\n\nint main() {\n    \n    return 0;\n}\n',
   cpp: '#include <iostream>\n\nusing namespace std;\n\nint main() {\n    \n    return 0;\n}\n',
   java: 'public class Main {\n    public static void main(String[] args) {\n        \n    }\n}\n',
-  python: 'def main():\n    pass\n\nif __name__ == "__main__":\n    main()\n',
+  csharp: 'using System;\n\nclass Program {\n    static void Main(string[] args) {\n        \n    }\n}\n',
+  go: 'package main\n\nfunc main() {\n    \n}\n',
+  rust: 'fn main() {\n    \n}\n',
+  kotlin: 'fun main() {\n    \n}\n',
+
+  // Markup & Config
   html: '<!DOCTYPE html>\n<html lang="en">\n<head>\n  <meta charset="UTF-8" />\n  <title>Document</title>\n</head>\n<body>\n  \n</body>\n</html>\n',
-  css: '/* Styles */\nbody {\n  margin: 0;\n  padding: 0;\n  box-sizing: border-box;\n}\n',
+  css: '',
   json: '{\n  \n}\n',
-  sql: '',
   shell: '#!/bin/bash\n\n',
-  markdown: '',
+  yaml: '',
+  xml: '',
 };
 
 export function getDefaultContent(lang) {
