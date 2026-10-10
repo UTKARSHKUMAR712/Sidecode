@@ -97,9 +97,9 @@
           <label style="font-size:11px; display:flex; align-items:center; gap:4px; color:var(--text); cursor:pointer;">
             <input type="checkbox" id="chk-strict-mode" checked> Strict Typing Rules
           </label>
-          <button id="btn-input-rules" style="font-size:11px; background:none; border:none; color:var(--accent); cursor:pointer; padding:0;">View Rules</button>
+          <button id="btn-input-rules" title="View Input Rules" style="font-size:12px; background:none; border:none; color:var(--muted); cursor:pointer; padding:0; display:flex; align-items:center; gap:3px;">&#9416; Rules</button>
         </div>
-        <textarea id="console-input" spellcheck="false" placeholder="Enter standard input (stdin) here.&#10;&#10;STRICT RULES:&#10;1. Strings MUST be wrapped in double quotes (&quot;Alice&quot;).&#10;2. Numbers &amp; Booleans do not need quotes (10, true).&#10;3. Arrays are supported! ([1, 2, 3]).&#10;&#10;Click 'View Rules' for details." hidden></textarea>
+        <textarea id="console-input" spellcheck="false" placeholder="Enter standard input (stdin) here.&#10;&#10;STRICT RULES:&#10;1. Strings MUST be wrapped in double quotes (&quot;Alice&quot;).&#10;2. Numbers &amp; Booleans do not need quotes (10, true).&#10;3. Arrays are supported! ([1, 2, 3]).&#10;4. Use newlines (Enter) to separate multiple inputs.&#10;&#10;Click ⓘ Rules for details." hidden></textarea>
       </div>
     </div>
 
@@ -115,6 +115,7 @@
       <div class="modal-body" style="font-size: 13px; line-height: 1.5; color: var(--text);">
         <p>When <strong>Strict Typing Rules</strong> is enabled, Sidecode validates your input before sending it to the compiler:</p>
         <ul style="padding-left: 20px; margin-bottom: 10px;">
+          <li><strong>Multiple Inputs:</strong> Use a new line (Enter key) to separate different inputs (e.g., if you have two <code>input()</code> calls, put the first value on line 1, and the second on line 2).</li>
           <li><strong>Numbers:</strong> Type normally (e.g., <code>10</code>, <code>-3.14</code>).</li>
           <li><strong>Booleans:</strong> Type <code>true</code>, <code>false</code>, or <code>null</code>.</li>
           <li><strong>Strings:</strong> MUST be wrapped in double quotes (e.g., <code>"Hello"</code>). To include a quote inside a string, escape it (e.g., <code>"Say \"Hi\""</code>).</li>
