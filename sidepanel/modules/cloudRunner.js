@@ -103,51 +103,67 @@ async function executeViaGodbolt(code, language, stdin = '') {
     codeToRun = codeToRun.replace(/\bpublic\s+class\b/g, 'class');
   }
 
-  const payload = {
+  const execPayload = {
     source: codeToRun,
     compiler: config.compiler,
     options: {
       userArguments: '',
-      compilerOptions: {
-        executorRequest: true
-      },
+      compilerOptions: { executorRequest: true },
+      filters: { execute: true },
+      executeParameters: { args: [], stdin: stdin }
+    },
+    lang: config.lang,
+    allowStoreCodeDebug: true
+  };
+
+  const asmPayload = {
+    source: codeToRun,
+    compiler: config.compiler,
+    options: {
+      userArguments: '',
+      compilerOptions: { executorRequest: false },
       filters: {
-        execute: true,
         intel: true,
         demangle: true,
         labels: true,
         directives: true,
         commentOnly: true
-      },
-      executeParameters: {
-        args: [],
-        stdin: stdin
       }
     },
     lang: config.lang,
     allowStoreCodeDebug: true
   };
 
-  debugLog('info', `Starting Godbolt compilation for ${language}`, { payload });
+  debugLog('info', `Starting Godbolt compilation for ${language}`, { execPayload });
 
   const startTime = performance.now();
 
   try {
-    const res = await fetch(`${GODBOLT_BASE}/compiler/${config.compiler}/compile`, {
+    const fetchExec = fetch(`${GODBOLT_BASE}/compiler/${config.compiler}/compile`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      },
-      body: JSON.stringify(payload)
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify(execPayload)
     });
 
-    if (!res.ok) {
-      const errText = await res.text();
-      throw new Error(`Compiler API error ${res.status}: ${errText}`);
+    const fetchAsm = fetch(`${GODBOLT_BASE}/compiler/${config.compiler}/compile`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify(asmPayload)
+    });
+
+    const [resExec, resAsm] = await Promise.all([fetchExec, fetchAsm]);
+
+    if (!resExec.ok) {
+      const errText = await resExec.text();
+      throw new Error(`Compiler API error ${resExec.status}: ${errText}`);
     }
 
-    const data = await res.json();
+    const data = await resExec.json();
+    let asmData = null;
+    if (resAsm.ok) {
+      asmData = await resAsm.json();
+      data.asm = asmData.asm; // Merge assembly back into the data object
+    }
     const duration = Math.round(performance.now() - startTime);
     const timeStr = duration < 1 ? '<1ms' : `${duration}ms`;
 
