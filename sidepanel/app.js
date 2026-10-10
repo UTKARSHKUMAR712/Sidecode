@@ -122,14 +122,15 @@ async function handleFormatCode() {
   if (!model) return;
 
   const lang = tab.language;
-  const builtinFormatters = ['html', 'css', 'json', 'markdown'];
+  const builtinFormatters = ['javascript', 'typescript', 'html', 'css', 'json', 'markdown'];
 
   if (builtinFormatters.includes(lang)) {
     import('./modules/editor.js').then(({ getEditor }) => {
       const ed = getEditor();
       if (ed) {
         ed.trigger('anyString', 'editor.action.formatDocument');
-        import('./modules/console.js').then(({ appendLine }) => {
+        import('./modules/console.js').then(({ openConsole, appendLine }) => {
+          openConsole();
           appendLine('system', `Formatted using browser built-in formatter.`);
         });
       }
@@ -138,7 +139,7 @@ async function handleFormatCode() {
   }
 
   let formatter = null;
-  if (['c', 'cpp', 'java', 'javascript', 'typescript'].includes(lang)) {
+  if (['c', 'cpp', 'java'].includes(lang)) {
     formatter = 'clangformat';
   } else if (lang === 'rust') formatter = 'rustfmt';
   else if (lang === 'go') formatter = 'gofmt';
