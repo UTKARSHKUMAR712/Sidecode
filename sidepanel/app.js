@@ -125,16 +125,24 @@ async function handleFormatCode() {
   const builtinFormatters = ['javascript', 'typescript', 'html', 'css', 'json', 'markdown'];
 
   if (builtinFormatters.includes(lang)) {
-    import('./modules/editor.js').then(({ getEditor }) => {
-      const ed = getEditor();
-      if (ed) {
-        ed.trigger('anyString', 'editor.action.formatDocument');
-        import('./modules/console.js').then(({ openConsole, appendLine }) => {
+    const { getEditor } = await import('./modules/editor.js');
+    const ed = getEditor();
+    if (ed) {
+      ed.focus();
+      const action = ed.getAction('editor.action.formatDocument');
+      if (action) {
+        try {
+          await action.run();
+          const { openConsole, appendLine } = await import('./modules/console.js');
           openConsole();
-          appendLine('system', `Formatted using browser built-in formatter.`);
-        });
+          appendLine('system', `Formatted using Monaco built-in formatter.`);
+        } catch (err) {
+          console.warn('Monaco formatDocument error:', err);
+        }
+      } else {
+        ed.trigger('toolbar', 'editor.action.formatDocument');
       }
-    });
+    }
     return;
   }
 

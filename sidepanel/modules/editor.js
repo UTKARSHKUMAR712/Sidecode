@@ -135,12 +135,49 @@ export function initMonaco(containerEl, onRunCommand, onFormatCommand) {
   });
 }
 
+const LANG_EXTENSIONS = {
+  javascript: 'js',
+  typescript: 'ts',
+  html: 'html',
+  css: 'css',
+  scss: 'scss',
+  less: 'less',
+  json: 'json',
+  python: 'py',
+  cpp: 'cpp',
+  c: 'c',
+  java: 'java',
+  rust: 'rs',
+  go: 'go',
+  markdown: 'md',
+  sql: 'sql',
+  shell: 'sh',
+  yaml: 'yml',
+  xml: 'xml'
+};
+
+function getModelUri(tabId, language) {
+  const ext = LANG_EXTENSIONS[language] || 'txt';
+  return window.monaco.Uri.file(`/workspace/${tabId}.${ext}`);
+}
+
+const contentChangeCallbacks = new Map();
+
 export function createModel(tab, onContentChange) {
   if (!window.monaco) return null;
 
+  if (onContentChange) {
+    contentChangeCallbacks.set(tab.id, onContentChange);
+  }
+
+  const uri = getModelUri(tab.id, tab.language || 'plaintext');
+  const existing = window.monaco.editor.getModel(uri);
+  if (existing) existing.dispose();
+
   const model = window.monaco.editor.createModel(
     tab.content || '',
-    tab.language || 'plaintext'
+    tab.language || 'plaintext',
+    uri
   );
 
   let saveTimer = null;
@@ -148,7 +185,8 @@ export function createModel(tab, onContentChange) {
     const content = model.getValue();
     clearTimeout(saveTimer);
     saveTimer = setTimeout(() => {
-      if (onContentChange) onContentChange(tab.id, content);
+      const cb = contentChangeCallbacks.get(tab.id);
+      if (cb) cb(tab.id, content);
     }, 600);
   });
 
@@ -161,6 +199,7 @@ export function getModel(tabId) {
 }
 
 export function deleteModel(tabId) {
+  contentChangeCallbacks.delete(tabId);
   if (models.has(tabId)) {
     models.get(tabId).dispose();
     models.delete(tabId);
@@ -189,9 +228,38 @@ export function setEditorModel(tabId) {
 }
 
 export function setModelLanguage(tabId, language) {
-  const model = models.get(tabId);
-  if (model && window.monaco) {
-    window.monaco.editor.setModelLanguage(model, language);
+  const oldModel = models.get(tabId);
+  if (!oldModel || !window.monaco) return;
+
+  const targetUri = getModelUri(tabId, language);
+  if (oldModel.uri.toString() === targetUri.toString()) {
+    window.monaco.editor.setModelLanguage(oldModel, language);
+    return;
+  }
+
+  // Language changed with a different file extension — recreate model with new URI so language services attach
+  const content = oldModel.getValue();
+  const isCurrentModel = editor && editor.getModel() === oldModel;
+
+  oldModel.dispose();
+  const existing = window.monaco.editor.getModel(targetUri);
+  if (existing) existing.dispose();
+
+  const newModel = window.monaco.editor.createModel(content, language, targetUri);
+
+  let saveTimer = null;
+  newModel.onDidChangeContent(() => {
+    const val = newModel.getValue();
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => {
+      const cb = contentChangeCallbacks.get(tabId);
+      if (cb) cb(tabId, val);
+    }, 600);
+  });
+
+  models.set(tabId, newModel);
+  if (isCurrentModel && editor) {
+    editor.setModel(newModel);
   }
 }
 
