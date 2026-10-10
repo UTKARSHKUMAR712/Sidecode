@@ -213,12 +213,6 @@ function wireEventListeners() {
   $('btn-close-panel')?.addEventListener('click', () => window.close());
   $('btn-run')?.addEventListener('click', () => handleRunCode());
 
-  // Dependencies modal button in toolbar
-  $('btn-dependencies')?.addEventListener('click', () => {
-    const tab = getActiveTab();
-    openDependenciesModal(tab ? tab.language : 'cpp');
-  });
-
   // Open dependencies from Settings modal
   $('btn-open-deps-from-settings')?.addEventListener('click', () => {
     const modal = $('settings-modal');

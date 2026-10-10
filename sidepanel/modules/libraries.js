@@ -1,8 +1,8 @@
 /**
  * libraries.js — Instant Third-Party Libraries for Sidecode
  *
- * Interacts with Godbolt's /api/libraries/ endpoint to let users
- * include popular libraries (Boost, fmt, serde, etc.) with 1 click.
+ * Dynamically fetches ALL libraries directly from Godbolt Compiler Explorer
+ * across every single language Godbolt supports (630+ libraries).
  */
 
 import { storage } from '../storage.js';
@@ -15,7 +15,33 @@ export const GODBOLT_LIB_LANGS = {
   go: 'go',
   d: 'd',
   fortran: 'fortran',
-  zig: 'zig'
+  zig: 'zig',
+  objc: 'objc',
+  'objc++': 'objc++',
+  cuda: 'cuda',
+  circle: 'circle',
+  kotlin: 'kotlin',
+  'android-kotlin': 'android-kotlin',
+  'android-java': 'android-java',
+  gimple: 'gimple'
+};
+
+const LANG_DISPLAY_NAMES = {
+  'c++': 'C++',
+  rust: 'Rust',
+  c: 'C',
+  go: 'Go',
+  'objc++': 'Objective-C++',
+  objc: 'Objective-C',
+  circle: 'Circle',
+  cuda: 'CUDA',
+  d: 'D',
+  fortran: 'Fortran',
+  zig: 'Zig',
+  kotlin: 'Kotlin',
+  'android-kotlin': 'Android Kotlin',
+  'android-java': 'Android Java',
+  gimple: 'Gimple'
 };
 
 const POPULAR_LIBS = {
@@ -32,7 +58,7 @@ function getPopularityScore(lang, id) {
 }
 
 function normalizeVersions(lib) {
-  if (!lib.versions) return [];
+  if (!lib.versions) return [{ id: 'trunk', version: 'trunk' }];
   if (Array.isArray(lib.versions)) {
     return lib.versions.map(v => ({
       id: v.id || v.version || 'trunk',
@@ -40,18 +66,21 @@ function normalizeVersions(lib) {
     }));
   }
   if (typeof lib.versions === 'object') {
-    return Object.entries(lib.versions).map(([key, v]) => ({
+    const list = Object.entries(lib.versions).map(([key, v]) => ({
       id: (v && v.id) || key,
-      version: (v && v.version) || key
+      version: (v && v.version) || (v && v.id) || key
     }));
+    return list.length > 0 ? list : [{ id: 'trunk', version: 'trunk' }];
   }
-  return [];
+  return [{ id: 'trunk', version: 'trunk' }];
 }
 
 const libCache = new Map();
-let selectedLibraries = {}; // { 'c++': [ { id, version, name } ] }
+let supportedLanguages = []; // Array of language keys from Godbolt
+let selectedLibraries = {}; // { [langKey]: [ { id, version, name } ] }
 let activeModalLang = 'c++';
 let onLibrariesChangedCallback = null;
+let isFetchingAll = false;
 
 export function initLibraries(savedSettings, onLibrariesChanged) {
   onLibrariesChangedCallback = onLibrariesChanged;
@@ -59,7 +88,6 @@ export function initLibraries(savedSettings, onLibrariesChanged) {
   if (savedSettings && savedSettings.selectedLibraries) {
     selectedLibraries = savedSettings.selectedLibraries;
   } else if (savedSettings && Array.isArray(savedSettings.libraries)) {
-    // Migrate legacy flat array ["boost:192", "serde:10219"]
     selectedLibraries = { 'c++': [], rust: [], c: [], go: [] };
     savedSettings.libraries.forEach(libStr => {
       const [id, version] = libStr.split(':');
@@ -74,6 +102,9 @@ export function initLibraries(savedSettings, onLibrariesChanged) {
   }
 
   setupEventListeners();
+
+  // Pre-fetch all supported libraries from Godbolt in background
+  fetchAllGodboltLibraries().catch(err => console.warn('Background lib fetch failed:', err));
 }
 
 export function getGodboltLanguageKey(lang) {
@@ -82,7 +113,7 @@ export function getGodboltLanguageKey(lang) {
 
 export function isLibrariesSupportedForLanguage(lang) {
   const key = getGodboltLanguageKey(lang);
-  return key in GODBOLT_LIB_LANGS || ['c++', 'c', 'rust', 'go', 'd', 'fortran', 'zig'].includes(key);
+  return supportedLanguages.includes(key) || key in GODBOLT_LIB_LANGS;
 }
 
 export function getSelectedLibrariesForLanguage(lang) {
@@ -94,14 +125,81 @@ export function getAllSelectedLibraries() {
   return selectedLibraries;
 }
 
+/**
+ * Fetch ALL libraries for ALL languages directly from Godbolt in one call
+ */
+export async function fetchAllGodboltLibraries() {
+  if (libCache.size > 0 && supportedLanguages.length > 0) {
+    return libCache;
+  }
+
+  if (isFetchingAll) {
+    // Wait for ongoing fetch
+    while (isFetchingAll) {
+      await new Promise(r => setTimeout(r, 100));
+    }
+    return libCache;
+  }
+
+  isFetchingAll = true;
+  try {
+    const res = await fetch('https://godbolt.org/api/libraries', {
+      headers: { Accept: 'application/json' }
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+
+    const langs = Object.keys(data);
+    supportedLanguages = langs;
+
+    for (const [lang, map] of Object.entries(data)) {
+      const list = Object.entries(map).map(([id, lib]) => ({
+        id: id,
+        name: lib.name || id,
+        url: lib.url || '',
+        description: lib.description || '',
+        versions: normalizeVersions(lib)
+      }));
+
+      // Sort popular libraries to the top
+      list.sort((a, b) => {
+        const aScore = getPopularityScore(lang, a.id);
+        const bScore = getPopularityScore(lang, b.id);
+        if (aScore !== bScore) return bScore - aScore;
+        return a.name.localeCompare(b.name);
+      });
+
+      libCache.set(lang, list);
+    }
+  } catch (err) {
+    console.warn('Failed to fetch full /api/libraries list from Godbolt:', err);
+  } finally {
+    isFetchingAll = false;
+  }
+
+  return libCache;
+}
+
+/**
+ * Fetch libraries for a specific language (using cache or API)
+ */
 export async function fetchLibrariesForLanguage(langKey) {
   const godboltLang = getGodboltLanguageKey(langKey);
   if (libCache.has(godboltLang)) {
     return libCache.get(godboltLang);
   }
 
+  // If cache is empty, fetch all first
+  await fetchAllGodboltLibraries();
+  if (libCache.has(godboltLang)) {
+    return libCache.get(godboltLang);
+  }
+
+  // Fallback: fetch individual language endpoint
   try {
-    const res = await fetch(`https://godbolt.org/api/libraries/${encodeURIComponent(godboltLang)}`);
+    const res = await fetch(`https://godbolt.org/api/libraries/${encodeURIComponent(godboltLang)}`, {
+      headers: { Accept: 'application/json' }
+    });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     if (Array.isArray(data)) {
@@ -121,30 +219,34 @@ export async function fetchLibrariesForLanguage(langKey) {
       });
 
       libCache.set(godboltLang, normalized);
+      if (!supportedLanguages.includes(godboltLang)) supportedLanguages.push(godboltLang);
       return normalized;
     }
-    return [];
   } catch (err) {
     console.warn(`Failed to fetch libraries for ${godboltLang}:`, err);
-    return [];
   }
+
+  return [];
 }
 
 export function updateDependenciesBadge(activeLang) {
   const badge = document.getElementById('dep-badge');
   const btn = document.getElementById('btn-dependencies');
-  if (!badge) return;
-
   const key = getGodboltLanguageKey(activeLang);
   const libs = selectedLibraries[key] || [];
 
-  if (libs.length > 0) {
-    badge.textContent = libs.length;
-    badge.hidden = false;
-    if (btn) btn.title = `Libraries: ${libs.map(l => l.name || l.id).join(', ')}`;
-  } else {
-    badge.hidden = true;
-    if (btn) btn.title = 'Manage Third-Party Libraries';
+  if (badge) {
+    if (libs.length > 0) {
+      badge.textContent = libs.length;
+      badge.hidden = false;
+    } else {
+      badge.hidden = true;
+    }
+  }
+  if (btn) {
+    btn.title = libs.length > 0
+      ? `Libraries: ${libs.map(l => l.name || l.id).join(', ')}`
+      : 'Manage Third-Party Libraries';
   }
 }
 
@@ -152,8 +254,15 @@ export async function openDependenciesModal(lang) {
   const modal = document.getElementById('dependencies-modal');
   if (!modal) return;
 
+  // Make sure we have the full library catalog
+  if (libCache.size === 0) {
+    await fetchAllGodboltLibraries();
+  }
+
+  populateLanguageSelector();
+
   const mapped = getGodboltLanguageKey(lang);
-  activeModalLang = ['c++', 'c', 'rust', 'go', 'd', 'fortran', 'zig'].includes(mapped) ? mapped : 'c++';
+  activeModalLang = libCache.has(mapped) ? mapped : 'c++';
 
   const select = document.getElementById('dep-lang-select');
   if (select) select.value = activeModalLang;
@@ -168,6 +277,40 @@ export async function openDependenciesModal(lang) {
 export function closeDependenciesModal() {
   const modal = document.getElementById('dependencies-modal');
   if (modal) modal.hidden = true;
+}
+
+function populateLanguageSelector() {
+  const select = document.getElementById('dep-lang-select');
+  if (!select) return;
+
+  const currentVal = select.value;
+  select.innerHTML = '';
+
+  // Order priority: c++, rust, c, go, then all others alphabetically
+  const priority = ['c++', 'rust', 'c', 'go'];
+  const allLangs = Array.from(libCache.keys());
+
+  allLangs.sort((a, b) => {
+    const aP = priority.indexOf(a);
+    const bP = priority.indexOf(b);
+    if (aP !== -1 && bP !== -1) return aP - bP;
+    if (aP !== -1) return -1;
+    if (bP !== -1) return 1;
+    return a.localeCompare(b);
+  });
+
+  allLangs.forEach(langKey => {
+    const count = libCache.get(langKey)?.length || 0;
+    const name = LANG_DISPLAY_NAMES[langKey] || langKey;
+    const opt = document.createElement('option');
+    opt.value = langKey;
+    opt.textContent = `${name} (${count} libs)`;
+    select.appendChild(opt);
+  });
+
+  if (currentVal && allLangs.includes(currentVal)) {
+    select.value = currentVal;
+  }
 }
 
 async function renderModalContent() {
@@ -192,7 +335,7 @@ function renderActiveChips() {
 
   const active = selectedLibraries[activeModalLang] || [];
   if (active.length === 0) {
-    container.innerHTML = '<span style="font-size:11px; color:var(--muted); font-style:italic;">No libraries included for this language yet. Click "+ Add" below to include one.</span>';
+    container.innerHTML = '<span style="font-size:11px; color:var(--muted); font-style:italic;">No libraries included for this language. Click "+ Add" below to include one.</span>';
     return;
   }
 
@@ -250,7 +393,7 @@ function filterAndRenderList(allLibs = null) {
       versionOptions += `<option value="${escapeHtml(v.id)}" ${isVerSelected ? 'selected' : ''}>${escapeHtml(v.version)}</option>`;
     });
 
-    const urlHtml = lib.url ? `<a href="${escapeHtml(lib.url)}" target="_blank" rel="noopener" class="dep-link" title="Open docs">↗ docs</a>` : '';
+    const urlHtml = lib.url ? `<a href="${escapeHtml(lib.url)}" target="_blank" rel="noopener" class="dep-link" title="Open documentation">↗ docs</a>` : '';
 
     card.innerHTML = `
       <div class="dep-info">
@@ -284,7 +427,6 @@ function filterAndRenderList(allLibs = null) {
 
     selectEl.addEventListener('change', () => {
       if (isSelected) {
-        // Update version of already selected library
         addLibrary(activeModalLang, lib.id, selectEl.value, lib.name);
       }
     });
@@ -318,12 +460,10 @@ function clearAllForLanguage(lang) {
 }
 
 function saveAndNotify() {
-  // Persist to storage
   storage.load().then(saved => {
     const ideSettings = saved.ideSettings || {};
     ideSettings.selectedLibraries = selectedLibraries;
 
-    // Maintain flat array in ideSettings.libraries for backward compatibility
     const flat = [];
     Object.values(selectedLibraries).forEach(list => {
       list.forEach(item => flat.push(`${item.id}:${item.version}`));
@@ -336,7 +476,6 @@ function saveAndNotify() {
   renderActiveChips();
   filterAndRenderList();
 
-  // Update badge
   const activeTabLang = document.getElementById('lang-select')?.value || 'cpp';
   updateDependenciesBadge(activeTabLang);
 

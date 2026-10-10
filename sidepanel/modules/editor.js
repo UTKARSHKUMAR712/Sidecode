@@ -148,6 +148,21 @@ export function initMonaco(containerEl, onRunCommand) {
         }
       );
 
+      // Add right-click context menu item: Manage Libraries (Dependencies)...
+      editor.addAction({
+        id: 'sidecode.manage-dependencies',
+        label: 'Manage Libraries (Dependencies)...',
+        contextMenuGroupId: '1_modification',
+        contextMenuOrder: 2.0,
+        run: () => {
+          import('./libraries.js').then(({ openDependenciesModal }) => {
+            const model = editor.getModel();
+            const lang = model ? model.getLanguageId() : 'cpp';
+            openDependenciesModal(lang);
+          });
+        }
+      });
+
       isMonacoReady = true;
       resolve(editor);
     });
