@@ -57,6 +57,11 @@ const GODBOLT_MAP = {
     lang: 'go',
     compiler: 'gl12212',
     name: 'Go 1.22'
+  },
+  javascript: {
+    lang: 'javascript',
+    compiler: 'v8113',
+    name: 'V8 11.3'
   }
 };
 
