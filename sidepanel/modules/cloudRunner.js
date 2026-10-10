@@ -84,7 +84,7 @@ export function isCloudSupported(lang) {
 /**
  * Execute code via Godbolt Compiler Explorer
  */
-async function executeViaGodbolt(code, language, stdin = '') {
+async function executeViaGodbolt(code, language, stdin = '', libraries = []) {
   const config = GODBOLT_MAP[language];
   if (!config) {
     appendLine('error', `✖ Language "${language}" is not supported by cloud runner.`);
@@ -137,6 +137,16 @@ async function executeViaGodbolt(code, language, stdin = '') {
 
   if (language === 'c' || language === 'cpp') {
     asmPayload.options.tools.push({ id: 'clangtidytrunk', args: '-checks=*' });
+  }
+
+  // Inject requested third-party libraries (e.g. boost:192)
+  if (libraries && libraries.length > 0) {
+    const libsForPayload = libraries.map(libStr => {
+      const [id, version] = libStr.split(':');
+      return { id, version };
+    });
+    execPayload.options.libraries = libsForPayload;
+    asmPayload.options.libraries = libsForPayload;
   }
 
   debugLog('info', `Starting Godbolt compilation for ${language}`, { execPayload });
@@ -282,7 +292,7 @@ async function executeViaGodbolt(code, language, stdin = '') {
 /**
  * Main entry point for Cloud Execution
  */
-export async function executeViaCloud(code, language, customPistonUrl = null, stdin = '') {
+export async function executeViaCloud(code, language, customPistonUrl = null, stdin = '', libraries = []) {
   if (!isConsoleOpen()) openConsole();
 
   appendDivider();
@@ -294,7 +304,7 @@ export async function executeViaCloud(code, language, customPistonUrl = null, st
   }
 
   // Otherwise default to Godbolt
-  return executeViaGodbolt(code, language, stdin);
+  return executeViaGodbolt(code, language, stdin, libraries);
 }
 
 /**

@@ -55,6 +55,7 @@ const $ = (id) => document.getElementById(id);
 // ─── Settings state ─────────────────────────────────────────────────────────
 let jsRunnerPreference = 'sandbox'; // 'sandbox' | 'cloud'
 let customPistonUrl = '';
+let currentIdeSettings = { libraries: [] };
 
 function setJsRunnerPreference(val) {
   jsRunnerPreference = val;
@@ -109,7 +110,7 @@ async function handleRunCode() {
       });
       return;
     }
-    await executeViaCloud(code, tab.language, customPistonUrl, stdin.value);
+    await executeViaCloud(code, tab.language, customPistonUrl, stdin.value, currentIdeSettings.libraries);
   }
 }
 
@@ -307,30 +308,25 @@ function wireEventListeners() {
     storage.saveCustomPistonUrl(customPistonUrl);
   });
 
-  // IDE Settings
-  const ideSettings = {
-    fontSize: 12,
-    tabSize: 2,
-    wordWrap: false
-  };
-
   function updateIdeSettings() {
-    ideSettings.fontSize = parseInt($('setting-font-size').value, 10);
-    ideSettings.tabSize = parseInt($('setting-tab-size').value, 10);
-    ideSettings.wordWrap = $('setting-word-wrap').checked;
-    
+    currentIdeSettings.fontSize = parseInt($('setting-font-size').value, 10);
+    currentIdeSettings.tabSize = parseInt($('setting-tab-size').value, 10);
+    currentIdeSettings.wordWrap = $('setting-word-wrap').checked;
+    currentIdeSettings.libraries = Array.from(document.querySelectorAll('.setting-lib:checked')).map(cb => cb.value);
+
     // Apply to monaco
-    applyIdeSettingsToEditor(ideSettings);
+    applyIdeSettingsToEditor(currentIdeSettings);
     
     // Apply to console
-    document.documentElement.style.setProperty('--ide-font-size', `${ideSettings.fontSize}px`);
+    document.documentElement.style.setProperty('--ide-font-size', `${currentIdeSettings.fontSize}px`);
 
-    storage.saveIdeSettings(ideSettings);
+    storage.saveIdeSettings(currentIdeSettings);
   }
 
   $('setting-font-size')?.addEventListener('change', updateIdeSettings);
   $('setting-tab-size')?.addEventListener('change', updateIdeSettings);
   $('setting-word-wrap')?.addEventListener('change', updateIdeSettings);
+  document.querySelectorAll('.setting-lib').forEach(el => el.addEventListener('change', updateIdeSettings));
 
   // Open Debug Zone
   $('btn-open-debug')?.addEventListener('click', () => {
@@ -399,10 +395,18 @@ async function init() {
   if (customPistonEl) customPistonEl.value = customPistonUrl;
 
   // Apply IDE settings
-  const savedIdeSettings = saved.ideSettings || { fontSize: 13, tabSize: 2, wordWrap: true };
+  currentIdeSettings = saved.ideSettings || { fontSize: 13, tabSize: 2, wordWrap: true, libraries: [] };
+  const savedIdeSettings = currentIdeSettings;
   if ($('setting-font-size')) $('setting-font-size').value = savedIdeSettings.fontSize;
   if ($('setting-tab-size')) $('setting-tab-size').value = savedIdeSettings.tabSize;
   if ($('setting-word-wrap')) $('setting-word-wrap').checked = savedIdeSettings.wordWrap;
+  
+  if (savedIdeSettings.libraries && savedIdeSettings.libraries.length > 0) {
+    document.querySelectorAll('.setting-lib').forEach(cb => {
+      if (savedIdeSettings.libraries.includes(cb.value)) cb.checked = true;
+    });
+  }
+
   document.documentElement.style.setProperty('--ide-font-size', `${savedIdeSettings.fontSize}px`);
 
   // Initialize Console module

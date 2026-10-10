@@ -188,6 +188,21 @@
             <input type="checkbox" id="setting-word-wrap"> Enable Word Wrap
           </label>
         </div>
+
+        <!-- Third-Party Libraries -->
+        <div class="setting-item">
+          <label class="setting-label">Include Third-Party Libraries (C++/Rust)</label>
+          <p class="setting-desc">Check the libraries you want to be automatically included in Cloud Execution.</p>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px;">
+            <label style="display:flex; align-items:center; gap:6px;"><input type="checkbox" id="lib-boost" class="setting-lib" value="boost:192"> Boost (C++)</label>
+            <label style="display:flex; align-items:center; gap:6px;"><input type="checkbox" id="lib-fmt" class="setting-lib" value="fmt:1200"> fmt (C++)</label>
+            <label style="display:flex; align-items:center; gap:6px;"><input type="checkbox" id="lib-json" class="setting-lib" value="nlohmann_json:3111"> nlohmann/json (C++)</label>
+            <label style="display:flex; align-items:center; gap:6px;"><input type="checkbox" id="lib-catch2" class="setting-lib" value="catch2:trunk"> Catch2 (C++)</label>
+            <label style="display:flex; align-items:center; gap:6px;"><input type="checkbox" id="lib-serde" class="setting-lib" value="serde:10219"> serde (Rust)</label>
+            <label style="display:flex; align-items:center; gap:6px;"><input type="checkbox" id="lib-rand" class="setting-lib" value="rand:091"> rand (Rust)</label>
+            <label style="display:flex; align-items:center; gap:6px;"><input type="checkbox" id="lib-tokio" class="setting-lib" value="tokio:1460"> tokio (Rust)</label>
+          </div>
+        </div>
         <!-- JS runner preference -->
         <div class="setting-item">
           <label for="setting-js-runner" class="setting-label">JavaScript Execution Engine</label>
