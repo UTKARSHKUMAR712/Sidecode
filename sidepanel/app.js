@@ -121,7 +121,7 @@ async function handleFormatCode() {
   if (!model) return;
 
   const lang = tab.language;
-  const builtinFormatters = ['javascript', 'typescript', 'html', 'css', 'json', 'markdown'];
+  const builtinFormatters = ['html', 'css', 'json', 'markdown'];
 
   if (builtinFormatters.includes(lang)) {
     import('./modules/editor.js').then(({ getEditor }) => {
@@ -137,8 +137,9 @@ async function handleFormatCode() {
   }
 
   let formatter = null;
-  if (lang === 'c' || lang === 'cpp' || lang === 'java') formatter = 'clangformat';
-  else if (lang === 'rust') formatter = 'rustfmt';
+  if (['c', 'cpp', 'java', 'javascript', 'typescript'].includes(lang)) {
+    formatter = 'clangformat';
+  } else if (lang === 'rust') formatter = 'rustfmt';
   else if (lang === 'go') formatter = 'gofmt';
 
   if (!formatter) {
