@@ -11,9 +11,9 @@ export function getEditor() {
 /**
  * Initialize Monaco editor
  * @param {HTMLElement} containerEl - DOM container for the editor
- * @param {Function} onFormatCommand - Triggered on Ctrl+S
+ * @param {Function} onRunCommand - Triggered on Ctrl+Enter
  */
-export function initMonaco(containerEl, onRunCommand, onFormatCommand) {
+export function initMonaco(containerEl, onRunCommand) {
   return new Promise((resolve) => {
     // eslint-disable-next-line no-undef
     require.config({ paths: { vs: 'vs' } });
@@ -113,6 +113,11 @@ export function initMonaco(containerEl, onRunCommand, onFormatCommand) {
       // Register rich completions and snippets for Python, C, C++, Java, Go, Rust, SQL, JS, TS, etc.
       registerAllLanguageCompletions(window.monaco);
 
+      // Register Godbolt formatters for C, C++, Rust, Go, Java
+      import('./formatters.js').then(({ registerCloudFormatters }) => {
+        registerCloudFormatters(window.monaco);
+      });
+
       // Add Ctrl+Enter command to run code
       if (onRunCommand) {
         editor.addCommand(
@@ -121,13 +126,26 @@ export function initMonaco(containerEl, onRunCommand, onFormatCommand) {
         );
       }
 
-      // Add Ctrl+S command to format code
-      if (onFormatCommand) {
-        editor.addCommand(
-          window.monaco.KeyMod.CtrlCmd | window.monaco.KeyCode.KeyS,
-          onFormatCommand
-        );
-      }
+      // Add Ctrl+S command to trigger Monaco's native format document
+      editor.addCommand(
+        window.monaco.KeyMod.CtrlCmd | window.monaco.KeyCode.KeyS,
+        () => {
+          editor.getAction('editor.action.formatDocument').run();
+          
+          // Optionally notify in console
+          const model = editor.getModel();
+          if (model) {
+            const lang = model.getLanguageId();
+            const builtinFormatters = ['javascript', 'typescript', 'html', 'css', 'json', 'markdown'];
+            if (builtinFormatters.includes(lang)) {
+              import('./console.js').then(({ openConsole, appendLine }) => {
+                openConsole();
+                appendLine('system', `Formatted using Monaco built-in formatter.`);
+              });
+            }
+          }
+        }
+      );
 
       isMonacoReady = true;
       resolve(editor);

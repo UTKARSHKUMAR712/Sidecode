@@ -114,86 +114,6 @@ async function handleRunCode() {
   }
 }
 
-// ─── Format current tab's code ──────────────────────────────────────────────
-async function handleFormatCode() {
-  const tab = getActiveTab();
-  if (!tab) return;
-  const model = getModel(tab.id);
-  if (!model) return;
-
-  const lang = tab.language;
-  const builtinFormatters = ['javascript', 'typescript', 'html', 'css', 'json', 'markdown'];
-
-  if (builtinFormatters.includes(lang)) {
-    const { getEditor } = await import('./modules/editor.js');
-    const ed = getEditor();
-    if (ed) {
-      ed.focus();
-      const action = ed.getAction('editor.action.formatDocument');
-      if (action) {
-        try {
-          await action.run();
-          const { openConsole, appendLine } = await import('./modules/console.js');
-          openConsole();
-          appendLine('system', `Formatted using Monaco built-in formatter.`);
-        } catch (err) {
-          console.warn('Monaco formatDocument error:', err);
-        }
-      } else {
-        ed.trigger('toolbar', 'editor.action.formatDocument');
-      }
-    }
-    return;
-  }
-
-  let formatter = null;
-  if (['c', 'cpp', 'java'].includes(lang)) {
-    formatter = 'clangformat';
-  } else if (lang === 'rust') formatter = 'rustfmt';
-  else if (lang === 'go') formatter = 'gofmt';
-
-  if (!formatter) {
-    if (lang !== 'python') {
-      import('./modules/console.js').then(({ openConsole, appendLine }) => {
-        openConsole();
-        appendLine('warn', `No remote formatter available for language: ${lang}`);
-      });
-    }
-    return;
-  }
-
-  import('./modules/console.js').then(({ openConsole, appendLine }) => {
-    openConsole();
-    appendLine('system', `Formatting with ${formatter}...`);
-  });
-
-  try {
-    const res = await fetch(`https://godbolt.org/api/format/${formatter}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-      body: JSON.stringify({ source: model.getValue(), base: 'Google' })
-    });
-
-    if (res.ok) {
-      const data = await res.json();
-      if (data.answer) {
-        model.setValue(data.answer);
-        import('./modules/console.js').then(({ appendLine }) => {
-          appendLine('system', `Code formatted successfully.`);
-        });
-      }
-    } else {
-      const err = await res.text();
-      import('./modules/console.js').then(({ appendLine }) => {
-        appendLine('error', `Format failed: ${err}`);
-      });
-    }
-  } catch (err) {
-    import('./modules/console.js').then(({ appendLine }) => {
-      appendLine('error', `Network error during formatting: ${err.message}`);
-    });
-  }
-}
 
 // ─── Show/hide Run button & runner selector based on active language ─────────
 function updateRunControls(language) {
@@ -238,7 +158,15 @@ function setupKeyboard() {
     // Ctrl+S — format code
     if (e.key === 's' || e.key === 'S') {
       e.preventDefault();
-      handleFormatCode();
+      import('./modules/editor.js').then(({ getEditor }) => {
+        const ed = getEditor();
+        if (ed) {
+          const action = ed.getAction('editor.action.formatDocument');
+          if (action && action.isSupported()) {
+             action.run();
+          }
+        }
+      });
       return;
     }
 
@@ -276,7 +204,6 @@ function wireEventListeners() {
   $('btn-new-tab')?.addEventListener('click', () => createTab());
   $('btn-close-panel')?.addEventListener('click', () => window.close());
   $('btn-run')?.addEventListener('click', () => handleRunCode());
-  $('btn-format')?.addEventListener('click', () => handleFormatCode());
 
   // ── Runner selector in console header (JS/TS only) ──
   $('runner-select')?.addEventListener('change', (e) => {
@@ -458,7 +385,7 @@ async function init() {
   }, savedDefaultLang);
 
   // Boot Monaco Editor
-  await initMonaco(editorContainer, handleRunCode, handleFormatCode);
+  await initMonaco(editorContainer, handleRunCode);
   applyIdeSettingsToEditor(savedIdeSettings);
   if (editorContainer) editorContainer.classList.remove('loading');
 
