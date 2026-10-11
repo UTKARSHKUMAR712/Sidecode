@@ -92,7 +92,9 @@ import {
 } from './modules/permissions.js';
 import {
   initTerminal,
-  updateTerminalPrompt
+  updateTerminalPrompt,
+  appendCommandLineEcho,
+  getRunCommandForTab
 } from './modules/terminal.js';
 
 const $ = (id) => document.getElementById(id);
@@ -132,9 +134,22 @@ async function handleRunCode() {
   const code = model.getValue();
   const runner = pickRunner(tab.language);
 
+  // 1. Ensure console is open and switch to Terminal tab
+  import('./modules/console.js').then(({ openConsole, isConsoleOpen }) => {
+    if (!isConsoleOpen()) openConsole();
+  });
+  $('tab-console')?.click();
+
+  // 2. Clear any pending typed draft in CLI input
+  const cliInput = $('terminal-cli-input');
+  if (cliInput) cliInput.value = '';
+
+  // 3. Print command prompt echo so command is shown FIRST and output is BELOW it
+  const cmdStr = getRunCommandForTab(tab);
+  appendCommandLineEcho(cmdStr);
+
   if (!runner) {
-    import('./modules/console.js').then(({ openConsole, appendLine, appendRunBadge, setExecTime }) => {
-      openConsole();
+    import('./modules/console.js').then(({ appendLine, appendRunBadge, setExecTime }) => {
       appendLine('warn', `Language "${tab.language}" does not have an execution engine configured.`);
       appendRunBadge('Not runnable', true);
       setExecTime('—');
@@ -147,8 +162,7 @@ async function handleRunCode() {
   } else {
     const stdin = getStdin();
     if (!stdin.valid) {
-      import('./modules/console.js').then(({ openConsole, appendLine, appendRunBadge, setExecTime }) => {
-        openConsole();
+      import('./modules/console.js').then(({ appendLine, appendRunBadge, setExecTime }) => {
         appendLine('error', `✖ ${stdin.error}`);
         appendRunBadge('Input Error', true);
         setExecTime('—');

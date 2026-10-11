@@ -304,7 +304,6 @@ async function executeViaGodbolt(code, language, stdin = '', libraries = [], tab
 export async function executeViaCloud(code, language, customPistonUrl = null, stdin = '', libraries = [], tabId = null) {
   if (!isConsoleOpen()) openConsole();
 
-  appendDivider();
   setExecTime('Running…');
 
   // If user configured a custom Piston endpoint, use it

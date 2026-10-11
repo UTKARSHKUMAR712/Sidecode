@@ -140,9 +140,38 @@ export function updateTerminalPrompt() {
 }
 
 /**
+ * Generate a realistic terminal command line for a given tab
+ */
+export function getRunCommandForTab(tab) {
+  if (!tab) return 'run';
+  const filename = tab.label || (tab.filePath ? tab.filePath.split('/').pop() : 'script');
+  switch (tab.language) {
+    case 'javascript':
+    case 'js':
+      return `node ${filename}`;
+    case 'typescript':
+    case 'ts':
+      return `ts-node ${filename}`;
+    case 'python':
+    case 'py':
+      return `python ${filename}`;
+    case 'cpp':
+      return `g++ ${filename}`;
+    case 'c':
+      return `gcc ${filename}`;
+    case 'rust':
+      return `rustc ${filename}`;
+    case 'go':
+      return `go run ${filename}`;
+    default:
+      return `run ${filename}`;
+  }
+}
+
+/**
  * Append an echoed command line to the output stream
  */
-function appendCommandLineEcho(cmdText) {
+export function appendCommandLineEcho(cmdText) {
   const output = $('console-output');
   const cliRow = $('terminal-cli-row');
   if (!output) return;

@@ -41,7 +41,6 @@ export async function executeCode(rawCode, language = 'javascript', monacoModel 
     openConsole();
   }
 
-  appendDivider();
   setExecTime('Running...');
 
   let codeToRun = rawCode;
