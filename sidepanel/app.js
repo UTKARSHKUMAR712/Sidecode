@@ -724,3 +724,131 @@ async function init() {
 
 // Start application
 init();
+
+// ─── Resource & Memory Profiler Listener for Debug Zone ─────────────────────
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  if (msg.type === 'GET_RESOURCE_PROFILE') {
+    (async () => {
+      const mem = performance.memory ? {
+        usedJSHeapSize: performance.memory.usedJSHeapSize,
+        totalJSHeapSize: performance.memory.totalJSHeapSize,
+        jsHeapSizeLimit: performance.memory.jsHeapSizeLimit
+      } : null;
+
+      let storageEstimate = null;
+      try {
+        storageEstimate = await navigator.storage.estimate();
+      } catch (_) {}
+
+      const { getEditorModelsStats } = await import('./modules/editor.js');
+      const modelsInfo = getEditorModelsStats();
+      const allTabs = getTabs();
+
+      const domNodeCount = document.getElementsByTagName('*').length;
+      const explorerRowsCount = document.querySelectorAll('.vsc-tree-row').length;
+      const consoleOutputLines = document.querySelectorAll('.console-line').length;
+
+      // Leak danger & suspicious heuristics
+      const issues = [];
+      let dangerLevel = 'SAFE';
+
+      // Check 1: Orphaned models
+      const validTabIds = allTabs.map(t => t.id);
+      const orphaned = modelsInfo.models.filter(m => !validTabIds.includes(m.id));
+      if (orphaned.length > 0) {
+        issues.push({
+          severity: 'DANGER',
+          category: 'Memory Leak',
+          message: `Orphaned Monaco Models: ${orphaned.length} model(s) still allocated after tab closure!`,
+          details: orphaned.map(o => `${o.uri || o.id} (${o.lineCount} lines)`).join(', ')
+        });
+        dangerLevel = 'DANGER';
+      }
+
+      // Check 2: Heap usage near limit
+      if (mem && mem.usedJSHeapSize > mem.jsHeapSizeLimit * 0.8) {
+        issues.push({
+          severity: 'DANGER',
+          category: 'Heap Exhaustion',
+          message: 'Critical: JS Heap utilization is above 80% of browser heap limit.',
+          details: `${(mem.usedJSHeapSize / (1024*1024)).toFixed(1)} MB / ${(mem.jsHeapSizeLimit / (1024*1024)).toFixed(1)} MB`
+        });
+        dangerLevel = 'DANGER';
+      } else if (mem && mem.usedJSHeapSize > 150 * 1024 * 1024) {
+        issues.push({
+          severity: 'WARNING',
+          category: 'High Memory',
+          message: 'Elevated Memory Usage: Side panel JS Heap exceeds 150 MB.',
+          details: 'Multiple large files or libraries currently active.'
+        });
+        if (dangerLevel !== 'DANGER') dangerLevel = 'WARNING';
+      }
+
+      // Check 3: Huge DOM tree
+      if (domNodeCount > 6000) {
+        issues.push({
+          severity: 'WARNING',
+          category: 'DOM Bloat',
+          message: `High DOM node count (${domNodeCount} nodes).`,
+          details: `${explorerRowsCount} explorer tree rows, ${consoleOutputLines} console output lines`
+        });
+        if (dangerLevel !== 'DANGER') dangerLevel = 'WARNING';
+      }
+
+      // Check 4: Console buffer accumulation
+      if (consoleOutputLines > 1000) {
+        issues.push({
+          severity: 'WARNING',
+          category: 'Buffer Growth',
+          message: `Console buffer holds ${consoleOutputLines} output lines.`,
+          details: 'Consider clearing console to free memory.'
+        });
+        if (dangerLevel !== 'DANGER') dangerLevel = 'WARNING';
+      }
+
+      // Check 5: Large file model
+      const largeModels = modelsInfo.models.filter(m => m.charCount > 500000);
+      if (largeModels.length > 0) {
+        issues.push({
+          severity: 'INFO',
+          category: 'Large Model',
+          message: `${largeModels.length} large source file(s) (>500KB) loaded in memory.`,
+          details: largeModels.map(m => `${m.id} (${(m.charCount/1024).toFixed(0)} KB)`).join(', ')
+        });
+      }
+
+      sendResponse({
+        ok: true,
+        timestamp: Date.now(),
+        memory: mem,
+        storage: storageEstimate,
+        domNodeCount,
+        explorerRowsCount,
+        consoleOutputLines,
+        tabsCount: allTabs.length,
+        modelsInfo,
+        dangerLevel,
+        issues
+      });
+    })();
+    return true;
+  } else if (msg.type === 'FORCE_CLEANUP') {
+    (async () => {
+      const { cleanupOrphanedModels } = await import('./modules/editor.js');
+      const validTabIds = getTabs().map(t => t.id);
+      const cleaned = cleanupOrphanedModels(validTabIds);
+
+      const consoleOutput = document.getElementById('console-output');
+      let trimmed = 0;
+      if (consoleOutput && consoleOutput.children.length > 300) {
+        while (consoleOutput.children.length > 150) {
+          consoleOutput.removeChild(consoleOutput.firstChild);
+          trimmed++;
+        }
+      }
+
+      sendResponse({ ok: true, cleanedModels: cleaned, trimmedConsoleLines: trimmed });
+    })();
+    return true;
+  }
+});

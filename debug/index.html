@@ -2,17 +2,135 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Sidecode Debug Zone</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sidecode Debug Zone & Resource Monitor</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="header">
-    <h1>Sidecode Debug Zone</h1>
-    <div>
-      <button id="btn-clear">Clear Logs</button>
+  <!-- Top Application Header -->
+  <header class="app-header">
+    <div class="header-left">
+      <div class="app-logo">⚡</div>
+      <div class="app-title-group">
+        <h1>Sidecode Debug Zone</h1>
+        <span class="app-subtitle">Real-time Performance, RAM, & Leak Diagnostics</span>
+      </div>
     </div>
-  </div>
-  <div id="log-container"></div>
+    <div class="header-nav">
+      <button class="nav-tab active" id="tab-btn-monitor">📊 Resource Monitor</button>
+      <button class="nav-tab" id="tab-btn-logs">📜 System Logs</button>
+    </div>
+  </header>
+
+  <!-- Main View Container -->
+  <main class="main-content">
+
+    <!-- 1. Resource Monitor View -->
+    <section id="view-monitor" class="view-panel active">
+      <!-- Status & Control Banner -->
+      <div class="status-banner">
+        <div class="status-info">
+          <div id="danger-pill" class="danger-pill pill-safe">
+            <span class="pill-dot">●</span>
+            <span id="danger-text">CHECKING EXTENSION HEALTH...</span>
+          </div>
+          <span class="last-updated" id="last-updated-text">Last sample: —</span>
+        </div>
+        <div class="status-controls">
+          <label class="toggle-control">
+            <input type="checkbox" id="chk-auto-poll" checked>
+            <span class="toggle-text">Live Polling (2s)</span>
+          </label>
+          <button id="btn-refresh-stats" class="btn-primary">↻ Refresh</button>
+          <button id="btn-force-cleanup" class="btn-warn">🧹 Clean Buffers & GC</button>
+        </div>
+      </div>
+
+      <!-- Quick Metrics Grid -->
+      <div class="metrics-grid">
+        <div class="metric-card">
+          <div class="card-title">V8 JS HEAP (RAM USAGE)</div>
+          <div class="card-value" id="val-heap-used">— MB</div>
+          <div class="card-sub" id="val-heap-total">Allocated: — MB</div>
+          <div class="progress-bar-wrap">
+            <div class="progress-bar" id="bar-heap-usage" style="width: 0%"></div>
+          </div>
+        </div>
+
+        <div class="metric-card">
+          <div class="card-title">HEAP CEILING & HEADROOM</div>
+          <div class="card-value" id="val-heap-limit">— MB</div>
+          <div class="card-sub" id="val-heap-margin">Headroom: — MB free</div>
+          <div class="progress-bar-wrap">
+            <div class="progress-bar bar-accent" id="bar-heap-headroom" style="width: 0%"></div>
+          </div>
+        </div>
+
+        <div class="metric-card">
+          <div class="card-title">MONACO MODELS IN RAM</div>
+          <div class="card-value" id="val-models-count">—</div>
+          <div class="card-sub" id="val-tabs-count">Open Tabs: —</div>
+          <div class="card-sub" id="val-orphaned-count">Orphaned Models: 0</div>
+        </div>
+
+        <div class="metric-card">
+          <div class="card-title">DOM & VISUAL FOOTPRINT</div>
+          <div class="card-value" id="val-dom-nodes">—</div>
+          <div class="card-sub" id="val-explorer-nodes">Explorer Nodes: —</div>
+          <div class="card-sub" id="val-console-lines">Terminal Lines: —</div>
+        </div>
+      </div>
+
+      <!-- Leak Danger & Suspicious Activity Diagnostics -->
+      <div class="section-card">
+        <div class="section-card-header">
+          <h2>🛡️ Memory Leak & Suspicion Diagnostics</h2>
+          <span class="badge-tag" id="tag-audits-summary">5 Automated Audits</span>
+        </div>
+        <div class="audit-list" id="audit-list">
+          <!-- Filled dynamically by app.js -->
+        </div>
+      </div>
+
+      <!-- Component Memory Breakdown & Active Models Table -->
+      <div class="section-card">
+        <div class="section-card-header">
+          <h2>📂 Active Memory Allocations by File / Component</h2>
+          <span class="badge-tag" id="tag-active-models">— Models</span>
+        </div>
+        <div class="table-responsive">
+          <table class="models-table">
+            <thead>
+              <tr>
+                <th>Component / Source File</th>
+                <th>Language</th>
+                <th>Lines</th>
+                <th>Characters</th>
+                <th>Estimated RAM</th>
+                <th>Leak Status</th>
+              </tr>
+            </thead>
+            <tbody id="models-tbody">
+              <tr>
+                <td colspan="6" class="empty-state">Waiting for side panel telemetry... Open Sidecode panel to stream live metrics.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. System Logs View -->
+    <section id="view-logs" class="view-panel">
+      <div class="logs-toolbar">
+        <h2>Live Extension Logs</h2>
+        <button id="btn-clear-logs" class="btn-secondary">Clear Logs</button>
+      </div>
+      <div id="log-container"></div>
+    </section>
+
+  </main>
+
   <script src="app.js"></script>
 </body>
 </html>

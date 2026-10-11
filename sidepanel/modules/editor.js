@@ -431,3 +431,46 @@ export function revealLocation(lineNumber, column = 1) {
   editor.setPosition({ lineNumber: line, column: col });
   editor.focus();
 }
+
+/**
+ * Return detailed diagnostic metrics for all Monaco models currently in memory
+ */
+export function getEditorModelsStats() {
+  const list = [];
+  for (const [id, model] of models.entries()) {
+    if (!model.isDisposed()) {
+      const lineCount = model.getLineCount();
+      const length = model.getValueLength();
+      list.push({
+        id,
+        uri: model.uri ? model.uri.toString() : id,
+        language: model.getLanguageId(),
+        lineCount,
+        charCount: length,
+        estimatedBytes: length * 2
+      });
+    }
+  }
+  return {
+    totalModels: models.size,
+    activeModels: list.length,
+    models: list
+  };
+}
+
+/**
+ * Cleanup any models that no longer have a corresponding open tab
+ */
+export function cleanupOrphanedModels(validTabIds = []) {
+  let cleaned = 0;
+  for (const [id, model] of models.entries()) {
+    if (!validTabIds.includes(id)) {
+      try {
+        if (!model.isDisposed()) model.dispose();
+      } catch (_) {}
+      models.delete(id);
+      cleaned++;
+    }
+  }
+  return cleaned;
+}
