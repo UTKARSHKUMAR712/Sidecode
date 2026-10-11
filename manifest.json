@@ -2,7 +2,9 @@
   "manifest_version": 3,
   "name": "Sidecode — Code Editor Sidebar",
   "version": "2.0.0",
-  "description": "A Monaco-powered code editor in your browser sidebar with tabs, language selection and persistent storage.",
+  "description": "A Monaco-powered code editor in your browser sidebar with tabs, language selection and persistent storage. Created by utkarshkumar712.",
+  "author": "utkarshkumar712",
+  "homepage_url": "https://github.com/UTKARSHKUMAR712/Sidecode",
   "permissions": ["sidePanel", "storage", "nativeMessaging"],
   "host_permissions": [
     "https://emkc.org/*",

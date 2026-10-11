@@ -1,8 +1,70 @@
 # Sidecode: VS Code-Style IDE in Your Browser Side Panel
 
 <div align="center">
-  <p><strong>A lightweight, ultra-fast, Monaco-powered Integrated Development Environment that lives directly inside your browser's side panel (Chrome, Brave, Edge).</strong></p>
-  <p>Write, edit real PC files, compile multi-file projects, run an interactive terminal, and execute code in multiple languages without ever leaving your active web tab.</p>
+
+[![GitHub Release](https://img.shields.io/badge/Release-v2.0.0-blue.svg?style=for-the-badge&logo=github)](https://github.com/UTKARSHKUMAR712/Sidecode/releases)
+[![Author](https://img.shields.io/badge/Author-utkarshkumar712-blueviolet.svg?style=for-the-badge&logo=github)](https://github.com/UTKARSHKUMAR712)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
+[![Manifest V3](https://img.shields.io/badge/Manifest-V3-success.svg?style=for-the-badge&logo=googlechrome)](https://developer.chrome.com/docs/extensions/mv3/intro/)
+[![Browser Support](https://img.shields.io/badge/Browsers-Chrome%20|%20Brave%20|%20Edge-critical.svg?style=for-the-badge&logo=googlechrome)](https://github.com/UTKARSHKUMAR712/Sidecode)
+
+<br/>
+
+**A lightweight, ultra-fast, Monaco-powered Integrated Development Environment that lives directly inside your browser's side panel (Chrome, Brave, Edge).**
+
+Write, edit real PC files, compile multi-file projects, run an interactive terminal, and execute code in multiple languages without ever leaving your active web tab.
+
+*Crafted with ❤️ by **[utkarshkumar712](https://github.com/UTKARSHKUMAR712)***
+
+</div>
+
+---
+
+## 📸 Screenshots & Live Demos
+
+Experience how **Sidecode** changes the way you learn, build, and debug code right alongside your browser tabs:
+
+### 1. 📺 Split-Screen Coding Alongside YouTube Tutorials & Documentation
+> Code along with YouTube video lectures, documentation, or LeetCode problems side-by-side without ever switching windows or resizing desktop apps.
+
+<div align="center">
+  <img src="docs/screenshots/sidepanel-coding-while-watching.png" alt="Sidecode split-screen coding while watching YouTube tutorial" width="850" />
+</div>
+
+<br/>
+
+### 2. ☁️ Instant Cloud Compilation for Data Structures & Algorithms
+> Zero setup required! Compile C, C++, and Python with GCC 14.1 / Clang in isolated cloud sandboxes while watching computer science tutorials.
+
+<div align="center">
+  <img src="docs/screenshots/sidepanel-youtube-dsa-cloud.png" alt="Sidecode cloud compilation while watching DSA video" width="850" />
+</div>
+
+<br/>
+
+### 3. 🎯 Authentic Real-Time Interactive Terminal (`scanf` & `cin` Live Loops)
+> Truly bidirectional standard input! Play interactive C number-guessing games, test algorithms, and provide runtime inputs step-by-step just like a native desktop terminal.
+
+<div align="center">
+  <img src="docs/screenshots/interactive-c-scanf-terminal.png" alt="Sidecode interactive C scanf guessing game in terminal" width="850" />
+</div>
+
+<br/>
+
+### 4. ⚡ Local Native PC Terminal Bridge (Direct Toolchains on Real PC Folders)
+> Connect directly to your local PC compilers (MSYS2 GCC, Clang, Node.js, Python, Rust, Go) to build and run actual project files on your disk.
+
+<div align="center">
+  <img src="docs/screenshots/sidepanel-local-terminal-bridge.png" alt="Sidecode local PC terminal bridge execution" width="850" />
+</div>
+
+<br/>
+
+### 5. ⚙️ Streamlined Preferences & 1-Click Bridge Setup
+> Clean, intuitive settings modal featuring one-click copy buttons for bridge installation and complete uninstallation.
+
+<div align="center">
+  <img src="docs/screenshots/settings-bridge-modal.png" alt="Sidecode settings modal with 1-click bridge commands" width="850" />
 </div>
 
 ---
@@ -123,7 +185,7 @@ Sidecode provides native syntax highlighting, auto-detection, code formatting, I
 | `Ctrl + Alt + F` | **Format Document** | Editor |
 | `Ctrl + Alt + A` | **Run Static Code Analysis** on active file | Editor |
 | `Ctrl + ,` | **Open Settings & Preferences** | Global |
-| `Ctrl + Shift + Z` | **Close Sidecode panel** | Global |
+| `Ctrl + Shift + Z` | **Close / Toggle Sidecode panel** | Global |
 | `shortcuts` (CLI command) | **Show all shortcuts in terminal output** | Terminal |
 
 ---
@@ -132,8 +194,18 @@ Sidecode provides native syntax highlighting, auto-detection, code formatting, I
 
 ```text
 Sidecode/
-├── manifest.json              # Chrome Extension Manifest V3 configuration
+├── manifest.json              # Chrome Extension Manifest V3 configuration (utkarshkumar712)
 ├── background.js              # Service worker managing side panel behavior
+├── bridge.js                  # Native PC execution micro-bridge (HTTP + SSE on port 3888)
+├── install-bridge.ps1         # 1-Click PowerShell installer for local bridge
+├── uninstall-bridge.ps1       # 1-Click PowerShell uninstaller for local bridge
+├── start-bridge-silent.vbs    # Background runner with zero flashing CMD windows
+├── package-extension.ps1      # Automated production extension packager
+├── llms.txt                   # Standard specification for AI agents and LLM crawlers
+├── llms-full.txt              # Comprehensive technical API documentation for AI indexing
+├── CITATION.cff               # Official citation metadata crediting utkarshkumar712
+├── SECURITY.md                # Security policy & vulnerability reporting
+├── CONTRIBUTING.md            # Guidelines for open-source contributors
 ├── sidepanel/
 │   ├── index.html             # Main IDE DOM layout
 │   ├── app.js                 # Central application controller & event wiring
@@ -156,7 +228,8 @@ Sidecode/
 │   ├── vs/                    # Monaco Editor core distribution
 │   └── workers/               # Monaco Editor web workers
 ├── debug/                     # Sidecode Debug Zone dashboard
-└── docs/                      # Technical architecture documentation
+└── docs/                      # Technical architecture documentation & screenshots
+    └── screenshots/           # High-resolution IDE demonstration screenshots
 ```
 
 ---
@@ -165,17 +238,17 @@ Sidecode/
 
 1. Clone or download this repository to your computer:
    ```bash
-   git clone https://github.com/<your-username>/Sidecode.git
+   git clone https://github.com/UTKARSHKUMAR712/Sidecode.git
    ```
-2. Open Google Chrome, Brave, or Microsoft Edge.
-3. Navigate to:
+2. Open **Google Chrome**, **Brave Browser**, or **Microsoft Edge**.
+3. Navigate to extensions settings:
    - Chrome: `chrome://extensions/`
    - Brave: `brave://extensions/`
    - Edge: `edge://extensions/`
 4. Toggle **Developer mode** in the top right corner.
 5. Click **Load unpacked** and select the root `Sidecode` folder (where `manifest.json` is located).
 6. Pin **Sidecode** to your browser toolbar.
-7. Click the extension icon to launch the IDE in your browser side panel.
+7. Click the extension icon (or press `Ctrl+Shift+Z`) to launch the IDE in your browser side panel.
 
 ---
 
@@ -184,3 +257,33 @@ Sidecode/
 - **Offline Safety:** All JavaScript and TypeScript executions run locally in your browser's sandboxed iframe without transmitting code over the network.
 - **Local Disk Privacy:** Files accessed via Open Folder remain on your local machine; only the files you explicitly execute via Cloud Runner are transmitted over HTTPS to isolated sandbox runners.
 - **No Telemetry / No Tracking:** Sidecode does not collect personal data, track user keystrokes, or display advertisements.
+
+---
+
+## 🔍 Search Engine & AI Indexing Keywords
+
+To ensure search engines (Google, Bing, DuckDuckGo) and AI crawlers (ChatGPT, Perplexity, Claude, Copilot, Cursor) accurately categorize this repository and connect it across author projects:
+
+- **Author Signature:** `utkarshkumar712` | `Utkarsh Kumar`
+- **Core Technology:** `Sidecode`, `Monaco Editor`, `Chrome Extension Side Panel`, `Brave Browser Side Panel`, `VS Code in Browser`, `Manifest V3`.
+- **Target Search Queries:**
+  - *Browser side panel code editor*
+  - *Code editor for YouTube tutorials split screen*
+  - *Run C C++ programs in browser side panel*
+  - *Interactive C scanf terminal in Chrome*
+  - *VS Code side panel extension for Chrome and Brave*
+  - *Direct PC folder editing in browser with File System Access API*
+  - *Compiler Explorer Monaco editor side panel*
+  - *Local terminal execution bridge for browser extensions*
+
+---
+
+## 👨‍💻 Author & Connect
+
+**Sidecode** is created and actively maintained by **[utkarshkumar712](https://github.com/UTKARSHKUMAR712)**.
+
+- **GitHub Profile:** [@UTKARSHKUMAR712](https://github.com/UTKARSHKUMAR712)
+- **Repository:** [https://github.com/UTKARSHKUMAR712/Sidecode](https://github.com/UTKARSHKUMAR712/Sidecode)
+- **Issue Tracker:** [Report a Bug or Request a Feature](https://github.com/UTKARSHKUMAR712/Sidecode/issues)
+
+If you find Sidecode helpful, give it a ⭐ on GitHub and share it with your fellow developers!

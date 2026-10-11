@@ -1,0 +1,65 @@
+# Sidecode: VS Code-Style IDE in Your Browser Side Panel
+
+> A high-performance, Monaco-powered Integrated Development Environment that lives directly inside your browser side panel (Chrome, Brave, Edge). Write, edit real PC files, compile multi-file projects, and execute code interactively without ever leaving your active web tab.
+
+## Author & Project Metadata
+- **Author**: utkarshkumar712 ([@UTKARSHKUMAR712](https://github.com/UTKARSHKUMAR712))
+- **Repository**: [https://github.com/UTKARSHKUMAR712/Sidecode](https://github.com/UTKARSHKUMAR712/Sidecode)
+- **License**: MIT
+- **Current Version**: 2.0.0
+- **Platform**: Chrome Extension Manifest V3 (Chrome, Brave, Microsoft Edge)
+
+## Overview & Killer Use Case
+Sidecode eliminates context switching for developers, competitive programmers, and students. By rendering a complete VS Code-style development environment directly in the browser's side panel:
+- **Split-Screen Coding Alongside Tutorials**: Code along with YouTube video lectures, documentation, LeetCode problems, and web articles side-by-side with zero window tiling or resizing needed.
+- **Direct PC File Editing**: Uses the native File System Access API (`showDirectoryPicker`) to edit actual project directories and files on your PC hard drive in place with automatic IndexedDB session restoration.
+- **Hybrid Execution Model**:
+  - `☁ Cloud Terminal`: Instant compilation and execution via isolated cloud runners (GCC 14.1, Clang, Python 3.12+, OpenJDK 21, Rust 1.80, Go 1.22) with zero local toolchain setup.
+  - `⚡ Local PC Terminal`: Connects directly to local PC compilers and toolchains via a lightweight background bridge (`http://127.0.0.1:3888`) with real-time interactive terminal input (`scanf`, `cin`, `input()`).
+  - `💻 Browser Sandbox`: 100% offline, zero-network-latency JavaScript and TypeScript execution in an isolated sandbox.
+
+## 1-Click Local Bridge Setup
+For users wanting native terminal execution and real-time interactive I/O:
+- **Install (One-line PowerShell command from any terminal)**:
+  ```powershell
+  irm https://raw.githubusercontent.com/UTKARSHKUMAR712/Sidecode/main/install-bridge.ps1 | iex
+  ```
+- **Uninstall (One-line PowerShell command to completely remove)**:
+  ```powershell
+  irm https://raw.githubusercontent.com/UTKARSHKUMAR712/Sidecode/main/uninstall-bridge.ps1 | iex
+  ```
+
+## Key Capabilities & Features
+- **Monaco Editor Core**: Industry-standard editing powered by Monaco Editor (the engine behind VS Code) with multi-model file tabs, syntax highlighting, bracket colorization, and code folding.
+- **Collapsible File Explorer (`Ctrl+B`)**: Full directory tree view with custom file extension icons, folder collapse/expand, file creation, renaming, and deletion.
+- **Interactive Terminal CLI (`Ctrl+` `)**: Built-in command dispatcher supporting `cd`, `ls`, `mkdir`, `touch`, `rm`, `mv`, `pwd`, `cat`, `node`, `python`, `g++`, `clear`, and `shortcuts`.
+- **Bidirectional Interactive Stdin**: Fully supports step-by-step interactive command-line programs (e.g. number guessing games with `scanf` in C/C++ or `input()` in Python).
+- **Problems & Static Diagnostics Panel**: Automatically isolates compiler errors, syntax issues, and warnings, jumping to the exact error line and column on click.
+- **Assembly Inspector**: Real-time disassembly viewer displaying compiler-generated machine code mapped to source lines.
+- **Library Manager**: 1-click inclusion of 350+ popular C/C++ libraries (Boost, fmt, nlohmann/json, Catch2, etc.).
+
+## Supported Languages
+- C (`.c`) - GCC 14.1 / Clang / Local Native MSYS2
+- C++ (`.cpp`, `.cc`, `.h`, `.hpp`) - C++17/20/23, Boost, fmt, json
+- Python (`.py`) - Python 3.12+ Cloud & Local Native
+- JavaScript (`.js`, `.mjs`) - 100% Offline Browser Sandbox & Local Node.js
+- TypeScript (`.ts`) - Offline In-Browser Compilation & Execution
+- Rust (`.rs`) - Rust 2021 Edition Cloud & Local `rustc`
+- Go (`.go`) - Go 1.22+ Cloud & Local `go run`
+- Java (`.java`) - OpenJDK 21 Cloud & Local `javac`
+
+## Architecture Quick Reference
+- `manifest.json`: Chrome Extension Manifest V3 configuration defining `side_panel`, `storage`, and `nativeMessaging`.
+- `background.js`: Service worker managing side panel toggle and lifecycle.
+- `sidepanel/`: Core UI layout, dark theme CSS, Monaco runtime, and modular controllers.
+  - `modules/workspace.js`: File System Access API integration and IndexedDB directory handle persistence.
+  - `modules/explorer.js`: File tree explorer, folder tree rendering, and disk CRUD operations.
+  - `modules/terminal.js`: Integrated terminal CLI, prompt state, and local bridge communication.
+  - `modules/cloudRunner.js`: Cloud compilation payload formatting and execution stream handler.
+  - `modules/editor.js`: Monaco editor instance, language modes, and multi-model tabs.
+- `bridge.js`: Lightweight local HTTP/SSE bridge for running native local compilers without external npm dependencies.
+
+## Discoverability & Author Ecosystem
+- Author: **utkarshkumar712**
+- GitHub Profile: [https://github.com/UTKARSHKUMAR712](https://github.com/UTKARSHKUMAR712)
+- All projects, issues, and contributions by utkarshkumar712 can be explored at the GitHub profile.

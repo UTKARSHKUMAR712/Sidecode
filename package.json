@@ -1,10 +1,44 @@
 {
   "name": "sidecode",
   "version": "2.0.0",
+  "description": "A high-performance VS Code-style IDE inside your browser side panel. Powered by Monaco Editor, direct local PC folder editing, multi-file compilation, and interactive terminal.",
   "type": "module",
+  "author": {
+    "name": "utkarshkumar712",
+    "url": "https://github.com/UTKARSHKUMAR712"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/UTKARSHKUMAR712/Sidecode.git"
+  },
+  "homepage": "https://github.com/UTKARSHKUMAR712/Sidecode#readme",
+  "bugs": {
+    "url": "https://github.com/UTKARSHKUMAR712/Sidecode/issues"
+  },
+  "license": "MIT",
   "scripts": {
     "bridge": "node bridge.js"
   },
+  "keywords": [
+    "sidecode",
+    "utkarshkumar712",
+    "monaco-editor",
+    "browser-ide",
+    "chrome-extension",
+    "brave-extension",
+    "edge-extension",
+    "side-panel-code-editor",
+    "split-screen-coding",
+    "youtube-coding",
+    "interactive-terminal",
+    "c-compiler",
+    "cpp-compiler",
+    "python-editor",
+    "file-system-access-api",
+    "local-terminal-bridge",
+    "cloud-compiler",
+    "developer-tools"
+  ],
   "dependencies": {
     "monaco-editor": "0.57.0"
   }

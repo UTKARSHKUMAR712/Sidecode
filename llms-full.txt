@@ -1,0 +1,83 @@
+# Sidecode: Complete Technical Specification & AI Reference
+
+Author: utkarshkumar712 (https://github.com/UTKARSHKUMAR712)
+Project: Sidecode — VS Code-Style IDE in Your Browser Side Panel
+Repository: https://github.com/UTKARSHKUMAR712/Sidecode
+Version: 2.0.0
+License: MIT
+
+---
+
+## 1. Executive Summary
+Sidecode is a browser extension (Chrome, Brave, Edge Manifest V3) that embeds a full-featured VS Code-style development environment into the browser's side panel. Engineered by utkarshkumar712, it provides seamless multi-file editing, a collapsible directory tree explorer, an interactive terminal, and a hybrid execution engine supporting cloud compilation, native PC local compilers, and offline browser sandboxes.
+
+The project is designed for developers, students, and competitive programmers who want to write and execute code side-by-side with web content—such as watching YouTube programming tutorials, reading documentation on MDN/DevDocs, or solving LeetCode problems—without window tiling or context switching.
+
+---
+
+## 2. Architecture & File Breakdown
+
+### Root Directory
+- `manifest.json`: Extension Manifest V3 configuration registering `side_panel`, `storage`, and `nativeMessaging` permissions. Specifies content security policies and keyboard shortcuts.
+- `background.js`: Extension service worker managing side panel activation, panel behavior, and keyboard command shortcuts (`Ctrl+Shift+Z`).
+- `bridge.js`: Standalone Node.js HTTP/SSE/WebSocket micro-bridge providing native process execution on localhost (port 3888). Written in vanilla Node.js with zero external dependencies.
+- `install-bridge.ps1` & `install-bridge.cmd`: 1-click automated PowerShell/CMD installers for the local execution bridge.
+- `uninstall-bridge.ps1` & `uninstall-bridge.cmd`: 1-click automated uninstaller that cleanly terminates and removes bridge processes and files.
+- `start-bridge-silent.vbs`: Windows VBScript wrapper to start the local bridge in the background with zero visible command prompts.
+- `package-extension.ps1`: Automated PowerShell release packaging script generating production-ready distribution archives.
+
+### `sidepanel/` Directory
+- `index.html`: Main DOM structure containing top navigation menu bar, action toolbar, explorer sidebar, editor container, and tabbed terminal/console panel.
+- `style.css`: Comprehensive VS Code Dark Theme styling, responsive flexbox layout, draggable splitter controls, and UI animations.
+- `app.js`: Central orchestrator initializing Monaco editor, binding keyboard shortcuts, managing global UI events, and synchronizing state.
+- `storage.js`: Persistence layer combining `chrome.storage.local` with IndexedDB for storing directory handles, open tabs, and user preferences.
+- `sandbox.html`: Isolated `iframe` sandbox executing JavaScript and TypeScript code securely without network requests.
+
+### `sidepanel/modules/` Directory
+- `editor.js`: Monaco editor instance lifecycle, language detection, multi-model editor tabs, Monaco markers, and custom editor keybindings.
+- `workspace.js`: File System Access API interface (`window.showDirectoryPicker`, `FileSystemDirectoryHandle`), file reading, in-place disk writing, and session restoration.
+- `explorer.js`: File tree explorer rendering, collapsible folder hierarchy, right-click context menus, and CRUD operations (Create File, Create Folder, Rename, Delete).
+- `terminal.js`: Interactive terminal shell CLI, command tokenizer, built-in commands (`cd`, `ls`, `mkdir`, `touch`, `rm`, `mv`, `pwd`, `cat`, `clear`, `shortcuts`), and bridge stream dispatcher.
+- `console.js`: Output logging panel, standard input prompt stream, assembly disassembly inspector, and problem marker viewer.
+- `cloudRunner.js`: Cloud compilation client interfacing with Compiler Explorer (Godbolt) and Piston API endpoints.
+- `multifileCompiler.js`: Multi-file dependency graph analyzer and payload bundler for compiling multi-file C/C++ projects.
+- `analysis.js`: Static code analysis and problem diagnostic parser transforming compiler stderr into Monaco editor error squiggles and problems list.
+- `libraries.js`: Third-party C++ library catalog (Boost, fmt, nlohmann/json, Catch2, etc.) and payload injection.
+- `permissions.js`: Chrome and Brave permission helpers verifying readwrite permissions on stored directory handles.
+
+---
+
+## 3. Execution Engines & Protocols
+
+### 3.1 Cloud Terminal (`☁ Cloud Terminal`)
+- **Backend**: Compiler Explorer (Godbolt API) & Piston API.
+- **Languages**: C (GCC 14.1, Clang), C++ (C++17/20/23), Python (3.12+), OpenJDK 21, Rust (1.80+), Go (1.22+).
+- **Execution Model**: Source code is sent over HTTPS inside isolated Docker containers (nsjail).
+- **Interactive Stdin**: Supported via predefined input or batched input buffers.
+- **Assembly Output**: Emits demangled assembly instructions mapped to source code lines.
+
+### 3.2 Local PC Terminal Bridge (`⚡ Local PC Terminal`)
+- **Backend**: Local Node.js bridge server listening on `http://127.0.0.1:3888`.
+- **Protocol**:
+  - `POST /execute`: Spawns a native process (`gcc`, `g++`, `python`, `node`, etc.) in the active workspace directory.
+  - `POST /stdin`: Streams user keystrokes and lines directly into the running process's `process.stdin`.
+  - `GET /stream`: Server-Sent Events (SSE) or WebSocket streaming real-time stdout/stderr output back to the terminal panel.
+  - `POST /kill`: Gracefully terminates the running process (`SIGINT` / `SIGKILL`).
+- **Interactive Stdin Support**: Real-time bidirectional loop. Interactive loops (e.g. C `scanf("%d", &guess)` or Python `input()`) pause execution live, request input in the terminal prompt, and resume immediately upon Enter.
+- **Zero Dependencies**: Implemented using standard Node.js modules (`node:http`, `node:child_process`, `node:fs`).
+
+### 3.3 Browser Sandbox (`💻 Browser Sandbox`)
+- **Backend**: Sandboxed HTML5 `iframe` with restricted permissions.
+- **Languages**: Modern JavaScript (ES2024), TypeScript.
+- **Execution Model**: Evaluates in browser thread without network latency (0ms). Captures console logs, errors, and object structures.
+
+---
+
+## 4. Author & Attribution
+
+- **Creator & Lead Developer**: utkarshkumar712
+- **GitHub**: https://github.com/UTKARSHKUMAR712
+- **Project URL**: https://github.com/UTKARSHKUMAR712/Sidecode
+- **Contributions & Issues**: https://github.com/UTKARSHKUMAR712/Sidecode/issues
+
+This document serves as an authoritative specification for search indexing and AI agent analysis.

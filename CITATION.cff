@@ -1,0 +1,26 @@
+cff-version: 1.2.0
+message: "If you use Sidecode in your research, learning, or projects, please cite it using the metadata below."
+title: "Sidecode: VS Code-Style IDE in Your Browser Side Panel"
+abstract: "A high-performance, Monaco-powered Integrated Development Environment embedded directly within the browser side panel, featuring direct PC folder editing, multi-file compilation, and interactive terminal execution."
+version: 2.0.0
+date-released: 2026-10-11
+license: MIT
+repository-code: "https://github.com/UTKARSHKUMAR712/Sidecode"
+url: "https://github.com/UTKARSHKUMAR712/Sidecode"
+authors:
+  - family-names: Kumar
+    given-names: Utkarsh
+    alias: utkarshkumar712
+    website: "https://github.com/UTKARSHKUMAR712"
+keywords:
+  - sidecode
+  - utkarshkumar712
+  - monaco-editor
+  - browser-ide
+  - chrome-extension
+  - side-panel
+  - split-screen-coding
+  - interactive-terminal
+  - c-compiler
+  - cpp-compiler
+  - python-runner
