@@ -727,7 +727,16 @@ init();
 
 // ─── Resource & Memory Profiler Listener for Debug Zone ─────────────────────
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
-  if (msg.type === 'GET_RESOURCE_PROFILE') {
+  if (msg.type === 'DEBUG_ZONE_ATTACHED') {
+    import('./modules/logger.js').then(({ setDebugZoneActive }) => setDebugZoneActive(true));
+    sendResponse({ ok: true });
+    return true;
+  } else if (msg.type === 'DEBUG_ZONE_DETACHED') {
+    import('./modules/logger.js').then(({ setDebugZoneActive }) => setDebugZoneActive(false));
+    sendResponse({ ok: true });
+    return true;
+  } else if (msg.type === 'GET_RESOURCE_PROFILE') {
+    import('./modules/logger.js').then(({ setDebugZoneActive }) => setDebugZoneActive(true));
     (async () => {
       const mem = performance.memory ? {
         usedJSHeapSize: performance.memory.usedJSHeapSize,

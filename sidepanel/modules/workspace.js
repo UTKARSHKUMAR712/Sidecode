@@ -137,17 +137,16 @@ export async function closeWorkspaceFolder() {
 /**
  * Recursively scans directory and builds hierarchical tree with parentHandle and relative paths
  */
-export async function scanWorkspaceTree(dirHandle = currentRootHandle, depth = 0, maxDepth = 12, parentHandle = null, currentPath = '') {
+export async function scanWorkspaceTree(dirHandle = currentRootHandle, depth = 0, maxDepth = 12, parentHandle = null, dirRelPath = '') {
   if (!dirHandle) return null;
 
-  const nodePath = currentPath ? `${currentPath}/${dirHandle.name}` : dirHandle.name;
   const node = {
     name: dirHandle.name,
     kind: 'directory',
     handle: dirHandle,
     parentHandle,
-    path: currentPath ? `${currentPath}/${dirHandle.name}` : '',
-    relativePath: currentPath ? `${currentPath}/${dirHandle.name}` : '.',
+    path: dirRelPath,
+    relativePath: dirRelPath || '.',
     children: [],
     filesCount: 0,
     dirsCount: 0
@@ -160,12 +159,12 @@ export async function scanWorkspaceTree(dirHandle = currentRootHandle, depth = 0
         continue;
       }
 
-      const entryRelPath = node.path ? `${node.path}/${name}` : name;
+      const entryRelPath = dirRelPath ? `${dirRelPath}/${name}` : name;
 
       if (entry.kind === 'directory') {
         node.dirsCount++;
         if (depth < maxDepth) {
-          const childDir = await scanWorkspaceTree(entry, depth + 1, maxDepth, dirHandle, node.path);
+          const childDir = await scanWorkspaceTree(entry, depth + 1, maxDepth, dirHandle, entryRelPath);
           node.children.push(childDir);
           node.filesCount += childDir.filesCount;
           node.dirsCount += childDir.dirsCount;
@@ -180,6 +179,7 @@ export async function scanWorkspaceTree(dirHandle = currentRootHandle, depth = 0
           });
         }
       } else if (entry.kind === 'file') {
+
         node.filesCount++;
         let size = 0;
         try {
@@ -284,11 +284,55 @@ export async function createFolderInWorkspace(parentDirHandle, folderName) {
 export async function renameWorkspaceEntry(parentDirHandle, handle, newName) {
   const parent = parentDirHandle || currentRootHandle;
   if (!parent) throw new Error('No parent directory found.');
+  if (!handle) throw new Error('No item specified for rename.');
+
+  if (handle === currentRootHandle) {
+    throw new Error('The root workspace folder cannot be renamed from within Sidecode. Please rename it in Windows File Explorer.');
+  }
+
+  const trimmedNewName = (newName || '').trim();
+  if (!trimmedNewName) {
+    throw new Error('Filename or folder name cannot be empty.');
+  }
+
+  if (trimmedNewName === handle.name) {
+    return handle;
+  }
+
+  if (/[\\/:*?"<>|]/.test(trimmedNewName)) {
+    throw new Error('A file or folder name cannot contain characters: \\ / : * ? " < > |');
+  }
+
+  const isCaseOnlyChange = handle.name.toLowerCase() === trimmedNewName.toLowerCase();
+
+  // If not a case-only change, check if an entry with this name already exists in parent
+  if (!isCaseOnlyChange) {
+    let existingKind = null;
+    try {
+      await parent.getFileHandle(trimmedNewName);
+      existingKind = 'file';
+    } catch (e) {
+      if (e.name === 'TypeMismatchError') {
+        existingKind = 'directory';
+      } else {
+        try {
+          await parent.getDirectoryHandle(trimmedNewName);
+          existingKind = 'directory';
+        } catch (_) {}
+      }
+    }
+
+    if (existingKind === 'file') {
+      throw new Error(`A file named "${trimmedNewName}" already exists in this location. Please choose a different name.`);
+    } else if (existingKind === 'directory') {
+      throw new Error(`A folder named "${trimmedNewName}" already exists in this location. Please choose a different name.`);
+    }
+  }
 
   // Try native move first
   if (typeof handle.move === 'function') {
     try {
-      await handle.move(newName);
+      await handle.move(trimmedNewName);
       await refreshWorkspaceTree();
       return handle;
     } catch (_) {
@@ -296,31 +340,60 @@ export async function renameWorkspaceEntry(parentDirHandle, handle, newName) {
     }
   }
 
-  // Safe transactional fallback
+  // If case-only rename on Windows NTFS, use a 2-step rename to avoid same-file conflict
+  if (isCaseOnlyChange) {
+    const tempName = `.__sidecode_rename_tmp_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    const intermediateHandle = await executeCopyAndDelete(parent, handle, tempName);
+    const finalHandle = await executeCopyAndDelete(parent, intermediateHandle, trimmedNewName);
+    await refreshWorkspaceTree();
+    return finalHandle;
+  }
+
+  const resultHandle = await executeCopyAndDelete(parent, handle, trimmedNewName);
+  await refreshWorkspaceTree();
+  return resultHandle;
+}
+
+async function executeCopyAndDelete(parent, handle, targetName) {
   if (handle.kind === 'file') {
     const file = await handle.getFile();
     const arrayBuffer = await file.arrayBuffer();
 
-    const newFileHandle = await parent.getFileHandle(newName, { create: true });
+    const newFileHandle = await parent.getFileHandle(targetName, { create: true });
     const writable = await newFileHandle.createWritable();
     await writable.write(arrayBuffer);
     await writable.close();
 
     const verifyFile = await newFileHandle.getFile();
     if (verifyFile.size !== file.size) {
-      try { await parent.removeEntry(newName); } catch (_) {}
+      try { await parent.removeEntry(targetName); } catch (_) {}
       throw new Error(`Integrity check failed: new file size does not match original. Original preserved.`);
     }
 
-    await parent.removeEntry(handle.name);
-    await refreshWorkspaceTree();
+    await safeRemoveEntry(parent, handle.name, false);
     return newFileHandle;
   } else if (handle.kind === 'directory') {
-    const newDirHandle = await parent.getDirectoryHandle(newName, { create: true });
+    const newDirHandle = await parent.getDirectoryHandle(targetName, { create: true });
     await copyDirectoryRecursive(handle, newDirHandle);
-    await parent.removeEntry(handle.name, { recursive: true });
-    await refreshWorkspaceTree();
+    await safeRemoveEntry(parent, handle.name, true);
     return newDirHandle;
+  } else {
+    throw new Error(`Unsupported handle kind "${handle.kind}".`);
+  }
+}
+
+async function safeRemoveEntry(parentDir, entryName, isRecursive) {
+  for (let attempt = 0; attempt < 5; attempt++) {
+    try {
+      await parentDir.removeEntry(entryName, { recursive: isRecursive });
+      return;
+    } catch (err) {
+      if (attempt < 4) {
+        await new Promise((r) => setTimeout(r, 60 * (attempt + 1)));
+      } else {
+        throw err;
+      }
+    }
   }
 }
 
@@ -346,7 +419,7 @@ export async function deleteWorkspaceEntry(parentDirHandle, name, isDirectory = 
   const parent = parentDirHandle || currentRootHandle;
   if (!parent) throw new Error('No parent directory found.');
 
-  await parent.removeEntry(name, { recursive: isDirectory });
+  await safeRemoveEntry(parent, name, isDirectory);
   await refreshWorkspaceTree();
   return true;
 }

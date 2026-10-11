@@ -413,3 +413,40 @@ export function syncRunButton() {
   const isRunnable = tab && RUNNABLE_LANGUAGES.has(tab.language);
   runBtn.hidden = !isRunnable;
 }
+
+/**
+ * Synchronize open tabs when a file or directory is renamed in the workspace
+ */
+export function handleWorkspaceRenamed(oldPath, newPath, newHandle = null) {
+  if (!oldPath || !newPath) return;
+  let changed = false;
+
+  tabs.forEach((tab) => {
+    if (!tab.filePath) return;
+    if (tab.filePath === oldPath) {
+      tab.filePath = newPath;
+      tab.label = newPath.split('/').pop();
+      tab.language = detectLanguageByFilename(tab.label);
+      if (newHandle) tab.fileHandle = newHandle;
+      changed = true;
+    } else if (tab.filePath.startsWith(oldPath + '/')) {
+      tab.filePath = newPath + tab.filePath.slice(oldPath.length);
+      tab.label = tab.filePath.split('/').pop();
+      tab.language = detectLanguageByFilename(tab.label);
+      changed = true;
+    }
+  });
+
+  if (changed) {
+    renderTabs();
+    const activeTab = getActiveTab();
+    if (activeTab) {
+      import('./editor.js').then(({ setModelLanguage }) => {
+        setModelLanguage(activeTab.id, activeTab.language);
+      });
+      syncRunButton();
+    }
+    if (onTabsChange) onTabsChange(tabs);
+  }
+}
+

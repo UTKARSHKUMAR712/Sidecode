@@ -349,9 +349,15 @@ function renderTreeNode(node, parentEl, depth = 0, dirtyPaths = []) {
     row.querySelector('.btn-rename').addEventListener('click', async (e) => {
       e.stopPropagation();
       const newName = prompt(`Enter new filename for "${node.name}":`, node.name);
-      if (newName && newName !== node.name) {
+      if (newName && newName.trim() && newName.trim() !== node.name) {
         try {
-          await renameWorkspaceEntry(node.parentHandle, node.handle, newName);
+          const oldPath = node.path;
+          const newHandle = await renameWorkspaceEntry(node.parentHandle, node.handle, newName.trim());
+          const parentPath = oldPath.split('/').slice(0, -1).join('/');
+          const newPath = parentPath ? `${parentPath}/${newName.trim()}` : newName.trim();
+          import('./tabs.js').then(({ handleWorkspaceRenamed }) => {
+            handleWorkspaceRenamed(oldPath, newPath, newHandle);
+          });
         } catch (err) {
           alert(`Rename failed: ${err.message}`);
         }
@@ -447,10 +453,17 @@ function showContextMenu(e, targetNode) {
     ev.stopPropagation();
     closeContextMenu();
     if (!targetNode) return;
-    const newName = prompt(`Enter new name for "${targetNode.name}":`, targetNode.name);
-    if (newName && newName !== targetNode.name) {
+    const isDir = targetNode.kind === 'directory';
+    const newName = prompt(`Enter new ${isDir ? 'folder' : 'file'} name for "${targetNode.name}":`, targetNode.name);
+    if (newName && newName.trim() && newName.trim() !== targetNode.name) {
       try {
-        await renameWorkspaceEntry(targetNode.parentHandle, targetNode.handle, newName);
+        const oldPath = targetNode.path;
+        const newHandle = await renameWorkspaceEntry(targetNode.parentHandle, targetNode.handle, newName.trim());
+        const parentPath = oldPath.split('/').slice(0, -1).join('/');
+        const newPath = parentPath ? `${parentPath}/${newName.trim()}` : newName.trim();
+        import('./tabs.js').then(({ handleWorkspaceRenamed }) => {
+          handleWorkspaceRenamed(oldPath, newPath, newHandle);
+        });
       } catch (err) {
         alert(`Rename failed: ${err.message}`);
       }
@@ -461,15 +474,20 @@ function showContextMenu(e, targetNode) {
     ev.stopPropagation();
     closeContextMenu();
     if (!targetNode) return;
+    const isDir = targetNode.kind === 'directory';
     if (confirm(`Are you sure you want to delete "${targetNode.name}" permanently from disk?`)) {
       try {
-        await deleteWorkspaceEntry(targetNode.parentHandle, targetNode.name, targetNode.kind === 'directory');
-        if (targetNode.kind === 'file') {
-          import('./tabs.js').then(({ getTabByPath, closeTab }) => {
-            const openTab = getTabByPath(targetNode.path);
-            if (openTab) closeTab(openTab.id);
+        await deleteWorkspaceEntry(targetNode.parentHandle, targetNode.name, isDir);
+        import('./tabs.js').then(({ getTabs, closeTab }) => {
+          const allTabs = getTabs();
+          allTabs.forEach((tab) => {
+            if (tab.filePath) {
+              if (tab.filePath === targetNode.path || tab.filePath.startsWith(targetNode.path + '/')) {
+                closeTab(tab.id);
+              }
+            }
           });
-        }
+        });
       } catch (err) {
         alert(`Delete failed: ${err.message}`);
       }

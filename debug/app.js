@@ -245,13 +245,40 @@ btnForceCleanup.addEventListener('click', () => {
 });
 
 function setupPolling() {
-  if (pollTimer) clearInterval(pollTimer);
-  if (chkAutoPoll.checked) {
+  if (pollTimer) {
+    clearInterval(pollTimer);
+    pollTimer = null;
+  }
+  // Only poll if checkbox is enabled and tab is currently visible
+  if (chkAutoPoll.checked && !document.hidden) {
     pollTimer = setInterval(fetchResourceProfile, 2000);
   }
 }
 
 chkAutoPoll.addEventListener('change', setupPolling);
+
+// ─── Passive Background Optimization: Pause polling when tab is hidden ─────
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    if (pollTimer) {
+      clearInterval(pollTimer);
+      pollTimer = null;
+    }
+  } else {
+    setupPolling();
+    fetchResourceProfile();
+  }
+});
+
+// Notify Sidecode when Debug Zone tab is closed or unloaded
+window.addEventListener('beforeunload', () => {
+  if (pollTimer) clearInterval(pollTimer);
+  chrome.runtime.sendMessage({ type: 'DEBUG_ZONE_DETACHED' });
+});
+
+window.addEventListener('pagehide', () => {
+  chrome.runtime.sendMessage({ type: 'DEBUG_ZONE_DETACHED' });
+});
 
 // ─── Log Viewer Implementation ───────────────────────────────────────────────
 const logContainer = document.getElementById('log-container');
@@ -311,7 +338,8 @@ btnClearLogs.addEventListener('click', () => {
   });
 });
 
-// Boot
+// Boot: notify side panel that Debug Zone is open, then initialize views
+chrome.runtime.sendMessage({ type: 'DEBUG_ZONE_ATTACHED' });
 loadLogs();
 fetchResourceProfile();
 setupPolling();
