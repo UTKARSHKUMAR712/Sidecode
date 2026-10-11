@@ -34,6 +34,50 @@ export async function checkBridgeStatus() {
   }
 }
 
+/**
+ * Ensure the local native bridge is running.
+ * First checks if already responding on HTTP port 3888.
+ * If not, attempts to auto-launch via Chrome Native Messaging if configured.
+ * @returns {Promise<{ ok: boolean, source?: string, compilers?: object }>}
+ */
+export async function ensureBridgeRunning() {
+  const current = await checkBridgeStatus();
+  if (current.ok) {
+    return { ok: true, source: 'active', ...current };
+  }
+
+  // Try auto-starting via Chrome Native Messaging host (if registered)
+  if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendNativeMessage) {
+    try {
+      const nativePromise = new Promise((resolve) => {
+        chrome.runtime.sendNativeMessage('com.sidecode.bridge', { action: 'start' }, (res) => {
+          if (chrome.runtime.lastError) {
+            resolve(null);
+          } else {
+            resolve(res);
+          }
+        });
+      });
+
+      const nativeTimeout = new Promise((resolve) => setTimeout(() => resolve(null), 1500));
+      const res = await Promise.race([nativePromise, nativeTimeout]);
+
+      if (res && res.ok) {
+        // Poll for HTTP server to become ready
+        for (let attempt = 0; attempt < 6; attempt++) {
+          await new Promise((r) => setTimeout(r, 250));
+          const check = await checkBridgeStatus();
+          if (check.ok) {
+            return { ok: true, source: 'native_messaging', ...check };
+          }
+        }
+      }
+    } catch (_) {}
+  }
+
+  return { ok: false };
+}
+
 export function isBridgeConnected() {
   return !!lastStatus && lastStatus.ok;
 }
@@ -82,7 +126,7 @@ export async function killBridgeProcess() {
  * @param {function} opts.onData - Callback receiving stream chunks (ANSI strings)
  * @returns {Promise<number>} exit code
  */
-export async function executeViaBridge(command, { cwd = '', onData = () => {} } = {}) {
+export async function executeViaBridge(command, { cwd = '', folder = 'workspace', files = [], onData = () => {} } = {}) {
   const status = await checkBridgeStatus();
   if (!status.ok) {
     throw new Error('Local bridge is not running. Start it with: node bridge.js');
@@ -95,7 +139,7 @@ export async function executeViaBridge(command, { cwd = '', onData = () => {} } 
     const res = await fetch(`${BRIDGE_URL}/exec`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ command, cwd }),
+      body: JSON.stringify({ command, cwd, folder, files }),
       signal: abortController.signal
     });
 

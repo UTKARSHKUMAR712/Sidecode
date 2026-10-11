@@ -3,7 +3,7 @@
   "name": "Sidecode — Code Editor Sidebar",
   "version": "1.0.0",
   "description": "A Monaco-powered code editor in your browser sidebar with tabs, language selection and persistent storage.",
-  "permissions": ["sidePanel", "storage"],
+  "permissions": ["sidePanel", "storage", "nativeMessaging"],
   "host_permissions": [
     "https://emkc.org/*",
     "https://godbolt.org/*"

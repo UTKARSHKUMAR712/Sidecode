@@ -968,6 +968,24 @@ html, body {
 #btn-console-run:hover { background: rgba(63,185,80,0.12) !important; }
 #btn-console-close:hover { color: var(--danger) !important; }
 
+/* Terminal Engine Mode selector (Browser vs Local Native PC) */
+#terminal-mode-select {
+  height: 20px;
+  font-size: 10.5px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  color: var(--text);
+  padding: 0 4px;
+  cursor: pointer;
+  outline: none;
+  max-width: 145px;
+  flex-shrink: 0;
+}
+#terminal-mode-select:focus { border-color: var(--accent); }
+#terminal-mode-select option { background: var(--surface); color: var(--text); }
+#terminal-mode-select[hidden] { display: none !important; }
+
 /* Runner selector (VS Code-style terminal picker) */
 #runner-select {
   height: 20px;

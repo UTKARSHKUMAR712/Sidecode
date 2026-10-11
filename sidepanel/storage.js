@@ -97,5 +97,16 @@ export const storage = {
   /** Get persisted open workspace session */
   getWorkspaceSession() {
     return _cache?.workspaceSession || { openPaths: [], activePath: null };
+  },
+
+  /** Persist terminal mode: 'browser' (default) or 'local' */
+  saveTerminalMode(mode) {
+    _cache = { ..._cache, terminalMode: mode };
+    this._flush();
+  },
+
+  /** Get persisted terminal mode */
+  getTerminalMode() {
+    return _cache?.terminalMode || 'browser';
   }
 };

@@ -178,37 +178,64 @@ function codeExpectsInput(code, lang) {
 
   const activePath = tab.filePath || tab.label || '';
   try {
-    // 1. If Local Native Bridge is running on PC and tab has a file path, execute locally!
-    if (tab.filePath && tab.language !== 'javascript' && tab.language !== 'typescript') {
-      const { checkBridgeStatus, executeViaBridge } = await import('./modules/bridgeClient.js');
-      const bridgeStatus = await checkBridgeStatus();
-      if (bridgeStatus.ok) {
-        const isWin = bridgeStatus.data?.platform === 'win32';
-        const exeName = isWin ? 'a.exe' : './a.out';
-        let localCmd = '';
-        if (tab.language === 'c') localCmd = `gcc "${tab.filePath}" -o ${isWin ? 'a.exe' : 'a.out'} && ${exeName}`;
-        else if (tab.language === 'cpp') localCmd = `g++ "${tab.filePath}" -o ${isWin ? 'a.exe' : 'a.out'} && ${exeName}`;
-        else if (tab.language === 'python') localCmd = `python "${tab.filePath}"`;
-        else if (tab.language === 'rust') localCmd = `rustc "${tab.filePath}" && ${exeName}`;
-        else if (tab.language === 'go') localCmd = `go run "${tab.filePath}"`;
-        else if (tab.language === 'java') localCmd = `java "${tab.filePath}"`;
+    // 1. If user explicitly selected "Local PC Terminal", execute via Local Native Bridge
+    const { getTerminalMode, writeLineToTerminal, focusTerminal, getTerm } = await import('./modules/terminal.js');
+    const isLocalMode = getTerminalMode() === 'local';
 
-        if (localCmd) {
-          const { writeLineToTerminal, focusTerminal, getTerm } = await import('./modules/terminal.js');
-          writeLineToTerminal('system', `▶ Running via Local Native Bridge (${tab.label})...`);
-          focusTerminal();
-          try {
-            await executeViaBridge(localCmd, {
-              cwd: bridgeStatus.cwd,
-              onData: (chunk) => {
-                const t = getTerm();
-                if (t) t.write(chunk);
-              }
-            });
-            return;
-          } catch (err) {
-            writeLineToTerminal('warn', `Local bridge error: ${err.message}. Falling back to Cloud...`);
+    if (isLocalMode && tab.language !== 'javascript' && tab.language !== 'typescript') {
+      const { ensureBridgeRunning, executeViaBridge } = await import('./modules/bridgeClient.js');
+      const bridgeStatus = await ensureBridgeRunning();
+      if (!bridgeStatus.ok) {
+        writeLineToTerminal('warn', '⚡ Local PC Bridge is not running on your computer.');
+        writeLineToTerminal('log', '  To start the bridge, run: \x1b[1;36mnode bridge.js\x1b[0m (or double-click \x1b[1;36mstart-bridge.cmd\x1b[0m)');
+        writeLineToTerminal('log', '  Or run \x1b[1;36minstall-bridge.cmd\x1b[0m once to enable 1-click auto-start in Chrome/Brave!');
+        writeLineToTerminal('log', '  Or switch back to "🌐 Browser Terminal" for instant cloud execution.');
+        return;
+      }
+
+      const isWin = bridgeStatus.data?.platform === 'win32';
+      const exeName = isWin ? 'a.exe' : './a.out';
+      const targetFile = tab.label || tab.filePath || 'main.c';
+      let localCmd = '';
+      if (tab.language === 'c') localCmd = `gcc "${targetFile}" -o ${isWin ? 'a.exe' : 'a.out'} && ${exeName}`;
+      else if (tab.language === 'cpp') localCmd = `g++ "${targetFile}" -o ${isWin ? 'a.exe' : 'a.out'} && ${exeName}`;
+      else if (tab.language === 'python') localCmd = `python "${targetFile}"`;
+      else if (tab.language === 'rust') localCmd = `rustc "${targetFile}" && ${exeName}`;
+      else if (tab.language === 'go') localCmd = `go run "${targetFile}"`;
+      else if (tab.language === 'java') localCmd = `java "${targetFile}"`;
+
+      if (localCmd) {
+        writeLineToTerminal('system', `▶ Running via Local Native Bridge (${targetFile})...`);
+        focusTerminal();
+
+        // Gather files to sync into bridge workspace directory
+        const filesToSync = [{ path: targetFile, content: code }];
+        if (tab.filePath && tab.filePath !== targetFile) {
+          filesToSync.push({ path: tab.filePath, content: code });
+        }
+        for (const t of getTabs()) {
+          if (t.id !== tab.id) {
+            const m = getModel(t.id);
+            const content = m ? m.getValue() : (t.content || '');
+            const p = t.filePath || t.label;
+            if (p) filesToSync.push({ path: p, content });
           }
+        }
+
+        const folderName = getWorkspaceName() || 'workspace';
+
+        try {
+          await executeViaBridge(localCmd, {
+            folder: folderName,
+            files: filesToSync,
+            onData: (chunk) => {
+              const t = getTerm();
+              if (t) t.write(chunk);
+            }
+          });
+          return;
+        } catch (err) {
+          writeLineToTerminal('warn', `Local bridge error: ${err.message}. Falling back to Cloud...`);
         }
       }
     }
@@ -756,6 +783,33 @@ function wireEventListeners() {
   $('btn-console-clear')?.addEventListener('click', clearConsole);
   $('btn-console-close')?.addEventListener('click', closeConsole);
 
+  // Terminal Mode selector (Browser Terminal vs Local PC Terminal)
+  $('terminal-mode-select')?.addEventListener('change', async (e) => {
+    const mode = e.target.value;
+    const { setTerminalMode, writeLineToTerminal } = await import('./modules/terminal.js');
+    setTerminalMode(mode);
+    storage.saveTerminalMode(mode);
+
+    if (mode === 'local') {
+      const { ensureBridgeRunning } = await import('./modules/bridgeClient.js');
+      writeLineToTerminal('system', '⚡ Connecting to Local Native Bridge...');
+      const res = await ensureBridgeRunning();
+      if (res.ok) {
+        writeLineToTerminal('log', '\x1b[1;32m✔ Local PC Terminal Active\x1b[0m (MSYS2 GCC, Clang, Python, Node.js, Rust)');
+        writeLineToTerminal('system', '  Direct interactive terminal connected to your PC.');
+      } else {
+        writeLineToTerminal('warn', '⚡ Local PC Bridge is not running on your computer.');
+        writeLineToTerminal('log', '  \x1b[1;37mHow to start:\x1b[0m');
+        writeLineToTerminal('log', '  1. Double-click \x1b[1;36mstart-bridge.cmd\x1b[0m in your Sidecode folder');
+        writeLineToTerminal('system', '     (or run: node bridge.js in your terminal)');
+        writeLineToTerminal('log', '  2. Or run \x1b[1;36minstall-bridge.cmd\x1b[0m once for 1-click auto-start in Chrome/Brave!');
+        writeLineToTerminal('log', '  \x1b[90mTip: You can switch back to "🌐 Browser Terminal" anytime for instant cloud execution.\x1b[0m');
+      }
+    } else {
+      writeLineToTerminal('log', '\x1b[1;36m🌐 Switched to Browser Terminal (Default)\x1b[0m');
+    }
+  });
+
   // Wire VS Code File Menu
   wireFileMenu();
 }
@@ -777,11 +831,18 @@ async function init() {
   const savedJsRunner = saved.jsRunner || 'sandbox';
   const savedAutoSave = saved.autoSave !== undefined ? saved.autoSave : false;
   customPistonUrl = saved.customPistonUrl || '';
+  const savedTerminalMode = saved.terminalMode || 'browser';
 
   // Apply persisted settings
   setJsRunnerPreference(savedJsRunner);
   setAutoSave(savedAutoSave);
   $('autosave-check')?.classList.toggle('active', savedAutoSave);
+
+  const terminalModeSelect = $('terminal-mode-select');
+  if (terminalModeSelect) terminalModeSelect.value = savedTerminalMode;
+  import('./modules/terminal.js').then(({ setTerminalMode }) => {
+    setTerminalMode(savedTerminalMode);
+  });
 
   const defaultLangSelect = $('setting-default-lang');
   if (defaultLangSelect) defaultLangSelect.value = savedDefaultLang;

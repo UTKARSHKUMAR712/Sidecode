@@ -18,6 +18,7 @@
 
 import {
   checkBridgeStatus,
+  ensureBridgeRunning,
   isBridgeConnected,
   isBridgeExecuting,
   sendBridgeInput,
@@ -28,6 +29,18 @@ import {
 let term = null;
 let fitAddon = null;
 let executionBridge = null;
+
+let activeTerminalMode = 'browser'; // 'browser' (default) | 'local'
+
+export function setTerminalMode(mode) {
+  if (mode === 'local' || mode === 'browser') {
+    activeTerminalMode = mode;
+  }
+}
+
+export function getTerminalMode() {
+  return activeTerminalMode;
+}
 
 let terminalCwd = ''; // Relative path from workspace root, e.g. '', 'src', 'dsa/arrays'
 let terminalHistory = [];
@@ -264,22 +277,32 @@ function handleTerminalInput(data) {
     return;
   }
 
-  if (isBusy) {
-    // If a local bridge process is executing, stream stdin keystrokes directly!
-    if (isBridgeExecuting()) {
-      if (data === '\x03') {
-        term.writeln('^C');
-        killBridgeProcess();
-        isBusy = false;
-        writePrompt();
-        return;
-      }
-      term.write(data);
-      sendBridgeInput(data);
+  // If a local native bridge process is executing, stream stdin keystrokes directly!
+  if (isBridgeExecuting()) {
+    if (data === '\x03') {
+      term.writeln('^C');
+      killBridgeProcess();
+      isBusy = false;
+      writePrompt();
       return;
     }
+    if (data === '\r') {
+      term.write('\r\n');
+      sendBridgeInput('\n');
+      return;
+    }
+    if (data === '\x7f' || data === '\b') {
+      term.write('\b \b');
+      sendBridgeInput('\b');
+      return;
+    }
+    term.write(data);
+    sendBridgeInput(data);
+    return;
+  }
 
-    // If a standard process is running and user presses Ctrl+C, send abort
+  if (isBusy) {
+    // If a standard cloud process is running and user presses Ctrl+C, send abort
     if (data === '\x03') {
       term.writeln('^C');
       term.writeln('\x1b[33m[Execution interrupted]\x1b[0m');
@@ -1278,12 +1301,21 @@ async function handleRunFileByCommand(filename, forcedLanguage = null, candidate
 
   const lang = forcedLanguage || fileData.language || 'plaintext';
 
-  // 1. If Local Native Bridge is running on PC, execute locally with 100% interactive terminal
-  const bridgeStatus = await checkBridgeStatus();
-  if (bridgeStatus.ok) {
-    const targetFile = fileData.path || fileData.name;
+  // 1. If user explicitly selected "Local PC Terminal", execute via Local Native Bridge
+  if (activeTerminalMode === 'local') {
+    const bridgeStatus = await ensureBridgeRunning();
+    if (!bridgeStatus.ok) {
+      writeLineToTerminal('warn', '⚡ Local PC Bridge is not running on your computer.');
+      writeLineToTerminal('log', '  To start the bridge, run in your Sidecode folder:');
+      writeLineToTerminal('system', '    node bridge.js   (or double-click start-bridge.cmd)');
+      writeLineToTerminal('log', '  Or run \x1b[1;36minstall-bridge.cmd\x1b[0m once for 100% auto-start in Chrome/Brave!');
+      writeLineToTerminal('log', '  Or switch the dropdown to "🌐 Browser Terminal" for instant cloud execution.');
+      return;
+    }
+
     const isWin = bridgeStatus.data?.platform === 'win32';
     const exeName = isWin ? 'a.exe' : './a.out';
+    const targetFile = fileData.name; // Target file name inside the synced workspace folder
     let localCmd = '';
 
     if (lang === 'c') {
@@ -1304,9 +1336,31 @@ async function handleRunFileByCommand(filename, forcedLanguage = null, candidate
 
     if (localCmd) {
       writeLineToTerminal('system', `▶ Running via Local Native Bridge (${fileData.name})...`);
+
+      // Gather files to sync into bridge workspace directory
+      const filesToSync = [{ path: fileData.name, content: fileData.content }];
+      if (fileData.path && fileData.path !== fileData.name) {
+        filesToSync.push({ path: fileData.path, content: fileData.content });
+      }
+      if (executionBridge && typeof executionBridge.getTabs === 'function') {
+        for (const t of executionBridge.getTabs()) {
+          if (t.filePath && t.filePath !== fileData.path && t.filePath !== fileData.name) {
+            let text = t.content || '';
+            if (typeof executionBridge.getModelContent === 'function') {
+              const live = executionBridge.getModelContent(t.id);
+              if (live !== null && live !== undefined) text = live;
+            }
+            filesToSync.push({ path: t.filePath, content: text });
+          }
+        }
+      }
+
+      const folderName = executionBridge?.getWorkspaceName ? executionBridge.getWorkspaceName() : 'workspace';
+
       try {
         await executeViaBridge(localCmd, {
-          cwd: bridgeStatus.cwd,
+          folder: folderName,
+          files: filesToSync,
           onData: (chunk) => {
             if (term) term.write(chunk);
           }
@@ -1318,7 +1372,7 @@ async function handleRunFileByCommand(filename, forcedLanguage = null, candidate
     }
   }
 
-  // 2. Default: In-Browser Sandbox or Cloud Runner
+  // 2. Default: In-Browser Sandbox or Cloud Runner (Browser Terminal)
   writeLineToTerminal('system', `▶ Executing ${fileData.name} (${lang})...`);
 
   if (executionBridge && typeof executionBridge.executeCode === 'function') {

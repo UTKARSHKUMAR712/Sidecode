@@ -56,19 +56,25 @@ Sidecode provides native syntax highlighting, auto-detection, code formatting, I
 - **Multi-Tab Lifecycle:** Switch effortlessly between open files with view state persistence (scroll position and cursor position are saved when switching tabs).
 - **Dirty State Tracking (`●`):** Unsaved changes display a dirty bullet indicator on tab headers and tree items, with unsaved change safeguards when closing.
 
-### 🚀 4. Hybrid Execution Engine (Cloud & Local)
-- **Local Native Bridge (Optional — 100% Real Interactive Terminal):**
-  - **Commands:** Run `node bridge.js` (or `npm run bridge`) in your project folder.
-  - **Authentic Interactive I/O:** Provides true bidirectional standard input (`scanf`, `cin`, `input()`). Programs pause live between loop iterations and accept inputs step-by-step just like in desktop VS Code.
-  - **Zero npm Dependencies:** Built using standard Node.js libraries (`node:http`, `node:child_process`).
-  - **Native Performance:** Executes directly on your PC using your local compilers (MSYS2 GCC, Clang, Python, Node, Rust, Go) with zero latency and no internet connection required.
+### 🚀 4. Hybrid Execution Engine (Browser & Local)
+- **Terminal Environment Dropdown:**
+  - **`🌐 Browser Terminal` (Default):** Zero setup. Executes instantly in the browser sandbox or free Cloud containers (Compiler Explorer). No local tools required.
+  - **`⚡ Local PC Terminal`:** Connects directly to your local computer's compilers (MSYS2 GCC, Clang, Python, Node.js, Rust, Go) with true real-time interactive terminal input.
+- **Local Native Bridge Setup (1-Click Install):**
+  - **One-line PowerShell Installer (from any terminal):**
+    ```powershell
+    irm https://raw.githubusercontent.com/UTKARSHKUMAR712/Sidecode/main/install-bridge.ps1 | iex
+    ```
+  - **Or Double-Click:** Run `start-bridge.cmd` or `install-bridge.cmd` in the `Sidecode` project folder.
+  - **100% Background Auto-Start:** Once registered, Chrome / Brave will automatically spawn the bridge in the background whenever you select `⚡ Local PC Terminal`.
+  - **Authentic Step-by-Step Interactive I/O:** Truly real-time bidirectional standard input (`scanf`, `cin`, `input()`). Loops pause live between iterations and accept inputs interactively just like native terminal.
+  - **Zero npm Dependencies:** Built purely using standard Node.js libraries (`node:http`, `node:child_process`).
 - **In-Browser Sandbox (100% Offline):**
   - **Languages:** JavaScript, TypeScript.
   - Runs in a secure, isolated browser sandbox. Instant execution with 0ms network latency.
   - Full support for modern ECMAScript, formatted object/array inspection, and error stacks.
-- **Cloud Runner (Compiler Explorer / Piston — Default & Fallback):**
+- **Cloud Runner (Compiler Explorer / Piston — Fallback):**
   - **Languages:** C, C++, Python, Java, Rust, Go.
-  - Automatically used whenever the local bridge is not running.
   - Executes code via Compiler Explorer in isolated Docker nsjail containers with standard library support.
   - **Unified Array & Object Output:** Harmonized standalone Google V8 (`d8`) output so array filtering and object logs match Node.js and browser formatting (`[ 12, 20, 15 ]`).
   - **Custom Piston Endpoint:** Option to configure a self-hosted Piston execution server in Settings.

@@ -19,6 +19,7 @@ import http from 'node:http';
 import { spawn, execSync } from 'node:child_process';
 import os from 'node:os';
 import path from 'node:path';
+import fs from 'node:fs';
 
 const PORT = parseInt(process.env.SIDECODE_PORT || '3888', 10);
 const HOST = '127.0.0.1';
@@ -152,12 +153,42 @@ const server = http.createServer(async (req, res) => {
       const raw = await readBody(req);
       const payload = JSON.parse(raw);
       const command = payload.command;
-      const targetCwd = payload.cwd || process.cwd();
 
       if (!command) {
         res.writeHead(400, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ ok: false, error: 'Missing "command" in request payload' }));
         return;
+      }
+
+      // 1. Prepare isolated workspace directory for this folder
+      const safeFolder = (payload.folder || 'workspace').replace(/[^a-zA-Z0-9_\-\.]/g, '_');
+      const workspaceDir = path.join(os.tmpdir(), 'sidecode_bridge', safeFolder);
+      fs.mkdirSync(workspaceDir, { recursive: true });
+
+      // 2. Synchronize all incoming files directly into the workspace directory
+      if (Array.isArray(payload.files)) {
+        for (const file of payload.files) {
+          if (file && file.path && typeof file.content === 'string') {
+            const relClean = file.path.replace(/^[\\\/]+/, '');
+            const targetFilePath = path.join(workspaceDir, relClean);
+            fs.mkdirSync(path.dirname(targetFilePath), { recursive: true });
+            fs.writeFileSync(targetFilePath, file.content, 'utf8');
+
+            // Also guarantee that the base filename is available at root of workspaceDir
+            // so `gcc main.c` works whether the path was `slot/main.c` or `main.c`
+            const baseName = path.basename(relClean);
+            const rootFilePath = path.join(workspaceDir, baseName);
+            if (!fs.existsSync(rootFilePath)) {
+              fs.writeFileSync(rootFilePath, file.content, 'utf8');
+            }
+          }
+        }
+      }
+
+      let targetCwd = workspaceDir;
+      // Only use payload.cwd if no files were sent to sync
+      if ((!payload.files || payload.files.length === 0) && payload.cwd && fs.existsSync(payload.cwd)) {
+        targetCwd = payload.cwd;
       }
 
       // If a process is already running, terminate it before starting a new one
