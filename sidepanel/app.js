@@ -56,6 +56,7 @@ import {
   setDefaultLanguage,
   getDefaultLanguage,
   openFileInTab,
+  getTabByPath,
   saveActiveTabToDisk,
   saveActiveTabAs,
   setAutoSave,
