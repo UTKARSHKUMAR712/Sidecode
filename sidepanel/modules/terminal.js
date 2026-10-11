@@ -175,12 +175,31 @@ export function setTerminalFontSize(size) {
 
 
 
+let localResolvedPath = '';
+
+export function setLocalResolvedPath(p) {
+  localResolvedPath = p || '';
+}
+
+export function getLocalResolvedPath() {
+  return localResolvedPath;
+}
+
 /**
  * Build authentic prompt string with ANSI colors
  */
 export function getPromptString() {
   const wsName = executionBridge?.getWorkspaceName ? executionBridge.getWorkspaceName() : '';
   let pathLabel = '~';
+
+  if (activeTerminalMode === 'local' && localResolvedPath) {
+    let display = localResolvedPath.replace(/\\/g, '/');
+    if (terminalCwd) {
+      display = `${display}/${terminalCwd}`.replace(/\/+/g, '/');
+    }
+    return `\x1b[1;32msidecode\x1b[0m:\x1b[1;34m${display}\x1b[0m$ `;
+  }
+
   if (wsName) {
     pathLabel = terminalCwd ? `~/${wsName}/${terminalCwd}` : `~/${wsName}`;
   }
@@ -1303,7 +1322,8 @@ async function handleRunFileByCommand(filename, forcedLanguage = null, candidate
 
   // 1. If user explicitly selected "Local PC Terminal", execute via Local Native Bridge
   if (activeTerminalMode === 'local') {
-    const bridgeStatus = await ensureBridgeRunning();
+    const folderName = executionBridge?.getWorkspaceName ? executionBridge.getWorkspaceName() : 'workspace';
+    const bridgeStatus = await ensureBridgeRunning(folderName);
     if (!bridgeStatus.ok) {
       writeLineToTerminal('warn', '⚡ Local PC Bridge is not running on your computer.');
       writeLineToTerminal('log', '  To start the bridge, run in your Sidecode folder:');
@@ -1311,6 +1331,9 @@ async function handleRunFileByCommand(filename, forcedLanguage = null, candidate
       writeLineToTerminal('log', '  Or run \x1b[1;36minstall-bridge.cmd\x1b[0m once for 100% auto-start in Chrome/Brave!');
       writeLineToTerminal('log', '  Or switch the dropdown to "🌐 Browser Terminal" for instant cloud execution.');
       return;
+    }
+    if (bridgeStatus.resolvedPath) {
+      setLocalResolvedPath(bridgeStatus.resolvedPath);
     }
 
     const isWin = bridgeStatus.data?.platform === 'win32';

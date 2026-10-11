@@ -184,13 +184,18 @@ function codeExpectsInput(code, lang) {
 
     if (isLocalMode && tab.language !== 'javascript' && tab.language !== 'typescript') {
       const { ensureBridgeRunning, executeViaBridge } = await import('./modules/bridgeClient.js');
-      const bridgeStatus = await ensureBridgeRunning();
+      const folderName = getWorkspaceName() || 'workspace';
+      const bridgeStatus = await ensureBridgeRunning(folderName);
       if (!bridgeStatus.ok) {
         writeLineToTerminal('warn', '⚡ Local PC Bridge is not running on your computer.');
         writeLineToTerminal('log', '  To start the bridge, run: \x1b[1;36mnode bridge.js\x1b[0m (or double-click \x1b[1;36mstart-bridge.cmd\x1b[0m)');
         writeLineToTerminal('log', '  Or run \x1b[1;36minstall-bridge.cmd\x1b[0m once to enable 1-click auto-start in Chrome/Brave!');
         writeLineToTerminal('log', '  Or switch back to "🌐 Browser Terminal" for instant cloud execution.');
         return;
+      }
+      if (bridgeStatus.resolvedPath) {
+        const { setLocalResolvedPath } = await import('./modules/terminal.js');
+        setLocalResolvedPath(bridgeStatus.resolvedPath);
       }
 
       const isWin = bridgeStatus.data?.platform === 'win32';
@@ -786,17 +791,26 @@ function wireEventListeners() {
   // Terminal Mode selector (Browser Terminal vs Local PC Terminal)
   $('terminal-mode-select')?.addEventListener('change', async (e) => {
     const mode = e.target.value;
-    const { setTerminalMode, writeLineToTerminal } = await import('./modules/terminal.js');
+    const { setTerminalMode, writeLineToTerminal, writePrompt, setLocalResolvedPath } = await import('./modules/terminal.js');
+    const { ensureBridgeRunning, startBridgeHeartbeat, stopBridgeHeartbeat } = await import('./modules/bridgeClient.js');
     setTerminalMode(mode);
     storage.saveTerminalMode(mode);
 
     if (mode === 'local') {
-      const { ensureBridgeRunning } = await import('./modules/bridgeClient.js');
       writeLineToTerminal('system', '⚡ Connecting to Local Native Bridge...');
-      const res = await ensureBridgeRunning();
+      const wsName = getWorkspaceName();
+      const res = await ensureBridgeRunning(wsName);
       if (res.ok) {
+        startBridgeHeartbeat();
+        if (res.resolvedPath) {
+          setLocalResolvedPath(res.resolvedPath);
+        }
         writeLineToTerminal('log', '\x1b[1;32m✔ Local PC Terminal Active\x1b[0m (MSYS2 GCC, Clang, Python, Node.js, Rust)');
-        writeLineToTerminal('system', '  Direct interactive terminal connected to your PC.');
+        if (res.resolvedPath) {
+          writeLineToTerminal('system', `  📁 Local Directory: \x1b[1;36m${res.resolvedPath}\x1b[0m`);
+        } else {
+          writeLineToTerminal('system', '  Direct interactive terminal connected to your PC.');
+        }
       } else {
         writeLineToTerminal('warn', '⚡ Local PC Bridge is not running on your computer.');
         writeLineToTerminal('log', '  \x1b[1;37mHow to start:\x1b[0m');
@@ -806,8 +820,13 @@ function wireEventListeners() {
         writeLineToTerminal('log', '  \x1b[90mTip: You can switch back to "🌐 Browser Terminal" anytime for instant cloud execution.\x1b[0m');
       }
     } else {
+      stopBridgeHeartbeat();
+      setLocalResolvedPath('');
       writeLineToTerminal('log', '\x1b[1;36m🌐 Switched to Browser Terminal (Default)\x1b[0m');
     }
+
+    // Immediately display prompt with active location so user never has to type clear!
+    writePrompt();
   });
 
   // Wire VS Code File Menu
@@ -840,8 +859,17 @@ async function init() {
 
   const terminalModeSelect = $('terminal-mode-select');
   if (terminalModeSelect) terminalModeSelect.value = savedTerminalMode;
-  import('./modules/terminal.js').then(({ setTerminalMode }) => {
+  import('./modules/terminal.js').then(async ({ setTerminalMode, setLocalResolvedPath }) => {
     setTerminalMode(savedTerminalMode);
+    if (savedTerminalMode === 'local') {
+      const { checkBridgeStatus, startBridgeHeartbeat } = await import('./modules/bridgeClient.js');
+      startBridgeHeartbeat();
+      const wsName = getWorkspaceName();
+      const status = await checkBridgeStatus(wsName);
+      if (status.ok && status.resolvedPath) {
+        setLocalResolvedPath(status.resolvedPath);
+      }
+    }
   });
 
   const defaultLangSelect = $('setting-default-lang');
@@ -973,15 +1001,27 @@ async function init() {
   setTerminalFontSize(savedIdeSettings.fontSize);
 
   // Listen to workspace state changes
-  onWorkspaceChange(({ action }) => {
+  onWorkspaceChange(async ({ action }) => {
     updateTerminalPrompt();
     if (action === 'closed') {
-      import('./modules/terminal.js').then(({ resetTerminalCwd }) => {
+      import('./modules/terminal.js').then(({ resetTerminalCwd, setLocalResolvedPath, writePrompt }) => {
         if (typeof resetTerminalCwd === 'function') resetTerminalCwd();
+        if (typeof setLocalResolvedPath === 'function') setLocalResolvedPath('');
+        if (typeof writePrompt === 'function') writePrompt();
       });
       toggleExplorer(false);
     } else {
       renderExplorerTree(getDirtyPaths());
+      const { getTerminalMode, setLocalResolvedPath, writePrompt } = await import('./modules/terminal.js');
+      if (getTerminalMode() === 'local') {
+        const { checkBridgeStatus } = await import('./modules/bridgeClient.js');
+        const wsName = getWorkspaceName();
+        const status = await checkBridgeStatus(wsName);
+        if (status.ok && status.resolvedPath) {
+          setLocalResolvedPath(status.resolvedPath);
+          writePrompt();
+        }
+      }
     }
   });
 
@@ -1177,4 +1217,16 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     })();
     return true;
   }
+});
+
+// Auto-close bridge background service when extension sidepanel is closed
+window.addEventListener('beforeunload', () => {
+  import('./modules/bridgeClient.js').then(({ sendBridgeShutdown }) => {
+    sendBridgeShutdown();
+  });
+});
+window.addEventListener('pagehide', () => {
+  import('./modules/bridgeClient.js').then(({ sendBridgeShutdown }) => {
+    sendBridgeShutdown();
+  });
 });

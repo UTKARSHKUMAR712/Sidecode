@@ -83,8 +83,72 @@ function killProcess(proc) {
   }
 }
 
+let lastHeartbeat = Date.now();
+const IDLE_TIMEOUT_MS = 30000; // 30s auto-exit watchdog if Sidecode extension is closed
+
+function touchHeartbeat() {
+  lastHeartbeat = Date.now();
+}
+
+const watchdog = setInterval(() => {
+  const elapsed = Date.now() - lastHeartbeat;
+  if (elapsed > IDLE_TIMEOUT_MS) {
+    if (activeChild) killProcess(activeChild);
+    process.exit(0);
+  }
+}, 5000);
+watchdog.unref();
+
+const folderPathCache = new Map();
+
+function findWorkspaceOnDisk(folderName) {
+  if (!folderName || folderName === 'workspace') return null;
+  const lowerTarget = folderName.toLowerCase();
+
+  if (folderPathCache.has(lowerTarget)) {
+    const cached = folderPathCache.get(lowerTarget);
+    if (fs.existsSync(cached)) return cached;
+  }
+
+  const userHome = os.homedir();
+  const searchRoots = [
+    path.join(userHome, 'OneDrive', 'Desktop'),
+    path.join(userHome, 'Desktop'),
+    path.join(userHome, 'OneDrive', 'Documents'),
+    path.join(userHome, 'Documents'),
+    path.join(userHome, 'projects'),
+    process.cwd(),
+    userHome
+  ].filter(p => fs.existsSync(p));
+
+  for (const root of searchRoots) {
+    const queue = [{ dir: root, depth: 0 }];
+    while (queue.length > 0) {
+      const { dir, depth } = queue.shift();
+      if (depth > 4) continue;
+      try {
+        const entries = fs.readdirSync(dir, { withFileTypes: true });
+        for (const entry of entries) {
+          if (entry.isDirectory()) {
+            if (entry.name.toLowerCase() === lowerTarget) {
+              const matched = path.join(dir, entry.name);
+              folderPathCache.set(lowerTarget, matched);
+              return matched;
+            }
+            if (!entry.name.startsWith('.') && entry.name !== 'node_modules' && entry.name !== 'AppData') {
+              queue.push({ dir: path.join(dir, entry.name), depth: depth + 1 });
+            }
+          }
+        }
+      } catch (_) {}
+    }
+  }
+  return null;
+}
+
 const server = http.createServer(async (req, res) => {
   setCors(res);
+  touchHeartbeat();
 
   if (req.method === 'OPTIONS') {
     res.writeHead(204);
@@ -94,9 +158,14 @@ const server = http.createServer(async (req, res) => {
 
   const url = new URL(req.url, `http://${HOST}:${PORT}`);
 
-  // 1. Health & Tool status
+  // 1. Health & Tool status (with optional workspace location resolution)
   if (url.pathname === '/status' || url.pathname === '/health') {
     const compilers = detectCompilers();
+    const reqFolder = url.searchParams.get('folder');
+    let resolvedPath = null;
+    if (reqFolder) {
+      resolvedPath = findWorkspaceOnDisk(reqFolder);
+    }
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({
       ok: true,
@@ -105,9 +174,29 @@ const server = http.createServer(async (req, res) => {
       platform: process.platform,
       arch: process.arch,
       nodeVersion: process.version,
-      cwd: process.cwd(),
+      cwd: resolvedPath || process.cwd(),
+      resolvedPath: resolvedPath || null,
       compilers
     }, null, 2));
+    return;
+  }
+
+  // 2. Heartbeat to keep service alive while extension is open
+  if (url.pathname === '/heartbeat' || url.pathname === '/ping') {
+    touchHeartbeat();
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ ok: true, uptime: process.uptime() }));
+    return;
+  }
+
+  // 3. Graceful shutdown when extension side panel closes
+  if (url.pathname === '/shutdown') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ ok: true, message: 'Bridge shutting down' }));
+    setTimeout(() => {
+      if (activeChild) killProcess(activeChild);
+      process.exit(0);
+    }, 50);
     return;
   }
 
@@ -160,9 +249,15 @@ const server = http.createServer(async (req, res) => {
         return;
       }
 
-      // 1. Prepare isolated workspace directory for this folder
-      const safeFolder = (payload.folder || 'workspace').replace(/[^a-zA-Z0-9_\-\.]/g, '_');
-      const workspaceDir = path.join(os.tmpdir(), 'sidecode_bridge', safeFolder);
+      // 1. Resolve workspace directory (use real PC folder if found, else isolated temp)
+      let workspaceDir = null;
+      if (payload.folder && payload.folder !== 'workspace') {
+        workspaceDir = findWorkspaceOnDisk(payload.folder);
+      }
+      if (!workspaceDir) {
+        const safeFolder = (payload.folder || 'workspace').replace(/[^a-zA-Z0-9_\-\.]/g, '_');
+        workspaceDir = path.join(os.tmpdir(), 'sidecode_bridge', safeFolder);
+      }
       fs.mkdirSync(workspaceDir, { recursive: true });
 
       // 2. Synchronize all incoming files directly into the workspace directory

@@ -15,11 +15,12 @@ let abortController = null;
  * Check if the local native bridge is running on the user's PC
  * @returns {Promise<{ ok: boolean, compilers?: object, cwd?: string }>}
  */
-export async function checkBridgeStatus() {
+export async function checkBridgeStatus(folder = '') {
   try {
     const ctrl = new AbortController();
-    const timeout = setTimeout(() => ctrl.abort(), 800);
-    const res = await fetch(`${BRIDGE_URL}/status`, {
+    const timeout = setTimeout(() => ctrl.abort(), 1200);
+    const qs = folder ? `?folder=${encodeURIComponent(folder)}` : '';
+    const res = await fetch(`${BRIDGE_URL}/status${qs}`, {
       method: 'GET',
       signal: ctrl.signal
     });
@@ -27,7 +28,7 @@ export async function checkBridgeStatus() {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     lastStatus = data;
-    return { ok: true, compilers: data.compilers, cwd: data.cwd, data };
+    return { ok: true, compilers: data.compilers, cwd: data.cwd, resolvedPath: data.resolvedPath, data };
   } catch (_) {
     lastStatus = null;
     return { ok: false };
@@ -38,10 +39,11 @@ export async function checkBridgeStatus() {
  * Ensure the local native bridge is running.
  * First checks if already responding on HTTP port 3888.
  * If not, attempts to auto-launch via Chrome Native Messaging if configured.
- * @returns {Promise<{ ok: boolean, source?: string, compilers?: object }>}
+ * @param {string} [folder] - Active workspace folder name to resolve
+ * @returns {Promise<{ ok: boolean, source?: string, compilers?: object, resolvedPath?: string }>}
  */
-export async function ensureBridgeRunning() {
-  const current = await checkBridgeStatus();
+export async function ensureBridgeRunning(folder = '') {
+  const current = await checkBridgeStatus(folder);
   if (current.ok) {
     return { ok: true, source: 'active', ...current };
   }
@@ -66,7 +68,7 @@ export async function ensureBridgeRunning() {
         // Poll for HTTP server to become ready
         for (let attempt = 0; attempt < 6; attempt++) {
           await new Promise((r) => setTimeout(r, 250));
-          const check = await checkBridgeStatus();
+          const check = await checkBridgeStatus(folder);
           if (check.ok) {
             return { ok: true, source: 'native_messaging', ...check };
           }
@@ -76,6 +78,34 @@ export async function ensureBridgeRunning() {
   }
 
   return { ok: false };
+}
+
+let heartbeatTimer = null;
+
+export function startBridgeHeartbeat() {
+  if (heartbeatTimer) return;
+  heartbeatTimer = setInterval(async () => {
+    try {
+      await fetch(`${BRIDGE_URL}/heartbeat`, { method: 'GET' });
+    } catch (_) {}
+  }, 8000);
+}
+
+export function stopBridgeHeartbeat() {
+  if (heartbeatTimer) {
+    clearInterval(heartbeatTimer);
+    heartbeatTimer = null;
+  }
+}
+
+export function sendBridgeShutdown() {
+  try {
+    if (navigator.sendBeacon) {
+      navigator.sendBeacon(`${BRIDGE_URL}/shutdown`);
+    } else {
+      fetch(`${BRIDGE_URL}/shutdown`, { method: 'POST', keepalive: true }).catch(() => {});
+    }
+  } catch (_) {}
 }
 
 export function isBridgeConnected() {
