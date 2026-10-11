@@ -6,11 +6,15 @@
  */
 
 import { uid, escapeHtml, LANG_BADGE, getDefaultContent, RUNNABLE_LANGUAGES } from './constants.js';
-import { saveFileToDisk } from './workspace.js';
+import { saveFileToDisk, saveFileAsDialog } from './workspace.js';
+import { getFileIconHtml } from './explorer.js';
 
 let tabs = [];
 let activeTabId = null;
 let defaultLang = 'javascript';
+let untitledCount = 1;
+let isAutoSaveEnabled = false;
+let autoSaveTimer = null;
 
 let onTabActivate = null;
 let onTabCreate = null;
@@ -98,12 +102,21 @@ export function getDirtyPaths() {
   return tabs.filter((t) => t.isDirty && t.filePath).map((t) => t.filePath);
 }
 
-export function createTab(language = null) {
+export function setAutoSave(enabled) {
+  isAutoSaveEnabled = !!enabled;
+}
+
+export function getAutoSave() {
+  return isAutoSaveEnabled;
+}
+
+export function createTab(language = null, customLabel = null) {
   const chosenLang = language || defaultLang;
   const id = uid();
+  const label = customLabel || `Untitled-${untitledCount++}`;
   const tab = {
     id,
-    label: `Tab ${tabs.length + 1}`,
+    label,
     language: chosenLang,
     content: getDefaultContent(chosenLang),
     originalContent: getDefaultContent(chosenLang),
@@ -159,8 +172,10 @@ export function activateTab(id) {
   activeTabId = id;
   renderTabs();
 
-  const langSelect = $('lang-select');
-  if (langSelect) langSelect.value = tab.language;
+  // Auto-detect and sync language on Monaco model
+  import('./editor.js').then(({ setModelLanguage }) => {
+    setModelLanguage(tab.id, tab.language);
+  });
 
   syncRunButton();
 
@@ -188,7 +203,7 @@ export async function saveActiveTabToDisk() {
         renderExplorerTree(getDirtyPaths());
       });
 
-      import('./console.js').then(({ openConsole, appendLine }) => {
+      import('./console.js').then(({ appendLine }) => {
         appendLine('system', `✔ Saved "${tab.label}" directly to disk.`);
       });
       return true;
@@ -197,10 +212,43 @@ export async function saveActiveTabToDisk() {
       return false;
     }
   } else {
-    // Scratchpad tab — content is persisted in extension storage
+    // Untitled tab without handle: trigger Save As to choose disk location
+    return await saveActiveTabAs();
+  }
+}
+
+export async function saveActiveTabAs() {
+  const tab = getActiveTab();
+  if (!tab) return false;
+
+  try {
+    const result = await saveFileAsDialog(tab.content, tab.label);
+    if (!result) return false;
+
+    tab.label = result.name;
+    tab.filePath = result.name;
+    tab.fileHandle = result.handle;
+    tab.language = detectLanguageByFilename(result.name);
+    tab.originalContent = tab.content;
     tab.isDirty = false;
+
+    import('./editor.js').then(({ setModelLanguage }) => {
+      setModelLanguage(tab.id, tab.language);
+    });
+
     renderTabs();
+
+    import('./explorer.js').then(({ renderExplorerTree }) => {
+      renderExplorerTree(getDirtyPaths());
+    });
+
+    import('./console.js').then(({ appendLine }) => {
+      appendLine('system', `✔ Saved as "${tab.label}".`);
+    });
     return true;
+  } catch (err) {
+    if (err.name !== 'AbortError') alert(`Save As failed: ${err.message}`);
+    return false;
   }
 }
 
@@ -270,6 +318,24 @@ export function updateTabContent(id, content) {
         renderExplorerTree(getDirtyPaths());
       });
     }
+
+    // Debounced Auto Save to disk when enabled
+    if (isAutoSaveEnabled && tab.fileHandle && tab.isDirty) {
+      if (autoSaveTimer) clearTimeout(autoSaveTimer);
+      autoSaveTimer = setTimeout(async () => {
+        try {
+          await saveFileToDisk(tab.fileHandle, tab.content);
+          tab.originalContent = tab.content;
+          tab.isDirty = false;
+          renderTabs();
+          import('./explorer.js').then(({ renderExplorerTree }) => {
+            renderExplorerTree(getDirtyPaths());
+          });
+        } catch (e) {
+          console.warn('Auto-save error:', e);
+        }
+      }, 750);
+    }
   }
 }
 
@@ -285,12 +351,12 @@ export function renderTabs() {
     el.setAttribute('role', 'tab');
     el.title = tab.filePath || tab.label;
 
-    const badge = LANG_BADGE[tab.language] || tab.language.toUpperCase().slice(0, 4);
-    const dirtyIcon = tab.isDirty ? '<span class="tab-dirty-dot">●</span>' : '';
+    const fileIcon = getFileIconHtml(tab.label);
+    const dirtyIcon = `<span class="tab-dirty-dot ${tab.isDirty ? '' : 'hidden'}">●</span>`;
 
     el.innerHTML = `
+      <span class="tab-icon-wrap">${fileIcon}</span>
       <span class="tab-label">${escapeHtml(tab.label)}</span>
-      <span class="tab-lang-badge">${badge}</span>
       ${dirtyIcon}
       <button class="tab-close" title="Close (Ctrl+W)" aria-label="Close tab">&#10005;</button>
     `;

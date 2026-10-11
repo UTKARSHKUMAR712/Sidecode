@@ -80,5 +80,11 @@ export const storage = {
   saveIdeSettings(settings) {
     _cache = { ..._cache, ideSettings: settings };
     this._flush();
+  },
+
+  /** Persist Auto Save preference */
+  saveAutoSave(enabled) {
+    _cache = { ..._cache, autoSave: enabled };
+    this._flush();
   }
 };

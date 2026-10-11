@@ -54,7 +54,7 @@ function getFolderSvg(name, isOpen) {
   return `<svg class="tree-icon-svg" width="16" height="16" viewBox="0 0 16 16"><path fill="${color}" d="M1.5 2A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h13a1.5 1.5 0 0 0 1.5-1.5V5.5A1.5 1.5 0 0 0 14.5 4H8.2L6.85 2.65A1.5 1.5 0 0 0 5.8 2H1.5z"/></svg>`;
 }
 
-function getFileIconHtml(filename) {
+export function getFileIconHtml(filename) {
   const lower = filename.toLowerCase();
 
   if (lower === 'package.json' || lower === 'package-lock.json') {
@@ -106,9 +106,31 @@ function getFileIconHtml(filename) {
   }
 }
 
+let activeContextMenu = null;
+
+export function closeContextMenu() {
+  if (activeContextMenu) {
+    activeContextMenu.remove();
+    activeContextMenu = null;
+  }
+}
+
 export function initExplorer(container, onFileSelect) {
   containerEl = container;
   onFileSelectCallback = onFileSelect;
+
+  // Disable default browser context menu and show custom VS Code explorer menu
+  containerEl.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    const row = e.target.closest('.vsc-tree-row');
+    const node = row ? row.__node : null;
+    showContextMenu(e, node);
+  });
+
+  window.addEventListener('click', closeContextMenu);
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeContextMenu();
+  });
 }
 
 export function toggleExplorer(forceState = null) {
@@ -259,6 +281,7 @@ function renderTreeNode(node, parentEl, depth = 0, dirtyPaths = []) {
   row.className = `vsc-tree-row ${node.kind === 'directory' ? 'vsc-row-dir' : 'tree-node-file'}`;
   row.style.paddingLeft = `${depth * 14 + 6}px`;
   row.dataset.path = node.path;
+  row.__node = node;
 
   const isDirty = dirtyPaths.includes(node.path);
 
@@ -341,6 +364,10 @@ function renderTreeNode(node, parentEl, depth = 0, dirtyPaths = []) {
       if (confirm(`Are you sure you want to permanently delete "${node.name}" from disk?`)) {
         try {
           await deleteWorkspaceEntry(node.parentHandle, node.name, false);
+          import('./tabs.js').then(({ getTabByPath, closeTab }) => {
+            const openTab = getTabByPath(node.path);
+            if (openTab) closeTab(openTab.id);
+          });
         } catch (err) {
           alert(`Delete failed: ${err.message}`);
         }
@@ -351,26 +378,154 @@ function renderTreeNode(node, parentEl, depth = 0, dirtyPaths = []) {
   }
 }
 
-async function handleCreateFile() {
-  const target = selectedFolderHandle || null;
-  const name = prompt('Enter new filename (e.g. main.cpp):');
-  if (name) {
-    try {
-      await createFileInWorkspace(target, name, '');
-    } catch (err) {
-      alert(`Create file failed: ${err.message}`);
+function showContextMenu(e, targetNode) {
+  closeContextMenu();
+
+  const menu = document.createElement('div');
+  menu.className = 'vsc-context-menu';
+
+  const isDir = targetNode && targetNode.kind === 'directory';
+  const isFile = targetNode && targetNode.kind === 'file';
+
+  if (isDir) {
+    menu.innerHTML = `
+      <div class="vsc-context-entry" id="ctx-new-file"><span>📄 New File...</span></div>
+      <div class="vsc-context-entry" id="ctx-new-folder"><span>📁 New Folder...</span></div>
+      <div class="vsc-context-separator"></div>
+      <div class="vsc-context-entry" id="ctx-rename"><span>✏️ Rename...</span></div>
+      <div class="vsc-context-entry" id="ctx-delete"><span>🗑️ Delete</span></div>
+    `;
+  } else if (isFile) {
+    menu.innerHTML = `
+      <div class="vsc-context-entry" id="ctx-open"><span>👁️ Open</span></div>
+      <div class="vsc-context-entry" id="ctx-new-file"><span>📄 New File...</span></div>
+      <div class="vsc-context-entry" id="ctx-new-folder"><span>📁 New Folder...</span></div>
+      <div class="vsc-context-separator"></div>
+      <div class="vsc-context-entry" id="ctx-rename"><span>✏️ Rename...</span></div>
+      <div class="vsc-context-entry" id="ctx-delete"><span>🗑️ Delete</span></div>
+    `;
+  } else {
+    menu.innerHTML = `
+      <div class="vsc-context-entry" id="ctx-new-file"><span>📄 New File...</span></div>
+      <div class="vsc-context-entry" id="ctx-new-folder"><span>📁 New Folder...</span></div>
+      <div class="vsc-context-separator"></div>
+      <div class="vsc-context-entry" id="ctx-refresh"><span>↻ Refresh Explorer</span></div>
+    `;
+  }
+
+  // Calculate coordinates to keep within side panel bounds
+  const x = Math.min(e.clientX, window.innerWidth - 170);
+  const y = Math.min(e.clientY, window.innerHeight - 200);
+  menu.style.left = `${Math.max(4, x)}px`;
+  menu.style.top = `${Math.max(4, y)}px`;
+
+  menu.querySelector('#ctx-open')?.addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    closeContextMenu();
+    if (onFileSelectCallback && targetNode) onFileSelectCallback(targetNode);
+  });
+
+  menu.querySelector('#ctx-new-file')?.addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    closeContextMenu();
+    const parentHandle = isDir ? targetNode.handle : (isFile ? targetNode.parentHandle : null);
+    const parentName = isDir ? targetNode.name : (isFile ? 'current folder' : 'workspace');
+    const parentPath = isDir ? targetNode.path : (isFile ? targetNode.path.split('/').slice(0, -1).join('/') : '');
+    handleCreateFile(parentHandle, parentName, parentPath);
+  });
+
+  menu.querySelector('#ctx-new-folder')?.addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    closeContextMenu();
+    const parentHandle = isDir ? targetNode.handle : (isFile ? targetNode.parentHandle : null);
+    const parentName = isDir ? targetNode.name : (isFile ? 'current folder' : 'workspace');
+    const parentPath = isDir ? targetNode.path : (isFile ? targetNode.path.split('/').slice(0, -1).join('/') : '');
+    handleCreateFolder(parentHandle, parentName, parentPath);
+  });
+
+  menu.querySelector('#ctx-rename')?.addEventListener('click', async (ev) => {
+    ev.stopPropagation();
+    closeContextMenu();
+    if (!targetNode) return;
+    const newName = prompt(`Enter new name for "${targetNode.name}":`, targetNode.name);
+    if (newName && newName !== targetNode.name) {
+      try {
+        await renameWorkspaceEntry(targetNode.parentHandle, targetNode.handle, newName);
+      } catch (err) {
+        alert(`Rename failed: ${err.message}`);
+      }
     }
+  });
+
+  menu.querySelector('#ctx-delete')?.addEventListener('click', async (ev) => {
+    ev.stopPropagation();
+    closeContextMenu();
+    if (!targetNode) return;
+    if (confirm(`Are you sure you want to delete "${targetNode.name}" permanently from disk?`)) {
+      try {
+        await deleteWorkspaceEntry(targetNode.parentHandle, targetNode.name, targetNode.kind === 'directory');
+        if (targetNode.kind === 'file') {
+          import('./tabs.js').then(({ getTabByPath, closeTab }) => {
+            const openTab = getTabByPath(targetNode.path);
+            if (openTab) closeTab(openTab.id);
+          });
+        }
+      } catch (err) {
+        alert(`Delete failed: ${err.message}`);
+      }
+    }
+  });
+
+  menu.querySelector('#ctx-refresh')?.addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    closeContextMenu();
+    refreshWorkspaceTree();
+  });
+
+  document.body.appendChild(menu);
+  activeContextMenu = menu;
+}
+
+export async function handleCreateFile(targetDirHandle = null, folderName = '', parentPath = '') {
+  const target = targetDirHandle || selectedFolderHandle || null;
+  const promptMsg = folderName ? `New file in "${folderName}":` : 'New file name (e.g. app.js):';
+  const name = prompt(promptMsg);
+  if (!name) return;
+
+  try {
+    const fileHandle = await createFileInWorkspace(target, name, '');
+    if (parentPath) {
+      collapsedDirPaths.delete(parentPath);
+    }
+    const node = {
+      name,
+      kind: 'file',
+      handle: fileHandle,
+      parentHandle: target,
+      path: parentPath ? `${parentPath}/${name}` : name
+    };
+    if (onFileSelectCallback) {
+      onFileSelectCallback(node);
+    }
+    renderExplorerTree();
+  } catch (err) {
+    alert(`Create file failed: ${err.message}`);
   }
 }
 
-async function handleCreateFolder() {
-  const target = selectedFolderHandle || null;
-  const name = prompt('Enter new folder name:');
-  if (name) {
-    try {
-      await createFolderInWorkspace(target, name);
-    } catch (err) {
-      alert(`Create folder failed: ${err.message}`);
+export async function handleCreateFolder(targetDirHandle = null, folderName = '', parentPath = '') {
+  const target = targetDirHandle || selectedFolderHandle || null;
+  const promptMsg = folderName ? `New folder in "${folderName}":` : 'New folder name:';
+  const name = prompt(promptMsg);
+  if (!name) return;
+
+  try {
+    await createFolderInWorkspace(target, name);
+    if (parentPath) {
+      collapsedDirPaths.delete(parentPath);
     }
+    renderExplorerTree();
+  } catch (err) {
+    alert(`Create folder failed: ${err.message}`);
   }
 }

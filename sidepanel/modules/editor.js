@@ -136,6 +136,25 @@ export function initMonaco(containerEl, onRunCommand) {
         }
       );
 
+      // Add Ctrl+Shift+S command for Save As
+      editor.addCommand(
+        window.monaco.KeyMod.CtrlCmd | window.monaco.KeyMod.Shift | window.monaco.KeyCode.KeyS,
+        () => {
+          import('./tabs.js').then(({ saveActiveTabAs }) => {
+            saveActiveTabAs();
+          });
+        }
+      );
+
+      // Add Ctrl+O command to open file
+      editor.addCommand(
+        window.monaco.KeyMod.CtrlCmd | window.monaco.KeyCode.KeyO,
+        () => {
+          const fileEntry = document.getElementById('menu-open-file');
+          if (fileEntry) fileEntry.click();
+        }
+      );
+
       // Add Ctrl+B command to toggle file explorer
       editor.addCommand(
         window.monaco.KeyMod.CtrlCmd | window.monaco.KeyCode.KeyB,

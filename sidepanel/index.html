@@ -10,37 +10,54 @@
 
   <!-- ── Top Nav Bar ── -->
   <div id="top-bar">
+    <!-- VS Code Top Left Menu -->
+    <div id="app-menu-bar">
+      <div class="menu-item-wrap" id="menu-file-item">
+        <button class="vsc-menubar-btn" id="btn-menu-file" aria-haspopup="true" aria-expanded="false">File</button>
+        <div class="vsc-menu-dropdown" id="dropdown-file" hidden>
+          <div class="vsc-menu-entry" id="menu-new-file">
+            <span class="vsc-menu-label">New File</span>
+            <span class="vsc-menu-key">Ctrl+N</span>
+          </div>
+          <div class="vsc-menu-entry" id="menu-open-file">
+            <span class="vsc-menu-label">Open File...</span>
+            <span class="vsc-menu-key">Ctrl+O</span>
+          </div>
+          <div class="vsc-menu-entry" id="menu-open-folder">
+            <span class="vsc-menu-label">Open Folder...</span>
+            <span class="vsc-menu-key">Ctrl+K Ctrl+O</span>
+          </div>
+          <div class="vsc-menu-separator"></div>
+          <div class="vsc-menu-entry" id="menu-save">
+            <span class="vsc-menu-label">Save</span>
+            <span class="vsc-menu-key">Ctrl+S</span>
+          </div>
+          <div class="vsc-menu-entry" id="menu-save-as">
+            <span class="vsc-menu-label">Save As...</span>
+            <span class="vsc-menu-key">Ctrl+Shift+S</span>
+          </div>
+          <div class="vsc-menu-entry" id="menu-toggle-autosave">
+            <span class="vsc-menu-label">
+              <span class="vsc-menu-check" id="autosave-check">✓</span> Auto Save
+            </span>
+          </div>
+          <div class="vsc-menu-separator"></div>
+          <div class="vsc-menu-entry" id="menu-close-editor">
+            <span class="vsc-menu-label">Close Editor</span>
+            <span class="vsc-menu-key">Ctrl+W</span>
+          </div>
+          <div class="vsc-menu-entry" id="menu-close-folder">
+            <span class="vsc-menu-label">Close Folder</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabs strip (VS Code Editor tabs) -->
     <div id="tabs" role="tablist"></div>
 
     <div id="bar-actions">
-      <button id="btn-new-tab" title="New tab (Ctrl+T)" aria-label="New tab">+</button>
-
-      <select id="lang-select" title="Select language" aria-label="Select language">
-        <option value="plaintext">Text</option>
-        <option value="javascript">JS</option>
-        <option value="typescript">TS</option>
-        <option value="html">HTML</option>
-        <option value="css">CSS</option>
-        <option value="json">JSON</option>
-        <option value="python">Python</option>
-        <option value="java">Java</option>
-        <option value="csharp">C#</option>
-        <option value="cpp">C++</option>
-        <option value="c">C</option>
-        <option value="go">Go</option>
-        <option value="rust">Rust</option>
-        <option value="php">PHP</option>
-        <option value="ruby">Ruby</option>
-        <option value="swift">Swift</option>
-        <option value="kotlin">Kotlin</option>
-        <option value="sql">SQL</option>
-        <option value="shell">Shell</option>
-        <option value="yaml">YAML</option>
-        <option value="markdown">MD</option>
-        <option value="xml">XML</option>
-      </select>
-
-      <!-- Run button — shown for all runnable languages -->
+      <!-- Run button — shown for runnable languages -->
       <button id="btn-run" title="Run code (Ctrl+Enter)" aria-label="Run" hidden>&#9654;</button>
 
       <!-- Settings button -->

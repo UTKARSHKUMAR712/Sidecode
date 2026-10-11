@@ -57,6 +57,9 @@ import {
   getDefaultLanguage,
   openFileInTab,
   saveActiveTabToDisk,
+  saveActiveTabAs,
+  setAutoSave,
+  getAutoSave,
   getDirtyPaths
 } from './modules/tabs.js';
 import {
@@ -209,10 +212,31 @@ function setupKeyboard() {
       return;
     }
 
+    // Ctrl+Shift+S — Save As...
+    if (e.shiftKey && (e.key === 's' || e.key === 'S')) {
+      e.preventDefault();
+      saveActiveTabAs();
+      return;
+    }
+
     // Ctrl+S — save active tab directly to disk
     if (e.key === 's' || e.key === 'S') {
       e.preventDefault();
       saveActiveTabToDisk();
+      return;
+    }
+
+    // Ctrl+N — new file
+    if (e.key === 'n' || e.key === 'N') {
+      e.preventDefault();
+      handleNewFile();
+      return;
+    }
+
+    // Ctrl+O — open file
+    if (e.key === 'o' || e.key === 'O') {
+      e.preventDefault();
+      handleOpenFile();
       return;
     }
 
@@ -223,10 +247,10 @@ function setupKeyboard() {
       return;
     }
 
-    // Ctrl+T — new tab
+    // Ctrl+T — new file / tab
     if (e.key === 't' || e.key === 'T') {
       e.preventDefault();
-      createTab();
+      handleNewFile();
       return;
     }
 
@@ -248,6 +272,114 @@ function setupKeyboard() {
         activateTab(target.id);
       }
     }
+  });
+}
+
+async function handleNewFile() {
+  if (isWorkspaceOpen()) {
+    const { handleCreateFile } = await import('./modules/explorer.js');
+    handleCreateFile();
+  } else {
+    createTab();
+  }
+}
+
+async function handleOpenFile() {
+  try {
+    const { openFileDialog } = await import('./modules/workspace.js');
+    const result = await openFileDialog();
+    if (!result) return;
+    const tab = openFileInTab(result, result.content);
+    if (!getModel(tab.id)) {
+      createModel(tab, (tabId, val) => {
+        updateTabContent(tabId, val);
+      });
+    }
+    renderExplorerTree(getDirtyPaths());
+  } catch (err) {
+    if (err.name !== 'AbortError') {
+      alert(`Could not open file: ${err.message}`);
+    }
+  }
+}
+
+function wireFileMenu() {
+  const btnFile = $('btn-menu-file');
+  const dropdownFile = $('dropdown-file');
+  if (!btnFile || !dropdownFile) return;
+
+  function closeMenu() {
+    dropdownFile.hidden = true;
+    btnFile.classList.remove('active');
+    btnFile.setAttribute('aria-expanded', 'false');
+  }
+
+  function toggleMenu(e) {
+    e.stopPropagation();
+    const isOpen = !dropdownFile.hidden;
+    if (isOpen) {
+      closeMenu();
+    } else {
+      dropdownFile.hidden = false;
+      btnFile.classList.add('active');
+      btnFile.setAttribute('aria-expanded', 'true');
+    }
+  }
+
+  btnFile.addEventListener('click', toggleMenu);
+
+  window.addEventListener('click', (e) => {
+    if (!dropdownFile.contains(e.target) && e.target !== btnFile) {
+      closeMenu();
+    }
+  });
+
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeMenu();
+  });
+
+  $('menu-new-file')?.addEventListener('click', () => {
+    closeMenu();
+    handleNewFile();
+  });
+
+  $('menu-open-file')?.addEventListener('click', () => {
+    closeMenu();
+    handleOpenFile();
+  });
+
+  $('menu-open-folder')?.addEventListener('click', () => {
+    closeMenu();
+    handleOpenFolder();
+  });
+
+  $('menu-save')?.addEventListener('click', () => {
+    closeMenu();
+    saveActiveTabToDisk();
+  });
+
+  $('menu-save-as')?.addEventListener('click', () => {
+    closeMenu();
+    saveActiveTabAs();
+  });
+
+  $('menu-toggle-autosave')?.addEventListener('click', () => {
+    closeMenu();
+    const newState = !getAutoSave();
+    setAutoSave(newState);
+    $('autosave-check')?.classList.toggle('active', newState);
+    storage.saveAutoSave(newState);
+  });
+
+  $('menu-close-editor')?.addEventListener('click', () => {
+    closeMenu();
+    const activeId = getActiveTabId();
+    if (activeId) closeTab(activeId);
+  });
+
+  $('menu-close-folder')?.addEventListener('click', () => {
+    closeMenu();
+    closeWorkspaceFolder();
   });
 }
 
@@ -429,32 +561,8 @@ function wireEventListeners() {
   $('btn-console-clear')?.addEventListener('click', clearConsole);
   $('btn-console-close')?.addEventListener('click', closeConsole);
 
-  // Language selector
-  $('lang-select')?.addEventListener('change', (e) => {
-    const activeId = getActiveTabId();
-    if (!activeId) return;
-
-    const newLang = e.target.value;
-    setTabLanguage(activeId, newLang);
-    setModelLanguage(activeId, newLang);
-    storage.saveTabLanguage(activeId, newLang);
-
-    // Update Run button and runner selector visibility
-    updateRunControls(newLang);
-    updateDependenciesBadge(newLang);
-
-    // If file is empty or only whitespace, auto-load boilerplate for chosen language
-    const model = getModel(activeId);
-    if (model) {
-      const currentCode = model.getValue();
-      if (!currentCode.trim()) {
-        const template = getDefaultContent(newLang);
-        model.setValue(template);
-        updateTabContent(activeId, template);
-        storage.saveTabContent(activeId, template);
-      }
-    }
-  });
+  // Wire VS Code File Menu
+  wireFileMenu();
 }
 
 // ─── App initialisation ──────────────────────────────────────────────────────
@@ -472,10 +580,13 @@ async function init() {
   const savedConsoleHeight = saved.consoleHeight || 200;
   const savedDefaultLang = saved.defaultLanguage || 'javascript';
   const savedJsRunner = saved.jsRunner || 'sandbox';
+  const savedAutoSave = saved.autoSave !== undefined ? saved.autoSave : false;
   customPistonUrl = saved.customPistonUrl || '';
 
   // Apply persisted settings
   setJsRunnerPreference(savedJsRunner);
+  setAutoSave(savedAutoSave);
+  $('autosave-check')?.classList.toggle('active', savedAutoSave);
 
   const defaultLangSelect = $('setting-default-lang');
   if (defaultLangSelect) defaultLangSelect.value = savedDefaultLang;

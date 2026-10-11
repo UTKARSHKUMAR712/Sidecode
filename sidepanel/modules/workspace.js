@@ -382,3 +382,43 @@ export async function collectAllWorkspaceFiles(node = currentTree) {
   await traverse(node);
   return results;
 }
+
+/**
+ * Open single file dialog from user PC
+ * @returns {Promise<{ handle: FileSystemFileHandle, name: string, path: string, content: string }|null>}
+ */
+export async function openFileDialog() {
+  if (typeof window.showOpenFilePicker !== 'function') {
+    throw new Error('File System Access API (showOpenFilePicker) is not supported in this browser.');
+  }
+  const [handle] = await window.showOpenFilePicker({ multiple: false });
+  if (!handle) return null;
+  const file = await handle.getFile();
+  const content = await file.text();
+  return {
+    handle,
+    name: handle.name,
+    path: handle.name,
+    content
+  };
+}
+
+/**
+ * Save As dialog to write content to a chosen PC file location
+ * @param {string} content
+ * @param {string} defaultName
+ * @returns {Promise<{ handle: FileSystemFileHandle, name: string }|null>}
+ */
+export async function saveFileAsDialog(content, defaultName = 'untitled.txt') {
+  if (typeof window.showSaveFilePicker !== 'function') {
+    throw new Error('File System Access API (showSaveFilePicker) is not supported in this browser.');
+  }
+  const handle = await window.showSaveFilePicker({
+    suggestedName: defaultName
+  });
+  if (!handle) return null;
+  const writable = await handle.createWritable();
+  await writable.write(content);
+  await writable.close();
+  return { handle, name: handle.name };
+}
