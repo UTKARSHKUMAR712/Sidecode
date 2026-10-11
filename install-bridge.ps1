@@ -24,11 +24,16 @@ if ($PSScriptRoot -and (Test-Path (Join-Path $PSScriptRoot "bridge.js"))) {
     }
     Write-Host "Fetching latest bridge files from GitHub into $InstallDir..." -ForegroundColor Yellow
     $baseUrl = "https://raw.githubusercontent.com/UTKARSHKUMAR712/Sidecode/main"
-    $files = @("bridge.js", "native-host.js", "native-host.cmd", "start-bridge.cmd")
+    $files = @("bridge.js", "package.json", "start-bridge.cmd")
     foreach ($f in $files) {
         $dest = Join-Path $InstallDir $f
         Invoke-WebRequest -Uri "$baseUrl/$f" -OutFile $dest -UseBasicParsing
     }
+}
+
+$pkgJson = Join-Path $InstallDir "package.json"
+if (!(Test-Path $pkgJson)) {
+    Set-Content -Path $pkgJson -Value '{"type":"module"}' -Encoding ASCII
 }
 
 Write-Host "Bridge location: $InstallDir" -ForegroundColor Green
@@ -41,104 +46,61 @@ try {
     Write-Host "WARNING: Node.js was not detected in PATH. Please install Node.js (https://nodejs.org) to run the bridge." -ForegroundColor Red
 }
 
-# 3. Create Native Messaging Host Manifest
-$ManifestPath = Join-Path $InstallDir "com.sidecode.bridge.json"
-$HostCmdPath = (Join-Path $InstallDir "native-host.cmd").Replace("\", "\\")
-
-# Discover extension IDs from Brave, Chrome, and Edge profiles
-$detectedExtIds = [System.Collections.Generic.List[string]]::new()
-$detectedExtIds.Add("kmocfiinobnmaibnoblilejogcljaolc")
-
-$searchBases = @(
-    "$env:LOCALAPPDATA\BraveSoftware\Brave-Browser\User Data",
-    "$env:LOCALAPPDATA\Google\Chrome\User Data",
-    "$env:LOCALAPPDATA\Microsoft\Edge\User Data"
-)
-foreach ($base in $searchBases) {
-    if (Test-Path $base) {
-        $profiles = Get-ChildItem -Path $base -Directory -ErrorAction SilentlyContinue | Where-Object { $_.Name -match "^(Default|Profile \d+)$" }
-        foreach ($prof in $profiles) {
-            foreach ($pfName in @("Preferences", "Secure Preferences")) {
-                $pf = Join-Path $prof.FullName $pfName
-                if (Test-Path $pf) {
-                    try {
-                        $txt = [System.IO.File]::ReadAllText($pf)
-                        if ($txt -match "Sidecode") {
-                            $matches = [regex]::Matches($txt, '"([a-p]{32})":\{[^}]*"path":"[^"]*Sidecode')
-                            foreach ($m in $matches) {
-                                $id = $m.Groups[1].Value
-                                if (!$detectedExtIds.Contains($id)) {
-                                    $detectedExtIds.Add($id)
-                                }
-                            }
-                        }
-                    } catch {}
-                }
-            }
-        }
-    }
-}
-
-$originLines = ($detectedExtIds | ForEach-Object { "    `"chrome-extension://$_/`"" }) -join ",`n"
-
-$manifestContent = @"
-{
-  "name": "com.sidecode.bridge",
-  "description": "Sidecode Local Native Terminal Bridge Host",
-  "path": "$HostCmdPath",
-  "type": "stdio",
-  "allowed_origins": [
-$originLines
-  ]
-}
-"@
-
-[System.IO.File]::WriteAllText($ManifestPath, $manifestContent, [System.Text.Encoding]::UTF8)
-Write-Host "Created Native Messaging Manifest: $ManifestPath" -ForegroundColor Green
-
-# 4. Register in Windows Registry (HKCU)
+# 3. Clean up any legacy native messaging registry keys to prevent CMD window popups
 $regPaths = @(
     "HKCU:\Software\Google\Chrome\NativeMessagingHosts\com.sidecode.bridge",
     "HKCU:\Software\BraveSoftware\Brave-Browser\NativeMessagingHosts\com.sidecode.bridge",
     "HKCU:\Software\Microsoft\Edge\NativeMessagingHosts\com.sidecode.bridge"
 )
-
 foreach ($regPath in $regPaths) {
-    try {
-        if (!(Test-Path $regPath)) {
-            New-Item -Path $regPath -Force | Out-Null
-        }
-        Set-ItemProperty -Path $regPath -Name "(Default)" -Value $ManifestPath -Force | Out-Null
-        $browserName = $regPath.Split("\")[2]
-        Write-Host " [OK] Registered for $browserName" -ForegroundColor Green
-    } catch {
-        Write-Host " [SKIP] Could not register for $regPath : $_" -ForegroundColor Yellow
+    if (Test-Path $regPath) {
+        Remove-Item -Path $regPath -Recurse -Force -ErrorAction SilentlyContinue
     }
 }
 
-# 5. Start bridge process in background if not already running
-Write-Host "Checking bridge status on http://127.0.0.1:3888 ..." -ForegroundColor Cyan
-$isRunning = $false
+# 4. Stop any previous bridge instances cleanly
+Write-Host "Checking for existing bridge instances on http://127.0.0.1:3888 ..." -ForegroundColor Cyan
 try {
-    $resp = Invoke-RestMethod -Uri "http://127.0.0.1:3888/status" -TimeoutSec 1 -ErrorAction SilentlyContinue
-    if ($resp.ok) { $isRunning = $true }
+    Invoke-RestMethod -Uri "http://127.0.0.1:3888/shutdown" -TimeoutSec 1 -ErrorAction SilentlyContinue | Out-Null
+    Start-Sleep -Milliseconds 400
 } catch {}
 
-if (!$isRunning) {
-    Write-Host "Starting local bridge background process..." -ForegroundColor Yellow
-    $bridgeScript = Join-Path $InstallDir "bridge.js"
-    Start-Process -FilePath "node" -ArgumentList "`"$bridgeScript`"" -WorkingDirectory $InstallDir -WindowStyle Hidden
-    Start-Sleep -Milliseconds 1200
-    try {
-        $resp = Invoke-RestMethod -Uri "http://127.0.0.1:3888/status" -TimeoutSec 2 -ErrorAction SilentlyContinue
-        if ($resp.ok) { $isRunning = $true }
-    } catch {}
-}
+try {
+    $connections = Get-NetTCPConnection -LocalPort 3888 -State Listen -ErrorAction SilentlyContinue
+    if ($connections) {
+        foreach ($conn in $connections) {
+            Stop-Process -Id $conn.OwningProcess -Force -ErrorAction SilentlyContinue
+        }
+    }
+} catch {}
+
+# 5. Create silent launcher VBScript (runs 100% hidden with zero console window popup)
+$bridgeScript = Join-Path $InstallDir "bridge.js"
+$vbsPath = Join-Path $InstallDir "start-bridge-silent.vbs"
+$vbsContent = @"
+Dim fso, currentDir, shell
+Set fso = CreateObject("Scripting.FileSystemObject")
+currentDir = fso.GetParentFolderName(WScript.ScriptFullName)
+Set shell = CreateObject("WScript.Shell")
+shell.CurrentDirectory = currentDir
+shell.Run "node bridge.js", 0, False
+"@
+[System.IO.File]::WriteAllText($vbsPath, $vbsContent, [System.Text.Encoding]::ASCII)
+
+Write-Host "Starting local bridge background service..." -ForegroundColor Yellow
+Start-Process "wscript.exe" -ArgumentList "`"$vbsPath`"" -WorkingDirectory $InstallDir
+Start-Sleep -Milliseconds 1500
+
+$isRunning = $false
+try {
+    $resp = Invoke-RestMethod -Uri "http://127.0.0.1:3888/status" -TimeoutSec 2 -ErrorAction SilentlyContinue
+    if ($resp.ok) { $isRunning = $true }
+} catch {}
 
 if ($isRunning) {
     Write-Host ""
     Write-Host "============================================================" -ForegroundColor Green
-    Write-Host " SUCCESS: Sidecode Local Bridge is active and registered!" -ForegroundColor Green
+    Write-Host " SUCCESS: Sidecode Local Bridge is active and running!" -ForegroundColor Green
     Write-Host " Detected Compilers:" -ForegroundColor Green
     Write-Host "   GCC (C):      $(if($resp.compilers.gcc){'AVAILABLE'}else{'NOT FOUND'})"
     Write-Host "   G++ (C++):    $(if($resp.compilers.gpp){'AVAILABLE'}else{'NOT FOUND'})"
@@ -147,10 +109,20 @@ if ($isRunning) {
     Write-Host "   Rust (rustc): $(if($resp.compilers.rustc){'AVAILABLE'}else{'NOT FOUND'})"
     Write-Host "   Go:           $(if($resp.compilers.go){'AVAILABLE'}else{'NOT FOUND'})"
     Write-Host "============================================================" -ForegroundColor Green
-    Write-Host "In Sidecode, simply select '⚡ Local PC Terminal' in the dropdown" -ForegroundColor Cyan
+    Write-Host "In Sidecode, select '⚡ Local PC Terminal' in the dropdown" -ForegroundColor Cyan
     Write-Host "to run code directly on your computer with real-time interactive input!" -ForegroundColor Cyan
     Write-Host ""
 } else {
-    Write-Host "Bridge registered for auto-start. You can also start it manually by running:" -ForegroundColor Yellow
-    Write-Host "  node `"$InstallDir\bridge.js`"" -ForegroundColor Cyan
+    Write-Host "Starting via hidden process fallback..." -ForegroundColor Yellow
+    Start-Process -FilePath "node" -ArgumentList "`"$bridgeScript`"" -WorkingDirectory $InstallDir -WindowStyle Hidden
+    Start-Sleep -Milliseconds 1200
+    try {
+        $resp = Invoke-RestMethod -Uri "http://127.0.0.1:3888/status" -TimeoutSec 2 -ErrorAction SilentlyContinue
+        if ($resp.ok) {
+            Write-Host "SUCCESS: Bridge is running on http://127.0.0.1:3888!" -ForegroundColor Green
+        }
+    } catch {
+        Write-Host "Bridge could not be reached. You can start it manually by running:" -ForegroundColor Yellow
+        Write-Host "  node `"$InstallDir\bridge.js`"" -ForegroundColor Cyan
+    }
 }

@@ -71,14 +71,14 @@ Sidecode provides native syntax highlighting, auto-detection, code formatting, I
     irm https://raw.githubusercontent.com/UTKARSHKUMAR712/Sidecode/main/uninstall-bridge.ps1 | iex
     ```
   - **Manual Start (Folder double-click or CLI):**
-    - Double-click `start-bridge.cmd` in your `Sidecode` folder (or run `node bridge.js` in your terminal).
-    - Or double-click `install-bridge.cmd` to register auto-start.
-    - Double-click `uninstall-bridge.cmd` to remove.
+    - Double-click `start-bridge-silent.vbs` to start 100% silently in the background with zero CMD popups.
+    - Or double-click `start-bridge.cmd` (or run `node bridge.js` in your terminal) to see live terminal logs.
+    - Double-click `uninstall-bridge.cmd` to completely remove and stop the bridge.
   - **Clean Terminal Auto-Setup:**
     - When switching to **`⚡ Local PC Terminal`**, the terminal immediately runs a clean clear command and connects to your local folder.
-    - If you see `⚠ Local PC Bridge not running on port 3888`, run the 1-click installer above or double-click `start-bridge.cmd`.
+    - If you see `⚠ Local PC Bridge not running on port 3888`, run the 1-click installer above or double-click `start-bridge-silent.vbs`.
     - You can switch back to **`☁ Cloud Terminal`** anytime in the dropdown for instant free cloud execution without any local tools.
-  - **100% Background Auto-Start:** Once registered, Chrome / Brave will automatically spawn the bridge in the background whenever you select `⚡ Local PC Terminal`.
+  - **100% Silent Background Operation:** Runs invisibly in the background with zero flashing console windows.
   - **Auto-Close Safeguards:** Terminates automatically whenever you close the extension side panel or exit your browser.
   - **Authentic Step-by-Step Interactive I/O:** Truly real-time bidirectional standard input (`scanf`, `cin`, `input()`). Loops pause live between iterations and accept inputs interactively just like native VS Code terminal.
   - **Zero npm Dependencies:** Built purely using standard Node.js libraries (`node:http`, `node:child_process`).

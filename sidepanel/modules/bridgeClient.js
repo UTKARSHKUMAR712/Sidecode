@@ -43,41 +43,7 @@ export async function checkBridgeStatus(folder = '') {
  * @returns {Promise<{ ok: boolean, source?: string, compilers?: object, resolvedPath?: string }>}
  */
 export async function ensureBridgeRunning(folder = '') {
-  const current = await checkBridgeStatus(folder);
-  if (current.ok) {
-    return { ok: true, source: 'active', ...current };
-  }
-
-  // Try auto-starting via Chrome Native Messaging host (if registered)
-  if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendNativeMessage) {
-    try {
-      const nativePromise = new Promise((resolve) => {
-        chrome.runtime.sendNativeMessage('com.sidecode.bridge', { action: 'start' }, (res) => {
-          if (chrome.runtime.lastError) {
-            resolve(null);
-          } else {
-            resolve(res);
-          }
-        });
-      });
-
-      const nativeTimeout = new Promise((resolve) => setTimeout(() => resolve(null), 1500));
-      const res = await Promise.race([nativePromise, nativeTimeout]);
-
-      if (res && res.ok) {
-        // Poll for HTTP server to become ready
-        for (let attempt = 0; attempt < 6; attempt++) {
-          await new Promise((r) => setTimeout(r, 250));
-          const check = await checkBridgeStatus(folder);
-          if (check.ok) {
-            return { ok: true, source: 'native_messaging', ...check };
-          }
-        }
-      }
-    } catch (_) {}
-  }
-
-  return { ok: false };
+  return await checkBridgeStatus(folder);
 }
 
 let heartbeatTimer = null;

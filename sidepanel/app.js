@@ -804,7 +804,6 @@ function wireEventListeners() {
 
     if (chosenEnv === 'local') {
       setTerminalMode('local');
-      clearTerminal();
       const wsName = getWorkspaceName();
       const res = await ensureBridgeRunning(wsName);
       if (res.ok) {
@@ -814,9 +813,7 @@ function wireEventListeners() {
         }
         clearTerminal();
       } else {
-        clearTerminal();
-        writeLineToTerminal('warn', '⚠ Local PC Bridge not running on port 3888. (See README.md for 1-click setup)');
-        writePrompt();
+        clearTerminal('⚠ Local PC Bridge not running on port 3888. (See README.md for 1-click setup)');
       }
     } else {
       setTerminalMode('browser');

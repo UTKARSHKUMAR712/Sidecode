@@ -584,9 +584,12 @@ export function writeBadgeToTerminal(label, hasError = false) {
 /**
  * Clear the terminal screen and reprint welcome banner + prompt
  */
-export function clearTerminal() {
+export function clearTerminal(message = '') {
   if (!term) return;
   term.clear();
+  if (message) {
+    writeLineToTerminal('warn', message);
+  }
   writePrompt();
 }
 

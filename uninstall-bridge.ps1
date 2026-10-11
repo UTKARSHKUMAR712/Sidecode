@@ -36,6 +36,13 @@ try {
     }
 }
 
+# Also stop any node process running bridge.js
+try {
+    Get-CimInstance Win32_Process -Filter "CommandLine LIKE '%bridge.js%'" -ErrorAction SilentlyContinue | ForEach-Object {
+        Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue
+    }
+} catch {}
+
 Write-Host " [OK] Bridge processes stopped." -ForegroundColor Green
 
 # 2. Unregister Native Messaging from Windows Registry (HKCU)
@@ -55,19 +62,28 @@ foreach ($regPath in $regPaths) {
     }
 }
 
-# 3. Clean up generated manifest files
+# 3. Clean up generated bridge files and helper scripts
 $possibleDirs = @(
     $PSScriptRoot,
     "$HOME\OneDrive\Desktop\projects\extensions\Sidecode",
     "$HOME\.sidecode-bridge"
 )
 
+$filesToClean = @(
+    "com.sidecode.bridge.json",
+    "start-bridge-silent.vbs",
+    "run-bridge-hidden.vbs",
+    "_sidecode_unbuffer.h"
+)
+
 foreach ($dir in $possibleDirs) {
     if ($dir -and (Test-Path $dir)) {
-        $manifest = Join-Path $dir "com.sidecode.bridge.json"
-        if (Test-Path $manifest) {
-            Remove-Item -Path $manifest -Force -ErrorAction SilentlyContinue
-            Write-Host " [OK] Removed $manifest" -ForegroundColor Green
+        foreach ($f in $filesToClean) {
+            $target = Join-Path $dir $f
+            if (Test-Path $target) {
+                Remove-Item -Path $target -Force -ErrorAction SilentlyContinue
+                Write-Host " [OK] Removed $target" -ForegroundColor Green
+            }
         }
     }
 }
