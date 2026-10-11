@@ -323,7 +323,13 @@ export function appendLine(level, text) {
 
   line.appendChild(prefix);
   line.appendChild(span);
-  output.appendChild(line);
+
+  const cliRow = $('terminal-cli-row');
+  if (cliRow) {
+    output.insertBefore(line, cliRow);
+  } else {
+    output.appendChild(line);
+  }
   output.scrollTop = output.scrollHeight;
 }
 
@@ -333,7 +339,13 @@ export function appendDivider() {
 
   const d = document.createElement('div');
   d.className = 'con-divider';
-  output.appendChild(d);
+
+  const cliRow = $('terminal-cli-row');
+  if (cliRow) {
+    output.insertBefore(d, cliRow);
+  } else {
+    output.appendChild(d);
+  }
 }
 
 export function appendRunBadge(label, hasError = false) {
@@ -343,13 +355,28 @@ export function appendRunBadge(label, hasError = false) {
   const d = document.createElement('div');
   d.className = 'con-run-badge' + (hasError ? ' error-run' : '');
   d.innerHTML = `<span class="badge-dot"></span><span>${escapeHtml(label)}</span>`;
-  output.appendChild(d);
+
+  const cliRow = $('terminal-cli-row');
+  if (cliRow) {
+    output.insertBefore(d, cliRow);
+  } else {
+    output.appendChild(d);
+  }
   output.scrollTop = output.scrollHeight;
 }
 
 export function clearConsole() {
   const output = $('console-output');
-  if (output) output.innerHTML = '';
+  if (output) {
+    const cliRow = $('terminal-cli-row');
+    if (cliRow) {
+      Array.from(output.children).forEach((child) => {
+        if (child !== cliRow) child.remove();
+      });
+    } else {
+      output.innerHTML = '';
+    }
+  }
   clearAssembly();
 }
 

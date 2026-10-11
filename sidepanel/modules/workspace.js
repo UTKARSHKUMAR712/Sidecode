@@ -46,6 +46,24 @@ export function getWorkspaceTree() {
 }
 
 /**
+ * Find a node in the tree by filename or relative path
+ */
+export function findNodeInTree(nameOrPath, node = currentTree) {
+  if (!node || !nameOrPath) return null;
+  const target = nameOrPath.toLowerCase();
+  if (node.name.toLowerCase() === target || (node.path && (node.path.toLowerCase() === target || node.path.toLowerCase().endsWith(`/${target}`)))) {
+    return node;
+  }
+  if (Array.isArray(node.children)) {
+    for (const child of node.children) {
+      const found = findNodeInTree(nameOrPath, child);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
+/**
  * Open a PC folder using window.showDirectoryPicker()
  */
 export async function openWorkspaceFolder() {

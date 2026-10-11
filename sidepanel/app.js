@@ -69,7 +69,10 @@ import {
   closeWorkspaceFolder,
   onWorkspaceChange,
   readFileFromDisk,
-  isWorkspaceOpen
+  isWorkspaceOpen,
+  getWorkspaceTree,
+  getWorkspaceName,
+  findNodeInTree
 } from './modules/workspace.js';
 import {
   initExplorer,
@@ -81,6 +84,10 @@ import {
   checkFsaSupport,
   redirectToBraveFlag
 } from './modules/permissions.js';
+import {
+  initTerminal,
+  updateTerminalPrompt
+} from './modules/terminal.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -262,6 +269,14 @@ function setupKeyboard() {
       return;
     }
 
+    // Ctrl+, — Open Settings
+    if (e.key === ',') {
+      e.preventDefault();
+      const modal = $('settings-modal');
+      if (modal) modal.hidden = false;
+      return;
+    }
+
     // Ctrl+1…9 — switch tabs by index
     const num = parseInt(e.key, 10);
     if (num >= 1 && num <= 9) {
@@ -380,6 +395,12 @@ function wireFileMenu() {
   $('menu-close-folder')?.addEventListener('click', () => {
     closeMenu();
     closeWorkspaceFolder();
+  });
+
+  $('menu-preferences')?.addEventListener('click', () => {
+    closeMenu();
+    const modal = $('settings-modal');
+    if (modal) modal.hidden = false;
   });
 }
 
@@ -668,8 +689,33 @@ async function init() {
     initExplorer(explorerContent, handleExplorerFileSelect);
   }
 
+  // Initialize Interactive Terminal CLI
+  initTerminal({
+    getWorkspaceTree: () => getWorkspaceTree(),
+    getWorkspaceName: () => getWorkspaceName(),
+    getTabs: () => getTabs(),
+    getActiveTab: () => getActiveTab(),
+    getModelContent: (tabId) => getModel(tabId)?.getValue() || null,
+    findWorkspaceFile: (filename) => findNodeInTree(filename),
+    readFileFromDisk: (handle) => readFileFromDisk(handle),
+    runActiveTab: () => handleRunCode(),
+    executeCode: async (code, lang, filename) => {
+      if (SANDBOX_LANGUAGES.has(lang)) {
+        await executeCode(code, lang);
+      } else {
+        const stdin = getStdin();
+        const activeLibs = getSelectedLibrariesForLanguage(lang);
+        await executeViaCloud(code, lang, customPistonUrl, stdin.valid ? stdin.value : '', activeLibs);
+      }
+    },
+    executeRawJs: async (code) => {
+      await executeCode(code, 'javascript');
+    }
+  });
+
   // Listen to workspace state changes
   onWorkspaceChange(({ action }) => {
+    updateTerminalPrompt();
     if (action === 'closed') {
       toggleExplorer(false);
     } else {

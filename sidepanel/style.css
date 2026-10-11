@@ -381,6 +381,37 @@ html, body {
   background: #181818;
 }
 
+.vsc-explorer-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  height: 30px;
+  padding: 0 6px;
+  background: #181818;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  flex-shrink: 0;
+}
+
+.vsc-footer-btn {
+  background: transparent;
+  border: none;
+  color: #8c8c8c;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  font-size: 14px;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.vsc-footer-btn:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.12);
+}
+
 /* ── Authentic VS Code Explorer Layout & Tree ── */
 .vsc-explorer-topbar {
   display: flex;
@@ -936,16 +967,83 @@ html, body {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 6px 0;
+  padding: 6px 10px;
   font-family: var(--mono);
   font-size: var(--ide-font-size, 12px);
   line-height: 1.55;
   scrollbar-width: thin;
   scrollbar-color: var(--border) transparent;
+  cursor: text;
 }
 #console-output::-webkit-scrollbar       { width: 5px; }
 #console-output::-webkit-scrollbar-track { background: transparent; }
 #console-output::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+/* ── Interactive Terminal CLI Prompt ── */
+.terminal-cli-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0 2px 0;
+  font-family: var(--mono);
+  font-size: var(--ide-font-size, 12.5px);
+  line-height: 1.4;
+  margin-top: 4px;
+  flex-shrink: 0;
+}
+
+.cli-prompt {
+  display: inline-flex;
+  align-items: center;
+  font-weight: 600;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.cli-user {
+  color: #4ec9b0;
+}
+
+.cli-colon {
+  color: #858585;
+}
+
+.cli-path {
+  color: #569cd6;
+}
+
+.cli-dollar {
+  color: #cccccc;
+  margin-left: 2px;
+}
+
+.terminal-cli-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #e0e0e0;
+  font-family: var(--mono);
+  font-size: var(--ide-font-size, 12.5px);
+  line-height: 1.4;
+  padding: 0;
+  margin: 0;
+  min-width: 60px;
+  caret-color: #569cd6;
+}
+
+.terminal-cmd-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 0;
+  font-family: var(--mono);
+}
+
+.terminal-cmd-line .cmd-text {
+  color: #ffffff;
+  font-weight: 500;
+}
 
 /* Console assembly area */
 #console-assembly {

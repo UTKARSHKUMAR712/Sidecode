@@ -49,6 +49,11 @@
           <div class="vsc-menu-entry" id="menu-close-folder">
             <span class="vsc-menu-label">Close Folder</span>
           </div>
+          <div class="vsc-menu-separator"></div>
+          <div class="vsc-menu-entry" id="menu-preferences">
+            <span class="vsc-menu-label">Preferences: Settings</span>
+            <span class="vsc-menu-key">Ctrl+,</span>
+          </div>
         </div>
       </div>
     </div>
@@ -59,9 +64,6 @@
     <div id="bar-actions">
       <!-- Run button — shown for runnable languages -->
       <button id="btn-run" title="Run code (Ctrl+Enter)" aria-label="Run" hidden>&#9654;</button>
-
-      <!-- Settings button -->
-      <button id="btn-settings" title="Settings" aria-label="Settings">&#9881;</button>
 
       <!-- Close panel button -->
       <button id="btn-close-panel" title="Close Sidecode (Ctrl+Shift+Z)" aria-label="Close">&#10005;</button>
@@ -87,6 +89,9 @@
     <div id="workspace-container">
       <div id="explorer-sidebar" class="explorer-sidebar" hidden>
         <div id="explorer-content"></div>
+        <div class="vsc-explorer-footer">
+          <button id="btn-settings" class="vsc-footer-btn" title="Settings (⚙)" aria-label="Settings">&#9881;</button>
+        </div>
       </div>
       <div id="explorer-splitter" class="explorer-splitter" hidden></div>
       <div id="editor-container"></div>
@@ -101,7 +106,7 @@
     <div id="console-panel" hidden>
       <div id="console-header">
         <div id="console-tabs-row">
-          <span class="console-tab active" id="tab-console">Console</span>
+          <span class="console-tab active" id="tab-console">Terminal</span>
           <span class="console-tab" id="tab-input">Input (stdin)</span>
           <span class="console-tab" id="tab-problems">Problems <span id="problems-badge" class="problems-badge" hidden>0</span></span>
           <span class="console-tab" id="tab-assembly">Assembly</span>
@@ -117,14 +122,19 @@
             <option value="cloud">&#x2601; Cloud</option>
           </select>
           <button id="btn-console-run"   title="Run (Ctrl+Enter)">&#9654; Run</button>
-          <button id="btn-console-clear" title="Clear output">&#8856; Clear</button>
+          <button id="btn-console-clear" title="Clear terminal">&#8856; Clear</button>
           <button id="btn-console-close" title="Close console (Ctrl+&#x60;)">&#10005;</button>
         </div>
       </div>
       <div id="console-body">
         <div id="console-output">
           <div id="console-welcome">
-            <span class="cw-dim">// Press <kbd>Ctrl+Enter</kbd> or click <strong>&#9654; Run</strong> to execute code</span>
+            <span class="cw-dim">// Interactive Terminal — Type commands (e.g. <code>node main.js</code>, <code>python main.py</code>, <code>help</code>) or press <kbd>Ctrl+Enter</kbd></span>
+          </div>
+          <!-- Terminal Interactive CLI prompt row -->
+          <div id="terminal-cli-row" class="terminal-cli-row">
+            <span class="cli-prompt"><span class="cli-user">sidecode</span><span class="cli-colon">:</span><span class="cli-path" id="cli-path">~</span><span class="cli-dollar">$</span></span>
+            <input type="text" id="terminal-cli-input" class="terminal-cli-input" spellcheck="false" autocomplete="off" autocapitalize="off" />
           </div>
         </div>
 
