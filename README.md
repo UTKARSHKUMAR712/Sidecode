@@ -60,13 +60,18 @@ Sidecode provides native syntax highlighting, auto-detection, code formatting, I
 - **Terminal Environment Dropdown:**
   - **`🌐 Browser Terminal` (Default):** Zero setup. Executes instantly in the browser sandbox or free Cloud containers (Compiler Explorer). No local tools required.
   - **`⚡ Local PC Terminal`:** Connects directly to your local computer's compilers (MSYS2 GCC, Clang, Python, Node.js, Rust, Go) with true real-time interactive terminal input.
-- **Local Native Bridge Setup (1-Click Install):**
-  - **One-line PowerShell Installer (from any terminal):**
+- **Local Native Bridge Setup (1-Click Install & Uninstall):**
+  - **Install (One-line PowerShell command from any terminal):**
     ```powershell
     irm https://raw.githubusercontent.com/UTKARSHKUMAR712/Sidecode/main/install-bridge.ps1 | iex
     ```
-  - **Or Double-Click:** Run `start-bridge.cmd` or `install-bridge.cmd` in the `Sidecode` project folder.
+  - **Uninstall (One-line PowerShell command to completely remove):**
+    ```powershell
+    irm https://raw.githubusercontent.com/UTKARSHKUMAR712/Sidecode/main/uninstall-bridge.ps1 | iex
+    ```
+  - **Or Double-Click:** Run `start-bridge.cmd`, `install-bridge.cmd`, or `uninstall-bridge.cmd` in the `Sidecode` folder.
   - **100% Background Auto-Start:** Once registered, Chrome / Brave will automatically spawn the bridge in the background whenever you select `⚡ Local PC Terminal`.
+  - **Auto-Close Safeguards:** Terminates automatically whenever you close the extension side panel or exit your browser.
   - **Authentic Step-by-Step Interactive I/O:** Truly real-time bidirectional standard input (`scanf`, `cin`, `input()`). Loops pause live between iterations and accept inputs interactively just like native terminal.
   - **Zero npm Dependencies:** Built purely using standard Node.js libraries (`node:http`, `node:child_process`).
 - **In-Browser Sandbox (100% Offline):**
