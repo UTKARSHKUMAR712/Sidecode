@@ -1342,7 +1342,7 @@ async function handleRunFileByCommand(filename, forcedLanguage = null, candidate
     } else if (lang === 'cpp') {
       localCmd = `g++ "${targetFile}" -o ${isWin ? 'a.exe' : 'a.out'} && ${exeName}`;
     } else if (lang === 'python') {
-      localCmd = `python "${targetFile}"`;
+      localCmd = `python -u "${targetFile}"`;
     } else if (lang === 'javascript' || lang === 'js') {
       localCmd = `node "${targetFile}"`;
     } else if (lang === 'rust') {

@@ -24,6 +24,31 @@ import fs from 'node:fs';
 const PORT = parseInt(process.env.SIDECODE_PORT || '3888', 10);
 const HOST = '127.0.0.1';
 
+const UNBUFFER_HEADER = path.join(os.tmpdir(), 'sidecode_unbuffer.h').replace(/\\/g, '/');
+
+function ensureUnbufferHeader() {
+  const content = `/* Sidecode runtime auto-unbuffer */
+#ifndef _SIDECODE_UNBUFFER_H
+#define _SIDECODE_UNBUFFER_H
+#include <stdio.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
+__attribute__((constructor)) static void __sidecode_auto_unbuffer(void) {
+    setvbuf(stdout, NULL, 4, 0); // _IONBF
+    setvbuf(stderr, NULL, 4, 0);
+}
+#ifdef __cplusplus
+}
+#endif
+#endif
+`;
+  try {
+    fs.writeFileSync(UNBUFFER_HEADER, content, 'utf8');
+  } catch (_) {}
+}
+ensureUnbufferHeader();
+
 let activeChild = null;
 
 function checkTool(cmd) {
@@ -302,10 +327,28 @@ const server = http.createServer(async (req, res) => {
         'X-Content-Type-Options': 'nosniff'
       });
 
-      const proc = spawn(command, {
+      ensureUnbufferHeader();
+      let finalCommand = command;
+
+      // Auto-inject unbuffer header into GCC / G++ / Clang if compiling
+      if (/\b(gcc|g\+\+|clang|clang\+\+)\b/.test(finalCommand) && !finalCommand.includes('_sidecode_unbuffer.h')) {
+        finalCommand = finalCommand.replace(/\b(gcc|g\+\+|clang|clang\+\+)\b/, `$1 -include "${UNBUFFER_HEADER}"`);
+      }
+
+      // Ensure Python standard output is unbuffered
+      if (/\bpython3?\b/.test(finalCommand) && !finalCommand.includes(' -u ')) {
+        finalCommand = finalCommand.replace(/\b(python3?)\b/, '$1 -u');
+      }
+
+      const proc = spawn(finalCommand, {
         shell: true,
         cwd: targetCwd,
-        stdio: ['pipe', 'pipe', 'pipe']
+        stdio: ['pipe', 'pipe', 'pipe'],
+        env: {
+          ...process.env,
+          PYTHONUNBUFFERED: '1',
+          FORCE_COLOR: '1'
+        }
       });
 
       activeChild = proc;

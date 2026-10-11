@@ -127,15 +127,8 @@ try {
 if (!$isRunning) {
     Write-Host "Starting local bridge background process..." -ForegroundColor Yellow
     $bridgeScript = Join-Path $InstallDir "bridge.js"
-    $psi = New-Object System.Diagnostics.ProcessStartInfo
-    $psi.FileName = "node"
-    $psi.Arguments = "`"$bridgeScript`""
-    $psi.WorkingDirectory = $InstallDir
-    $psi.WindowStyle = [System.Diagnostics.ProcessWindowStyle]::Hidden
-    $psi.CreateNoWindow = $true
-    $psi.UseShellExecute = $true
-    [System.Diagnostics.Process]::Start($psi) | Out-Null
-    Start-Sleep -Milliseconds 1000
+    Start-Process -FilePath "node" -ArgumentList "`"$bridgeScript`"" -WorkingDirectory $InstallDir -WindowStyle Hidden
+    Start-Sleep -Milliseconds 1200
     try {
         $resp = Invoke-RestMethod -Uri "http://127.0.0.1:3888/status" -TimeoutSec 2 -ErrorAction SilentlyContinue
         if ($resp.ok) { $isRunning = $true }

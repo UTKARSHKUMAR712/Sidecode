@@ -218,7 +218,7 @@ function codeExpectsInput(code, lang) {
       let localCmd = '';
       if (tab.language === 'c') localCmd = `gcc "${targetFile}" -o ${isWin ? 'a.exe' : 'a.out'} && ${exeName}`;
       else if (tab.language === 'cpp') localCmd = `g++ "${targetFile}" -o ${isWin ? 'a.exe' : 'a.out'} && ${exeName}`;
-      else if (tab.language === 'python') localCmd = `python "${targetFile}"`;
+      else if (tab.language === 'python') localCmd = `python -u "${targetFile}"`;
       else if (tab.language === 'rust') localCmd = `rustc "${targetFile}" && ${exeName}`;
       else if (tab.language === 'go') localCmd = `go run "${targetFile}"`;
       else if (tab.language === 'java') localCmd = `java "${targetFile}"`;
