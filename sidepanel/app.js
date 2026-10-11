@@ -178,6 +178,42 @@ function codeExpectsInput(code, lang) {
 
   const activePath = tab.filePath || tab.label || '';
   try {
+    // 1. If Local Native Bridge is running on PC and tab has a file path, execute locally!
+    if (tab.filePath && tab.language !== 'javascript' && tab.language !== 'typescript') {
+      const { checkBridgeStatus, executeViaBridge } = await import('./modules/bridgeClient.js');
+      const bridgeStatus = await checkBridgeStatus();
+      if (bridgeStatus.ok) {
+        const isWin = bridgeStatus.data?.platform === 'win32';
+        const exeName = isWin ? 'a.exe' : './a.out';
+        let localCmd = '';
+        if (tab.language === 'c') localCmd = `gcc "${tab.filePath}" -o ${isWin ? 'a.exe' : 'a.out'} && ${exeName}`;
+        else if (tab.language === 'cpp') localCmd = `g++ "${tab.filePath}" -o ${isWin ? 'a.exe' : 'a.out'} && ${exeName}`;
+        else if (tab.language === 'python') localCmd = `python "${tab.filePath}"`;
+        else if (tab.language === 'rust') localCmd = `rustc "${tab.filePath}" && ${exeName}`;
+        else if (tab.language === 'go') localCmd = `go run "${tab.filePath}"`;
+        else if (tab.language === 'java') localCmd = `java "${tab.filePath}"`;
+
+        if (localCmd) {
+          const { writeLineToTerminal, focusTerminal, getTerm } = await import('./modules/terminal.js');
+          writeLineToTerminal('system', `▶ Running via Local Native Bridge (${tab.label})...`);
+          focusTerminal();
+          try {
+            await executeViaBridge(localCmd, {
+              cwd: bridgeStatus.cwd,
+              onData: (chunk) => {
+                const t = getTerm();
+                if (t) t.write(chunk);
+              }
+            });
+            return;
+          } catch (err) {
+            writeLineToTerminal('warn', `Local bridge error: ${err.message}. Falling back to Cloud...`);
+          }
+        }
+      }
+    }
+
+    // 2. Default: In-Browser Sandbox or Cloud Runner
     if (runner === 'sandbox') {
       await executeCode(code, tab.language, model, activePath);
     } else {
@@ -524,9 +560,66 @@ async function handleReconnectWorkspace() {
       $('workspace-reconnect-bar')?.classList.add('hidden');
       toggleExplorer(true);
       renderExplorerTree(getDirtyPaths());
+      await restoreWorkspaceFilesFromDisk();
     }
   } catch (err) {
     alert(`Failed to reconnect workspace: ${err.message}`);
+  }
+}
+
+function syncWorkspaceSession() {
+  const wsTabs = getTabs().filter((t) => !!t.filePath);
+  const active = getActiveTab();
+  storage.saveWorkspaceSession({
+    openPaths: wsTabs.map((t) => t.filePath),
+    activePath: active?.filePath || (wsTabs.length > 0 ? wsTabs[0].filePath : null)
+  });
+}
+
+async function restoreWorkspaceFilesFromDisk() {
+  const session = storage.getWorkspaceSession();
+  if (!session || !session.openPaths || session.openPaths.length === 0) return;
+
+  const { findNodeInTree, readFileFromDisk } = await import('./modules/workspace.js');
+  let openedAny = false;
+
+  for (const path of session.openPaths) {
+    const node = findNodeInTree(path);
+    if (node && node.kind === 'file') {
+      try {
+        const content = await readFileFromDisk(node.handle);
+        const tab = openFileInTab(node, content);
+        let model = getModel(tab.id);
+        if (!model || model.isDisposed()) {
+          createModel(tab, (tabId, val) => {
+            updateTabContent(tabId, val);
+          });
+        }
+        openedAny = true;
+      } catch (err) {
+        console.warn('Could not restore workspace file:', path, err);
+      }
+    }
+  }
+
+  if (openedAny) {
+    // Close clean untitled scratchpads so real workspace tabs take focus
+    const scratchpads = getTabs().filter(
+      (t) => !t.filePath && t.label.startsWith('Untitled-') && !t.isDirty && t.content === getDefaultContent(t.language)
+    );
+    for (const s of scratchpads) {
+      closeTab(s.id);
+    }
+
+    const targetPath = session.activePath || session.openPaths[0];
+    if (targetPath) {
+      const activeTab = getTabByPath(targetPath);
+      if (activeTab) {
+        activateTab(activeTab.id);
+        setEditorModel(activeTab.id);
+      }
+    }
+    renderExplorerTree(getDirtyPaths());
   }
 }
 
@@ -733,6 +826,7 @@ async function init() {
   // Initialize Tabs module with saved default language
   initTabs(savedTabs, savedActiveId, {
     onTabActivate: (tab) => {
+      syncWorkspaceSession();
       if (tab) {
         setEditorModel(tab.id);
         updateRunControls(tab.language);
@@ -759,14 +853,17 @@ async function init() {
         }
       });
       storage.saveTabs(getTabs().filter((t) => !t.filePath));
+      syncWorkspaceSession();
     },
     onTabClose: (tabId) => {
       deleteModel(tabId);
       storage.saveTabs(getTabs().filter((t) => !t.filePath));
+      syncWorkspaceSession();
     },
     onTabsChange: (allTabs) => {
       storage.saveTabs(allTabs.filter((t) => !t.filePath));
       renderExplorerTree(getDirtyPaths());
+      syncWorkspaceSession();
     }
   }, savedDefaultLang);
 
@@ -852,6 +949,7 @@ async function init() {
   if (restored.status === 'granted') {
     toggleExplorer(true);
     renderExplorerTree(getDirtyPaths());
+    await restoreWorkspaceFilesFromDisk();
   } else if (restored.status === 'prompt' && restored.handle) {
     const banner = $('workspace-reconnect-bar');
     const nameEl = $('reconnect-folder-name');
@@ -859,6 +957,14 @@ async function init() {
       nameEl.textContent = restored.handle.name;
       banner.classList.remove('hidden');
     }
+    // Auto-reconnect on first click anywhere in the window
+    const autoReconnect = async () => {
+      window.removeEventListener('pointerdown', autoReconnect);
+      if (!isWorkspaceOpen()) {
+        await handleReconnectWorkspace();
+      }
+    };
+    window.addEventListener('pointerdown', autoReconnect, { once: true });
   }
 
   // Activate initial tab or create first tab with default language if none exist

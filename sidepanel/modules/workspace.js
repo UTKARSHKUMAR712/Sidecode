@@ -144,6 +144,10 @@ export async function closeWorkspaceFolder() {
   currentTree = null;
   await clearWorkspaceHandle();
 
+  import('../storage.js').then(({ storage }) => {
+    storage.saveWorkspaceSession({ openPaths: [], activePath: null });
+  });
+
   notifyWorkspaceChange({
     action: 'closed',
     name: null,

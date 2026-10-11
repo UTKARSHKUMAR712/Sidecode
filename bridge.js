@@ -1,0 +1,237 @@
+#!/usr/bin/env node
+/**
+ * Sidecode Local Native Bridge
+ *
+ * Provides a lightweight local runner that bridges Sidecode's browser side-panel
+ * directly to your local computer's toolchains (MSYS2 GCC, Clang, Python, Node.js, Rust, Go).
+ *
+ * Features:
+ * - 100% authentic interactive terminal (real-time stdin/stdout with true step-by-step scanf/cin)
+ * - Zero npm dependencies (pure built-in Node.js stdlib)
+ * - Auto-detects local compilers
+ * - Streaming HTTP chunked execution with real-time bidirectional pipe
+ *
+ * Usage:
+ *   node bridge.js
+ */
+
+import http from 'node:http';
+import { spawn, execSync } from 'node:child_process';
+import os from 'node:os';
+import path from 'node:path';
+
+const PORT = parseInt(process.env.SIDECODE_PORT || '3888', 10);
+const HOST = '127.0.0.1';
+
+let activeChild = null;
+
+function checkTool(cmd) {
+  try {
+    execSync(`${cmd} --version`, { stdio: 'ignore', timeout: 1500 });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function detectCompilers() {
+  return {
+    gcc: checkTool('gcc'),
+    gpp: checkTool('g++'),
+    clang: checkTool('clang'),
+    python: checkTool('python') || checkTool('python3'),
+    node: true,
+    rustc: checkTool('rustc'),
+    go: checkTool('go')
+  };
+}
+
+function setCors(res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+}
+
+function readBody(req) {
+  return new Promise((resolve, reject) => {
+    let data = '';
+    req.on('data', (chunk) => {
+      data += chunk;
+      if (data.length > 5 * 1024 * 1024) {
+        reject(new Error('Payload too large'));
+      }
+    });
+    req.on('end', () => resolve(data));
+    req.on('error', reject);
+  });
+}
+
+function killProcess(proc) {
+  if (!proc || proc.killed) return;
+  try {
+    if (process.platform === 'win32') {
+      execSync(`taskkill /F /T /PID ${proc.pid}`, { stdio: 'ignore' });
+    } else {
+      proc.kill('SIGINT');
+      setTimeout(() => {
+        if (!proc.killed) proc.kill('SIGKILL');
+      }, 500);
+    }
+  } catch (_) {
+    try { proc.kill('SIGKILL'); } catch (_) {}
+  }
+}
+
+const server = http.createServer(async (req, res) => {
+  setCors(res);
+
+  if (req.method === 'OPTIONS') {
+    res.writeHead(204);
+    res.end();
+    return;
+  }
+
+  const url = new URL(req.url, `http://${HOST}:${PORT}`);
+
+  // 1. Health & Tool status
+  if (url.pathname === '/status' || url.pathname === '/health') {
+    const compilers = detectCompilers();
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({
+      ok: true,
+      bridge: 'sidecode-local-bridge',
+      version: '1.0.0',
+      platform: process.platform,
+      arch: process.arch,
+      nodeVersion: process.version,
+      cwd: process.cwd(),
+      compilers
+    }, null, 2));
+    return;
+  }
+
+  // 2. Kill currently running process
+  if (url.pathname === '/kill' && req.method === 'POST') {
+    if (activeChild) {
+      killProcess(activeChild);
+      activeChild = null;
+    }
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ ok: true, killed: true }));
+    return;
+  }
+
+  // 3. Send standard input to active process
+  if (url.pathname === '/input' && req.method === 'POST') {
+    try {
+      const raw = await readBody(req);
+      let text = raw;
+      try {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed.data === 'string') text = parsed.data;
+      } catch (_) {}
+
+      if (activeChild && activeChild.stdin && activeChild.stdin.writable) {
+        activeChild.stdin.write(text);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: true, written: text.length }));
+      } else {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: false, error: 'No active process awaiting stdin' }));
+      }
+    } catch (err) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: false, error: err.message }));
+    }
+    return;
+  }
+
+  // 4. Execute command or code with streaming chunked output
+  if (url.pathname === '/exec' && req.method === 'POST') {
+    try {
+      const raw = await readBody(req);
+      const payload = JSON.parse(raw);
+      const command = payload.command;
+      const targetCwd = payload.cwd || process.cwd();
+
+      if (!command) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: false, error: 'Missing "command" in request payload' }));
+        return;
+      }
+
+      // If a process is already running, terminate it before starting a new one
+      if (activeChild) {
+        killProcess(activeChild);
+        activeChild = null;
+      }
+
+      res.writeHead(200, {
+        'Content-Type': 'text/plain; charset=utf-8',
+        'Transfer-Encoding': 'chunked',
+        'X-Content-Type-Options': 'nosniff'
+      });
+
+      const proc = spawn(command, {
+        shell: true,
+        cwd: targetCwd,
+        stdio: ['pipe', 'pipe', 'pipe']
+      });
+
+      activeChild = proc;
+
+      proc.stdout.on('data', (chunk) => {
+        try { res.write(chunk); } catch (_) {}
+      });
+
+      proc.stderr.on('data', (chunk) => {
+        try { res.write(chunk); } catch (_) {}
+      });
+
+      proc.on('error', (err) => {
+        try {
+          res.write(`\r\n\x1b[1;31m[Bridge Process Error: ${err.message}]\x1b[0m\r\n`);
+        } catch (_) {}
+      });
+
+      proc.on('close', (code) => {
+        if (activeChild === proc) activeChild = null;
+        try {
+          res.end();
+        } catch (_) {}
+      });
+
+      req.on('close', () => {
+        if (activeChild === proc) {
+          killProcess(proc);
+          activeChild = null;
+        }
+      });
+    } catch (err) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: false, error: err.message }));
+    }
+    return;
+  }
+
+  res.writeHead(404, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify({ ok: false, error: 'Endpoint not found' }));
+});
+
+server.listen(PORT, HOST, () => {
+  const compilers = detectCompilers();
+  console.log('\x1b[1;36m=====================================================\x1b[0m');
+  console.log('\x1b[1;32m  Sidecode Local Native Bridge v1.0.0\x1b[0m');
+  console.log('\x1b[1;36m=====================================================\x1b[0m');
+  console.log(`\x1b[32m✔ Active at:\x1b[0m \x1b[1mhttp://${HOST}:${PORT}\x1b[0m`);
+  console.log(`\x1b[90mWorking directory:\x1b[0m ${process.cwd()}`);
+  console.log('\x1b[33m\nDetected Local Compilers:\x1b[0m');
+  console.log(`  • GCC (C):      ${compilers.gcc ? '\x1b[32m✔ Available\x1b[0m' : '\x1b[90m○ Not found\x1b[0m'}`);
+  console.log(`  • G++ (C++):    ${compilers.gpp ? '\x1b[32m✔ Available\x1b[0m' : '\x1b[90m○ Not found\x1b[0m'}`);
+  console.log(`  • Python:       ${compilers.python ? '\x1b[32m✔ Available\x1b[0m' : '\x1b[90m○ Not found\x1b[0m'}`);
+  console.log(`  • Node.js (JS): \x1b[32m✔ Available (${process.version})\x1b[0m`);
+  console.log(`  • Rust (rustc): ${compilers.rustc ? '\x1b[32m✔ Available\x1b[0m' : '\x1b[90m○ Not found\x1b[0m'}`);
+  console.log(`  • Go:           ${compilers.go ? '\x1b[32m✔ Available\x1b[0m' : '\x1b[90m○ Not found\x1b[0m'}`);
+  console.log('\n\x1b[90mSidecode side-panel will now route commands to your PC with full interactive terminal support.\x1b[0m');
+  console.log('\x1b[90mPress Ctrl+C to stop the bridge.\x1b[0m\n');
+});

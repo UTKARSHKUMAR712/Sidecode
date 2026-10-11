@@ -86,5 +86,16 @@ export const storage = {
   saveAutoSave(enabled) {
     _cache = { ..._cache, autoSave: enabled };
     this._flush();
+  },
+
+  /** Persist open workspace file paths and active file path */
+  saveWorkspaceSession(session) {
+    _cache = { ..._cache, workspaceSession: session };
+    this._flush();
+  },
+
+  /** Get persisted open workspace session */
+  getWorkspaceSession() {
+    return _cache?.workspaceSession || { openPaths: [], activePath: null };
   }
 };

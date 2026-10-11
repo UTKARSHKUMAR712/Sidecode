@@ -16,6 +16,15 @@
  *     rustc <file.rs>, cargo run, go run <file.go>, javac <file.java>, java <file.java>, run [file]
  */
 
+import {
+  checkBridgeStatus,
+  isBridgeConnected,
+  isBridgeExecuting,
+  sendBridgeInput,
+  killBridgeProcess,
+  executeViaBridge
+} from './bridgeClient.js';
+
 let term = null;
 let fitAddon = null;
 let executionBridge = null;
@@ -97,7 +106,6 @@ export function initTerminal(bridge = {}) {
 
   setTimeout(() => {
     fitTerminal();
-    printWelcome();
     writePrompt();
   }, 30);
 
@@ -134,6 +142,10 @@ export function focusTerminal() {
   }
 }
 
+export function getTerm() {
+  return term;
+}
+
 /**
  * Update terminal font size from IDE Settings
  */
@@ -148,14 +160,7 @@ export function setTerminalFontSize(size) {
   }
 }
 
-/**
- * Print welcome banner
- */
-function printWelcome() {
-  if (!term) return;
-  term.writeln('\x1b[1;36mSidecode Terminal\x1b[0m \x1b[90m— VS Code-grade integrated shell\x1b[0m');
-  term.writeln('\x1b[90mType \x1b[33mhelp\x1b[90m for commands or run files with \x1b[32mnode\x1b[90m, \x1b[32mg++\x1b[90m, \x1b[32mpython\x1b[90m, \x1b[32mrustc\x1b[90m, \x1b[32mgo\x1b[0m');
-}
+
 
 /**
  * Build authentic prompt string with ANSI colors
@@ -260,7 +265,21 @@ function handleTerminalInput(data) {
   }
 
   if (isBusy) {
-    // If a process is running and user presses Ctrl+C, send abort
+    // If a local bridge process is executing, stream stdin keystrokes directly!
+    if (isBridgeExecuting()) {
+      if (data === '\x03') {
+        term.writeln('^C');
+        killBridgeProcess();
+        isBusy = false;
+        writePrompt();
+        return;
+      }
+      term.write(data);
+      sendBridgeInput(data);
+      return;
+    }
+
+    // If a standard process is running and user presses Ctrl+C, send abort
     if (data === '\x03') {
       term.writeln('^C');
       term.writeln('\x1b[33m[Execution interrupted]\x1b[0m');
@@ -526,7 +545,6 @@ export function writeBadgeToTerminal(label, hasError = false) {
 export function clearTerminal() {
   if (!term) return;
   term.clear();
-  printWelcome();
   writePrompt();
 }
 
@@ -713,9 +731,30 @@ async function executeCommandLine(raw) {
       writeLineToTerminal('info', '  go run <file.go>      Compile & run Go file (Go 1.22)');
       writeLineToTerminal('info', '  java <file.java>      Compile & run Java file (OpenJDK 21)');
       writeLineToTerminal('info', '  run [file]            Run specified file or currently active tab');
+      writeLineToTerminal('info', '  bridge                Check Local Native Bridge status (real PC terminal)');
       writeLineToTerminal('info', '  clear / cls           Clear terminal screen');
       writeLineToTerminal('info', '  echo <text>           Print text');
       writeLineToTerminal('system', 'Tip: Type JS expressions directly (e.g. 5*10 or [1,2,3].filter(x => x>1))');
+      return;
+    }
+
+    case 'bridge': {
+      const bStatus = await checkBridgeStatus();
+      if (bStatus.ok) {
+        writeLineToTerminal('log', '\x1b[1;32m✔ Local Native Bridge is ACTIVE\x1b[0m (http://127.0.0.1:3888)');
+        writeLineToTerminal('log', `  Working directory: ${bStatus.cwd || 'Current workspace'}`);
+        const comps = Object.entries(bStatus.compilers || {})
+          .map(([k, v]) => v ? `\x1b[32m${k}\x1b[0m` : `\x1b[90m${k}\x1b[0m`)
+          .join(', ');
+        writeLineToTerminal('log', `  Compilers available: ${comps}`);
+        writeLineToTerminal('info', '  Programs run directly on your PC with real live interactive terminal (step-by-step scanf / cin).');
+      } else {
+        writeLineToTerminal('warn', '○ Local Native Bridge is NOT running.');
+        writeLineToTerminal('log', '  To enable real interactive terminal execution (live step-by-step scanf/cin):');
+        writeLineToTerminal('system', '  1. Open a terminal in the Sidecode folder');
+        writeLineToTerminal('system', '  2. Run: node bridge.js');
+        writeLineToTerminal('log', '  Sidecode automatically connects when bridge is started!');
+      }
       return;
     }
 
@@ -1238,6 +1277,48 @@ async function handleRunFileByCommand(filename, forcedLanguage = null, candidate
   }
 
   const lang = forcedLanguage || fileData.language || 'plaintext';
+
+  // 1. If Local Native Bridge is running on PC, execute locally with 100% interactive terminal
+  const bridgeStatus = await checkBridgeStatus();
+  if (bridgeStatus.ok) {
+    const targetFile = fileData.path || fileData.name;
+    const isWin = bridgeStatus.data?.platform === 'win32';
+    const exeName = isWin ? 'a.exe' : './a.out';
+    let localCmd = '';
+
+    if (lang === 'c') {
+      localCmd = `gcc "${targetFile}" -o ${isWin ? 'a.exe' : 'a.out'} && ${exeName}`;
+    } else if (lang === 'cpp') {
+      localCmd = `g++ "${targetFile}" -o ${isWin ? 'a.exe' : 'a.out'} && ${exeName}`;
+    } else if (lang === 'python') {
+      localCmd = `python "${targetFile}"`;
+    } else if (lang === 'javascript' || lang === 'js') {
+      localCmd = `node "${targetFile}"`;
+    } else if (lang === 'rust') {
+      localCmd = `rustc "${targetFile}" && ${exeName}`;
+    } else if (lang === 'go') {
+      localCmd = `go run "${targetFile}"`;
+    } else if (lang === 'java') {
+      localCmd = `java "${targetFile}"`;
+    }
+
+    if (localCmd) {
+      writeLineToTerminal('system', `▶ Running via Local Native Bridge (${fileData.name})...`);
+      try {
+        await executeViaBridge(localCmd, {
+          cwd: bridgeStatus.cwd,
+          onData: (chunk) => {
+            if (term) term.write(chunk);
+          }
+        });
+        return;
+      } catch (err) {
+        writeLineToTerminal('warn', `Local bridge error: ${err.message}. Falling back to Cloud...`);
+      }
+    }
+  }
+
+  // 2. Default: In-Browser Sandbox or Cloud Runner
   writeLineToTerminal('system', `▶ Executing ${fileData.name} (${lang})...`);
 
   if (executionBridge && typeof executionBridge.executeCode === 'function') {

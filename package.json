@@ -1,4 +1,10 @@
 {
+  "name": "sidecode",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "bridge": "node bridge.js"
+  },
   "dependencies": {
     "monaco-editor": "0.57.0"
   }
