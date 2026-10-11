@@ -144,27 +144,33 @@ export function updateTerminalPrompt() {
  */
 export function getRunCommandForTab(tab) {
   if (!tab) return 'run';
-  const filename = tab.label || (tab.filePath ? tab.filePath.split('/').pop() : 'script');
+  let fileTarget = tab.filePath || tab.label || 'script';
+  if (terminalCwd && tab.filePath) {
+    const cwdPrefix = terminalCwd.endsWith('/') ? terminalCwd : `${terminalCwd}/`;
+    if (tab.filePath.startsWith(cwdPrefix)) {
+      fileTarget = tab.filePath.slice(cwdPrefix.length);
+    }
+  }
   switch (tab.language) {
     case 'javascript':
     case 'js':
-      return `node ${filename}`;
+      return `node ${fileTarget}`;
     case 'typescript':
     case 'ts':
-      return `ts-node ${filename}`;
+      return `ts-node ${fileTarget}`;
     case 'python':
     case 'py':
-      return `python ${filename}`;
+      return `python ${fileTarget}`;
     case 'cpp':
-      return `g++ ${filename}`;
+      return `g++ ${fileTarget}`;
     case 'c':
-      return `gcc ${filename}`;
+      return `gcc ${fileTarget}`;
     case 'rust':
-      return `rustc ${filename}`;
+      return `rustc ${fileTarget}`;
     case 'go':
-      return `go run ${filename}`;
+      return `go run ${fileTarget}`;
     default:
-      return `run ${filename}`;
+      return `run ${fileTarget}`;
   }
 }
 
@@ -780,17 +786,20 @@ async function resolveFileContent(filename) {
   if (!executionBridge) return null;
 
   const targetPath = terminalCwd ? `${terminalCwd}/${filename}` : filename;
-  const lowerTargetPath = targetPath.toLowerCase();
-  const lowerName = filename.toLowerCase();
+  const lowerTargetPath = targetPath.toLowerCase().replace(/^\.?\/+/, '');
+  const lowerName = filename.toLowerCase().replace(/^\.?\/+/, '');
 
   // 1. Check open tabs first
   if (typeof executionBridge.getTabs === 'function') {
     const tabs = executionBridge.getTabs();
     const foundTab = tabs.find(t => {
-      const tabPath = (t.filePath || '').toLowerCase();
+      const tabPath = (t.filePath || '').toLowerCase().replace(/^\.?\/+/, '');
       const tabLabel = (t.label || '').toLowerCase();
-      return tabPath === lowerTargetPath || tabPath.endsWith(`/${lowerTargetPath}`) ||
-             (terminalCwd ? tabPath === lowerTargetPath : tabLabel === lowerName);
+      return tabPath === lowerTargetPath ||
+             tabPath === lowerName ||
+             tabPath.endsWith(`/${lowerTargetPath}`) ||
+             tabPath.endsWith(`/${lowerName}`) ||
+             (!tabPath && tabLabel === lowerName);
     });
 
     if (foundTab) {
