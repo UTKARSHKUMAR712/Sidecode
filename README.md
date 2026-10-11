@@ -20,6 +20,22 @@ Write, edit real PC files, compile multi-file projects, run an interactive termi
 
 ---
 
+## 🎥 Full Video Tutorial & Walkthrough
+
+Watch the complete 5-minute HD walkthrough demonstrating **Sidecode** in action — from split-screen YouTube coding to local native bridge compilation:
+
+<div align="center">
+  <a href="docs/videos/sidecode-tutorial.mp4">
+    <img src="docs/videos/sidecode-tutorial-thumbnail.png" alt="Watch Sidecode Full Video Tutorial" width="850" />
+  </a>
+  <p>
+    <strong>▶️ <a href="docs/videos/sidecode-tutorial.mp4">Click Here to Watch Video Walkthrough (docs/videos/sidecode-tutorial.mp4)</a></strong> &nbsp;•&nbsp;
+    <strong>⬇️ <a href="https://github.com/UTKARSHKUMAR712/Sidecode/raw/main/docs/videos/sidecode-tutorial.mp4">Direct HD Stream / Download (13.5 MB)</a></strong>
+  </p>
+</div>
+
+---
+
 ## 📸 Screenshots & Live Demos
 
 Experience how **Sidecode** changes the way you learn, build, and debug code right alongside your browser tabs:
@@ -228,8 +244,9 @@ Sidecode/
 │   ├── vs/                    # Monaco Editor core distribution
 │   └── workers/               # Monaco Editor web workers
 ├── debug/                     # Sidecode Debug Zone dashboard
-└── docs/                      # Technical architecture documentation & screenshots
-    └── screenshots/           # High-resolution IDE demonstration screenshots
+└── docs/                      # Technical architecture documentation, video & screenshots
+    ├── screenshots/           # High-resolution IDE demonstration screenshots
+    └── videos/                # Full HD tutorial recording & web-optimized video
 ```
 
 ---
