@@ -20,17 +20,19 @@ Write, edit real PC files, compile multi-file projects, run an interactive termi
 
 ---
 
-## 🎥 Full Video Tutorial & Walkthrough
+## 🎥 Video Walkthrough & Live Demonstration
 
-Watch the complete 5-minute HD walkthrough demonstrating **Sidecode** in action — from split-screen YouTube coding to local native bridge compilation:
+Watch **Sidecode** running in real time — code along with YouTube tutorials, edit files with Monaco, and execute programs via the local native bridge:
 
 <div align="center">
-  <a href="docs/videos/sidecode-tutorial.mp4">
-    <img src="docs/videos/sidecode-tutorial-thumbnail.png" alt="Watch Sidecode Full Video Tutorial" width="850" />
+  <a href="https://github.com/UTKARSHKUMAR712/Sidecode/blob/main/docs/videos/sidecode-tutorial.mp4" title="Click to watch full 5-minute HD tutorial video on GitHub">
+    <img src="docs/videos/sidecode-demo.gif" alt="Sidecode Live Walkthrough Animation" width="880" />
   </a>
   <p>
-    <strong>▶️ <a href="docs/videos/sidecode-tutorial.mp4">Click Here to Watch Video Walkthrough (docs/videos/sidecode-tutorial.mp4)</a></strong> &nbsp;•&nbsp;
-    <strong>⬇️ <a href="https://github.com/UTKARSHKUMAR712/Sidecode/raw/main/docs/videos/sidecode-tutorial.mp4">Direct HD Stream / Download (13.5 MB)</a></strong>
+    <strong>▶️ <a href="https://github.com/UTKARSHKUMAR712/Sidecode/blob/main/docs/videos/sidecode-tutorial.mp4">Click to Watch the Full 5-Minute HD Walkthrough (with Audio) in GitHub's Video Player</a></strong>
+    <br/>
+    <strong>🌐 <a href="https://utkarshkumar712.github.io/Sidecode/">Open Web Player (GitHub Pages)</a></strong> &nbsp;•&nbsp;
+    <strong>⬇️ <a href="https://github.com/UTKARSHKUMAR712/Sidecode/raw/main/docs/videos/sidecode-tutorial.mp4">Direct Download MP4 (13.5 MB)</a></strong>
   </p>
 </div>
 
@@ -62,7 +64,7 @@ Experience how **Sidecode** changes the way you learn, build, and debug code rig
 > Truly bidirectional standard input! Play interactive C number-guessing games, test algorithms, and provide runtime inputs step-by-step just like a native desktop terminal.
 
 <div align="center">
-  <img src="docs/screenshots/interactive-c-scanf-terminal.png" alt="Sidecode interactive C scanf guessing game in terminal" width="850" />
+  <img src="docs/videos/sidecode-c-interactive-demo.gif" alt="Sidecode interactive C scanf guessing game in live action" width="850" />
 </div>
 
 <br/>
