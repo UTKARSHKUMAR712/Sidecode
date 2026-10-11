@@ -203,6 +203,7 @@ let activeStdinResolver = null;
 export async function promptStdinFromTerminal(promptText = '? Enter input for program:') {
   if (!term) return '';
   term.write(`\r\n\x1b[1;33m⌨  This program expects input (scanf / cin / input).\x1b[0m\r\n`);
+  term.write(`\x1b[90mTip: If your program asks for input multiple times in a loop, separate values with spaces (e.g. 1 2 3 4 5)\x1b[0m\r\n`);
   term.write(`\x1b[1;36m${promptText} \x1b[0m`);
   currentInput = '';
   cursorPos = 0;
