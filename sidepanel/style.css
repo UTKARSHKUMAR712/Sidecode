@@ -997,22 +997,32 @@ html, body {
 }
 
 /* Console output area */
+/* Console output area (Xterm.js Host) */
 #console-output {
   flex: 1;
-  overflow-y: auto;
-  overflow-x: auto;
-  padding: 6px 10px;
-  font-family: var(--mono);
-  font-size: var(--ide-font-size, 12px);
-  line-height: 1.55;
+  overflow: hidden;
+  padding: 4px 6px;
+  background: #181818;
+  position: relative;
+  min-height: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.xterm {
+  height: 100%;
+  width: 100%;
+}
+
+.xterm .xterm-viewport {
   scrollbar-width: thin;
   scrollbar-color: #333333 #181818;
-  cursor: text;
+  background-color: #181818 !important;
 }
-#console-output::-webkit-scrollbar       { width: 8px; height: 8px; }
-#console-output::-webkit-scrollbar-track { background: #181818; }
-#console-output::-webkit-scrollbar-thumb { background: #333333; border-radius: 4px; }
-#console-output::-webkit-scrollbar-thumb:hover { background: #484848; }
+.xterm .xterm-viewport::-webkit-scrollbar       { width: 8px; height: 8px; }
+.xterm .xterm-viewport::-webkit-scrollbar-track { background: #181818; }
+.xterm .xterm-viewport::-webkit-scrollbar-thumb { background: #333333; border-radius: 4px; }
+.xterm .xterm-viewport::-webkit-scrollbar-thumb:hover { background: #484848; }
 
 /* ── Interactive Terminal CLI Prompt ── */
 .terminal-cli-row {

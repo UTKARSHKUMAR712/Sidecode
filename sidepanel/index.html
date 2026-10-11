@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Sidecode</title>
+  <link rel="stylesheet" href="vendor/xterm/xterm.css" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -127,13 +128,7 @@
         </div>
       </div>
       <div id="console-body">
-        <div id="console-output">
-          <!-- Terminal Interactive CLI prompt row -->
-          <div id="terminal-cli-row" class="terminal-cli-row">
-            <span class="cli-prompt"><span class="cli-user">sidecode</span><span class="cli-colon">:</span><span class="cli-path" id="cli-path">~</span><span class="cli-dollar">$</span></span>
-            <input type="text" id="terminal-cli-input" class="terminal-cli-input" spellcheck="false" autocomplete="off" autocapitalize="off" />
-          </div>
-        </div>
+        <div id="console-output"></div>
 
         <button id="btn-input-rules" title="View Input Rules" style="position: absolute; top: 8px; right: 12px; font-size:14px; background:none; border:none; color:var(--muted); cursor:pointer; padding:0; z-index:10;" hidden>&#9416;</button>
         <textarea id="console-input" spellcheck="false" placeholder="Enter standard input (stdin) here.&#10;&#10;STRICT RULES:&#10;1. Strings MUST be wrapped in double quotes (&quot;Alice&quot;).&#10;   (Use backticks `...` for raw strings with quotes).&#10;2. Numbers &amp; Booleans do not need quotes (10, true).&#10;3. Arrays are supported! ([1, 2, 3]).&#10;4. Use newlines (Enter) to separate multiple inputs.&#10;&#10;Click ⓘ in the top right for details." hidden></textarea>
@@ -323,6 +318,10 @@
       </div>
     </div>
   </div>
+
+  <!-- Xterm.js Terminal Engine -->
+  <script src="vendor/xterm/xterm.js"></script>
+  <script src="vendor/xterm/xterm-addon-fit.js"></script>
 
   <!-- Monaco (local bundle) -->
   <script src="vs/loader.js"></script>

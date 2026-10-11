@@ -95,7 +95,10 @@ import {
   initTerminal,
   updateTerminalPrompt,
   appendCommandLineEcho,
-  getRunCommandForTab
+  getRunCommandForTab,
+  fitTerminal,
+  setTerminalFontSize,
+  writePrompt
 } from './modules/terminal.js';
 
 const $ = (id) => document.getElementById(id);
@@ -141,11 +144,7 @@ async function handleRunCode() {
   });
   $('tab-console')?.click();
 
-  // 2. Clear any pending typed draft in CLI input
-  const cliInput = $('terminal-cli-input');
-  if (cliInput) cliInput.value = '';
-
-  // 3. Print command prompt echo so command is shown FIRST and output is BELOW it
+  // 2. Print command prompt echo so command is shown FIRST and output is BELOW it
   const cmdStr = getRunCommandForTab(tab);
   appendCommandLineEcho(cmdStr);
 
@@ -155,24 +154,29 @@ async function handleRunCode() {
       appendRunBadge('Not runnable', true);
       setExecTime('—');
     });
+    import('./modules/terminal.js').then(({ writePrompt }) => writePrompt());
     return;
   }
 
   const activePath = tab.filePath || tab.label || '';
-  if (runner === 'sandbox') {
-    await executeCode(code, tab.language, model, activePath);
-  } else {
-    const stdin = getStdin();
-    if (!stdin.valid) {
-      import('./modules/console.js').then(({ appendLine, appendRunBadge, setExecTime }) => {
-        appendLine('error', `✖ ${stdin.error}`);
-        appendRunBadge('Input Error', true);
-        setExecTime('—');
-      });
-      return;
+  try {
+    if (runner === 'sandbox') {
+      await executeCode(code, tab.language, model, activePath);
+    } else {
+      const stdin = getStdin();
+      if (!stdin.valid) {
+        import('./modules/console.js').then(({ appendLine, appendRunBadge, setExecTime }) => {
+          appendLine('error', `✖ ${stdin.error}`);
+          appendRunBadge('Input Error', true);
+          setExecTime('—');
+        });
+        return;
+      }
+      const activeLibs = getSelectedLibrariesForLanguage(tab.language);
+      await executeViaCloud(code, tab.language, customPistonUrl, stdin.value, activeLibs, tab.id, activePath);
     }
-    const activeLibs = getSelectedLibrariesForLanguage(tab.language);
-    await executeViaCloud(code, tab.language, customPistonUrl, stdin.value, activeLibs, tab.id, activePath);
+  } finally {
+    import('./modules/terminal.js').then(({ writePrompt }) => writePrompt());
   }
 }
 
@@ -619,8 +623,11 @@ function wireEventListeners() {
     // Apply to monaco
     applyIdeSettingsToEditor(currentIdeSettings);
     
-    // Apply to console
+    // Apply to console & terminal
     document.documentElement.style.setProperty('--ide-font-size', `${currentIdeSettings.fontSize}px`);
+    import('./modules/terminal.js').then(({ setTerminalFontSize }) => {
+      setTerminalFontSize(currentIdeSettings.fontSize);
+    });
 
     storage.saveIdeSettings(currentIdeSettings);
   }
@@ -696,7 +703,10 @@ async function init() {
   // Initialize Console module
   initConsole({
     initialHeight: savedConsoleHeight,
-    onLayout: layoutEditor,
+    onLayout: () => {
+      layoutEditor();
+      fitTerminal();
+    },
     onSaveHeight: (h) => storage.saveConsoleHeight(h)
   });
 
@@ -779,6 +789,7 @@ async function init() {
       await executeCode(code, 'javascript');
     }
   });
+  setTerminalFontSize(savedIdeSettings.fontSize);
 
   // Listen to workspace state changes
   onWorkspaceChange(({ action }) => {

@@ -1,108 +1,483 @@
 /**
- * terminal.js — Interactive Terminal CLI for Sidecode
+ * terminal.js — World-Class Interactive Terminal for Sidecode powered by xterm.js
  *
- * Provides a clickable, interactive terminal inside the bottom console panel.
- * Supports full directory navigation and filesystem manipulation:
- *   cd <dir>              Change working directory (supports .., ~, /)
- *   mkdir <name>          Create folder in current directory
- *   touch <name>          Create file in current directory
- *   rm [-r] <name>        Delete file or directory
- *   rmdir <name>          Delete directory
- *   mv <src> <dest>       Rename/move file or directory
- *   ls / dir              List files & directories in current working directory
- *   pwd                   Print full working directory path
- *   cat / type <file>     Print file contents
- *   node <file.js>        Execute JS/TS in sandbox (resolves in CWD first)
- *   python <file.py>      Execute Python via cloud runner
- *   g++ <file.cpp>        Compile & execute C++ file
- *   gcc <file.c>          Compile & execute C file
- *   rustc <file.rs>       Compile & execute Rust file
- *   go run <file.go>      Compile & execute Go file
- *   run [file]            Run file or active tab
- *   echo <text>           Print text
- *   clear / cls           Clear console output
- *   help                  Show available commands
+ * Provides a real VT100/ANSI terminal integrated directly into the side panel:
+ * - Powered by xterm.js + xterm-addon-fit (the exact engine behind VS Code)
+ * - 24-bit TrueColor and full ANSI color rendering for compiler outputs
+ * - Interactive shell line editor: typing, Left/Right cursor, Home, End, Backspace
+ * - Command history navigation (Up / Down arrows)
+ * - Tab auto-completion for files and directories
+ * - Ctrl+C (SIGINT cancel/abort), Ctrl+L (clear screen), Ctrl+U (delete line)
+ * - Directory navigation & filesystem commands:
+ *     cd <dir>, ls/dir, pwd, mkdir <dir>, touch <file>, rm [-r] <target>,
+ *     rmdir <dir>, mv <src> <dest>, cat/type <file>, echo <text>, clear/cls, help
+ * - Compiler execution commands:
+ *     node <file.js>, bun <file.js>, python <file.py>, g++ <file.cpp>, gcc <file.c>,
+ *     rustc <file.rs>, cargo run, go run <file.go>, javac <file.java>, java <file.java>, run [file]
  */
 
-import { escapeHtml } from './constants.js';
+let term = null;
+let fitAddon = null;
+let executionBridge = null;
 
+let terminalCwd = ''; // Relative path from workspace root, e.g. '', 'src', 'dsa/arrays'
 let terminalHistory = [];
 let historyIndex = -1;
-let historyDraft = '';
+let currentInput = '';
+let cursorPos = 0;
+let isBusy = false;
+let currentFontSize = 12;
 
-let executionBridge = null;
-let terminalCwd = ''; // Relative path from workspace root, e.g. '', 'DSA(JS)/Arry'
+const THEME = {
+  background: '#181818',
+  foreground: '#cccccc',
+  cursor: '#aeafad',
+  cursorAccent: '#181818',
+  selectionBackground: '#264f78',
+  selectionForeground: '#ffffff',
+  black: '#000000',
+  red: '#cd3131',
+  green: '#0dbc79',
+  yellow: '#e5e510',
+  blue: '#2472c8',
+  magenta: '#bc3fbc',
+  cyan: '#11a8cd',
+  white: '#e5e5e5',
+  brightBlack: '#666666',
+  brightRed: '#f14c4c',
+  brightGreen: '#23d18b',
+  brightYellow: '#f5f543',
+  brightBlue: '#3b8eea',
+  brightMagenta: '#d670d6',
+  brightCyan: '#29b8db',
+  brightWhite: '#ffffff'
+};
 
-const $ = (id) => document.getElementById(id);
-
+/**
+ * Initialize xterm.js inside #console-output container
+ */
 export function initTerminal(bridge = {}) {
   executionBridge = bridge;
 
-  const cliRow = $('terminal-cli-row');
-  const cliInput = $('terminal-cli-input');
-  const outputArea = $('console-output');
+  if (term) return; // already initialized
 
-  if (!cliInput || !outputArea) return;
+  const container = document.getElementById('console-output');
+  if (!container) return;
 
-  // 1. Click anywhere in console output area to focus terminal input
-  outputArea.addEventListener('click', (e) => {
-    // If text was selected by user, don't hijack focus
-    const selection = window.getSelection();
-    if (selection && selection.toString().trim().length > 0) return;
+  if (typeof window.Terminal !== 'function') {
+    console.warn('xterm.js is not loaded on window. Retrying in 100ms...');
+    setTimeout(() => initTerminal(bridge), 100);
+    return;
+  }
 
-    // Do not interfere if clicked on an interactive link/button
-    if (e.target.closest('button') || e.target.closest('a')) return;
+  // Clear any existing legacy DOM elements
+  container.innerHTML = '';
 
-    cliInput.focus();
+  term = new window.Terminal({
+    cursorBlink: true,
+    cursorStyle: 'block',
+    fontFamily: 'Consolas, "Courier New", monospace',
+    fontSize: currentFontSize,
+    lineHeight: 1.25,
+    convertEol: true,
+    scrollback: 5000,
+    allowProposedApi: true,
+    theme: THEME
   });
 
-  // 2. Handle keyboard interactions (Enter, History navigation, Tab completion)
-  cliInput.addEventListener('keydown', async (e) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      const rawCmd = cliInput.value;
-      cliInput.value = '';
-      historyIndex = -1;
-      historyDraft = '';
+  if (window.FitAddon && typeof window.FitAddon.FitAddon === 'function') {
+    fitAddon = new window.FitAddon.FitAddon();
+    term.loadAddon(fitAddon);
+  }
 
-      if (rawCmd.trim()) {
-        terminalHistory.push(rawCmd.trim());
-        if (terminalHistory.length > 100) terminalHistory.shift();
+  term.open(container);
+
+  // Resize listener
+  window.addEventListener('resize', () => fitTerminal());
+
+  setTimeout(() => {
+    fitTerminal();
+    printWelcome();
+    writePrompt();
+  }, 30);
+
+  // Focus terminal when user clicks inside the container
+  container.addEventListener('click', () => {
+    if (term) term.focus();
+  });
+
+  // Handle keyboard input stream from xterm
+  term.onData((data) => {
+    handleTerminalInput(data);
+  });
+}
+
+/**
+ * Fit terminal dimensions to parent container
+ */
+export function fitTerminal() {
+  if (fitAddon && term) {
+    try {
+      fitAddon.fit();
+    } catch (_) {}
+  }
+}
+
+/**
+ * Focus terminal cursor
+ */
+export function focusTerminal() {
+  if (term) {
+    try {
+      term.focus();
+    } catch (_) {}
+  }
+}
+
+/**
+ * Update terminal font size from IDE Settings
+ */
+export function setTerminalFontSize(size) {
+  const num = parseInt(size, 10);
+  if (!isNaN(num) && num >= 9 && num <= 32) {
+    currentFontSize = num;
+    if (term) {
+      term.options.fontSize = num;
+      fitTerminal();
+    }
+  }
+}
+
+/**
+ * Print welcome banner
+ */
+function printWelcome() {
+  if (!term) return;
+  term.writeln('\x1b[1;36mSidecode Terminal\x1b[0m \x1b[90m— VS Code-grade integrated shell\x1b[0m');
+  term.writeln('\x1b[90mType \x1b[33mhelp\x1b[90m for commands or run files with \x1b[32mnode\x1b[90m, \x1b[32mg++\x1b[90m, \x1b[32mpython\x1b[90m, \x1b[32mrustc\x1b[90m, \x1b[32mgo\x1b[0m');
+}
+
+/**
+ * Build authentic prompt string with ANSI colors
+ */
+export function getPromptString() {
+  const wsName = executionBridge?.getWorkspaceName ? executionBridge.getWorkspaceName() : '';
+  let pathLabel = '~';
+  if (wsName) {
+    pathLabel = terminalCwd ? `~/${wsName}/${terminalCwd}` : `~/${wsName}`;
+  }
+  return `\x1b[1;32msidecode\x1b[0m:\x1b[1;34m${pathLabel}\x1b[0m$ `;
+}
+
+/**
+ * Render prompt to terminal and reset current input line
+ */
+export function writePrompt() {
+  if (!term) return;
+  currentInput = '';
+  cursorPos = 0;
+  term.write(getPromptString());
+}
+
+/**
+ * Set full line content and reposition cursor
+ */
+function setLine(newLine) {
+  if (!term) return;
+  // Move cursor back to beginning of input line
+  if (cursorPos > 0) {
+    term.write(`\x1b[${cursorPos}D`);
+  }
+  // Clear from cursor to end of line
+  term.write('\x1b[K');
+  currentInput = newLine;
+  cursorPos = currentInput.length;
+  term.write(currentInput);
+}
+
+/**
+ * Main keystroke handler for interactive line editing
+ */
+function handleTerminalInput(data) {
+  if (!term) return;
+
+  if (isBusy) {
+    // If a process is running and user presses Ctrl+C, send abort
+    if (data === '\x03') {
+      term.writeln('^C');
+      term.writeln('\x1b[33m[Execution interrupted]\x1b[0m');
+      isBusy = false;
+      writePrompt();
+    }
+    return;
+  }
+
+  switch (data) {
+    case '\r': { // Enter
+      term.write('\r\n');
+      const cmd = currentInput;
+      currentInput = '';
+      cursorPos = 0;
+
+      if (cmd.trim()) {
+        terminalHistory.push(cmd.trim());
+        if (terminalHistory.length > 200) terminalHistory.shift();
+        historyIndex = terminalHistory.length;
+
+        isBusy = true;
+        executeCommandLine(cmd.trim())
+          .catch((err) => {
+            writeLineToTerminal('error', err.message || String(err));
+          })
+          .finally(() => {
+            isBusy = false;
+            writePrompt();
+          });
+      } else {
+        writePrompt();
       }
+      break;
+    }
 
-      await executeCommandLine(rawCmd);
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      if (terminalHistory.length === 0) return;
-
-      if (historyIndex === -1) {
-        historyDraft = cliInput.value;
-        historyIndex = terminalHistory.length - 1;
-      } else if (historyIndex > 0) {
-        historyIndex--;
+    case '\x7f': // Backspace (DEL)
+    case '\b': { // Backspace (BS)
+      if (cursorPos > 0) {
+        currentInput = currentInput.slice(0, cursorPos - 1) + currentInput.slice(cursorPos);
+        cursorPos--;
+        term.write('\b');
+        term.write(currentInput.slice(cursorPos) + ' ');
+        term.write(`\x1b[${currentInput.length - cursorPos + 1}D`);
       }
+      break;
+    }
 
-      cliInput.value = terminalHistory[historyIndex] || '';
-      setTimeout(() => { cliInput.selectionStart = cliInput.selectionEnd = cliInput.value.length; }, 0);
-    } else if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      if (historyIndex === -1) return;
+    case '\x1b[A': { // Up arrow (previous history)
+      if (terminalHistory.length > 0) {
+        if (historyIndex > 0) {
+          historyIndex--;
+          setLine(terminalHistory[historyIndex] || '');
+        } else if (historyIndex === -1 || historyIndex === terminalHistory.length) {
+          historyIndex = terminalHistory.length - 1;
+          setLine(terminalHistory[historyIndex] || '');
+        }
+      }
+      break;
+    }
 
+    case '\x1b[B': { // Down arrow (next history)
       if (historyIndex < terminalHistory.length - 1) {
         historyIndex++;
-        cliInput.value = terminalHistory[historyIndex] || '';
+        setLine(terminalHistory[historyIndex] || '');
       } else {
-        historyIndex = -1;
-        cliInput.value = historyDraft;
+        historyIndex = terminalHistory.length;
+        setLine('');
       }
-      setTimeout(() => { cliInput.selectionStart = cliInput.selectionEnd = cliInput.value.length; }, 0);
-    } else if (e.key === 'Tab') {
-      e.preventDefault();
-      handleTabCompletion(cliInput);
+      break;
     }
-  });
 
-  updateTerminalPrompt();
+    case '\x1b[D': { // Left arrow
+      if (cursorPos > 0) {
+        cursorPos--;
+        term.write('\x1b[D');
+      }
+      break;
+    }
+
+    case '\x1b[C': { // Right arrow
+      if (cursorPos < currentInput.length) {
+        cursorPos++;
+        term.write('\x1b[C');
+      }
+      break;
+    }
+
+    case '\x01': { // Ctrl+A / Home
+      if (cursorPos > 0) {
+        term.write(`\x1b[${cursorPos}D`);
+        cursorPos = 0;
+      }
+      break;
+    }
+
+    case '\x05': { // Ctrl+E / End
+      if (cursorPos < currentInput.length) {
+        term.write(`\x1b[${currentInput.length - cursorPos}C`);
+        cursorPos = currentInput.length;
+      }
+      break;
+    }
+
+    case '\x03': { // Ctrl+C
+      term.write('^C\r\n');
+      currentInput = '';
+      cursorPos = 0;
+      writePrompt();
+      break;
+    }
+
+    case '\x0c': { // Ctrl+L (Clear screen)
+      term.clear();
+      term.write(getPromptString() + currentInput);
+      if (currentInput.length - cursorPos > 0) {
+        term.write(`\x1b[${currentInput.length - cursorPos}D`);
+      }
+      break;
+    }
+
+    case '\x15': { // Ctrl+U (Clear whole line before cursor)
+      if (cursorPos > 0) {
+        currentInput = currentInput.slice(cursorPos);
+        term.write(`\x1b[${cursorPos}D\x1b[K${currentInput}`);
+        if (currentInput.length > 0) {
+          term.write(`\x1b[${currentInput.length}D`);
+        }
+        cursorPos = 0;
+      }
+      break;
+    }
+
+    case '\t': { // Tab auto-completion
+      handleTabCompletion();
+      break;
+    }
+
+    default: {
+      // Normal typed characters (ASCII printable or UTF-8)
+      if (data >= ' ' || data === '\t') {
+        if (cursorPos === currentInput.length) {
+          currentInput += data;
+          cursorPos += data.length;
+          term.write(data);
+        } else {
+          currentInput = currentInput.slice(0, cursorPos) + data + currentInput.slice(cursorPos);
+          cursorPos += data.length;
+          term.write(data + currentInput.slice(cursorPos));
+          term.write(`\x1b[${currentInput.length - cursorPos}D`);
+        }
+      }
+      break;
+    }
+  }
+}
+
+/**
+ * Handle Tab auto-completion for filenames and commands
+ */
+function handleTabCompletion() {
+  if (!term) return;
+
+  const parts = currentInput.split(' ');
+  const lastToken = parts[parts.length - 1];
+  if (!lastToken) return;
+
+  const availableFiles = getAvailableFilenames();
+  const lowerPrefix = lastToken.toLowerCase();
+  const matches = availableFiles.filter(f => f.toLowerCase().startsWith(lowerPrefix));
+
+  if (matches.length === 1) {
+    const completion = matches[0];
+    const added = completion.slice(lastToken.length) + (completion.endsWith('/') ? '' : ' ');
+    currentInput += added;
+    cursorPos += added.length;
+    term.write(added);
+  } else if (matches.length > 1) {
+    term.writeln('');
+    const styled = matches.map(m => m.endsWith('/') ? `\x1b[1;34m${m}\x1b[0m` : `\x1b[32m${m}\x1b[0m`);
+    term.writeln('  ' + styled.join('   '));
+    term.write(getPromptString() + currentInput);
+  }
+}
+
+function getAvailableFilenames() {
+  const names = new Set();
+  const currDir = findDirectoryNode(terminalCwd);
+  if (currDir && Array.isArray(currDir.children)) {
+    currDir.children.forEach(c => {
+      names.add(c.kind === 'directory' ? `${c.name}/` : c.name);
+    });
+  }
+  if (executionBridge && typeof executionBridge.getTabs === 'function') {
+    executionBridge.getTabs().forEach(t => {
+      if (t.label) names.add(t.label);
+    });
+  }
+  return Array.from(names);
+}
+
+/**
+ * Write a formatted line to xterm
+ */
+export function writeLineToTerminal(level, text) {
+  if (!term) return;
+
+  const str = String(text ?? '');
+  const lines = str.replace(/\r\n/g, '\n').split('\n');
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (i === lines.length - 1 && line === '' && lines.length > 1) {
+      continue;
+    }
+
+    // Preserve existing ANSI colors from compilers (GCC, Clang, Rustc, etc.)
+    const hasAnsi = /\x1b\[[0-9;]*m/.test(line);
+    if (hasAnsi) {
+      term.writeln(line);
+      continue;
+    }
+
+    switch (level) {
+      case 'error':
+        term.writeln(`\x1b[31m✖ ${line}\x1b[0m`);
+        break;
+      case 'warn':
+        term.writeln(`\x1b[33m⚠ ${line}\x1b[0m`);
+        break;
+      case 'info':
+        term.writeln(`\x1b[36mℹ ${line}\x1b[0m`);
+        break;
+      case 'system':
+        term.writeln(`\x1b[90m${line}\x1b[0m`);
+        break;
+      case 'result':
+        term.writeln(`\x1b[32m${line}\x1b[0m`);
+        break;
+      case 'log':
+      default:
+        term.writeln(line);
+        break;
+    }
+  }
+}
+
+/**
+ * Write an execution badge to xterm
+ */
+export function writeBadgeToTerminal(label, hasError = false) {
+  if (!term) return;
+  if (hasError) {
+    term.writeln(`\x1b[1;31m✖ ${label}\x1b[0m`);
+  } else {
+    term.writeln(`\x1b[1;32m✔ ${label}\x1b[0m`);
+  }
+}
+
+/**
+ * Clear the terminal screen and reprint welcome banner + prompt
+ */
+export function clearTerminal() {
+  if (!term) return;
+  term.clear();
+  printWelcome();
+  writePrompt();
+}
+
+/**
+ * Echo a command line to xterm when run via Run button or shortcut
+ */
+export function appendCommandLineEcho(cmdText) {
+  if (!term) return;
+  term.writeln(`\r\n${getPromptString()}\x1b[1;37m${cmdText}\x1b[0m`);
 }
 
 /**
@@ -110,7 +485,7 @@ export function initTerminal(bridge = {}) {
  */
 export function resetTerminalCwd() {
   terminalCwd = '';
-  updateTerminalPrompt();
+  if (term) writePrompt();
 }
 
 /**
@@ -121,26 +496,14 @@ export function getTerminalCwd() {
 }
 
 /**
- * Update the terminal prompt string with active workspace folder and CWD
+ * Update prompt when workspace folder changes
  */
 export function updateTerminalPrompt() {
-  const cliPath = $('cli-path');
-  if (!cliPath) return;
-
-  if (executionBridge && typeof executionBridge.getWorkspaceName === 'function') {
-    const wsName = executionBridge.getWorkspaceName();
-    if (!wsName) {
-      cliPath.textContent = '~';
-    } else {
-      cliPath.textContent = terminalCwd ? `~/${wsName}/${terminalCwd}` : `~/${wsName}`;
-    }
-  } else {
-    cliPath.textContent = '~';
-  }
+  // Prompt is updated on next writePrompt()
 }
 
 /**
- * Generate a realistic terminal command line for a given tab
+ * Generate a realistic command line for a tab
  */
 export function getRunCommandForTab(tab) {
   if (!tab) return 'run';
@@ -169,43 +532,11 @@ export function getRunCommandForTab(tab) {
       return `rustc ${fileTarget}`;
     case 'go':
       return `go run ${fileTarget}`;
+    case 'java':
+      return `java ${fileTarget}`;
     default:
       return `run ${fileTarget}`;
   }
-}
-
-/**
- * Append an echoed command line to the output stream
- */
-export function appendCommandLineEcho(cmdText) {
-  const output = $('console-output');
-  const cliRow = $('terminal-cli-row');
-  if (!output) return;
-
-  const welcome = $('console-welcome');
-  if (welcome) welcome.remove();
-
-  const line = document.createElement('div');
-  line.className = 'con-line terminal-cmd-line';
-
-  const wsName = executionBridge && executionBridge.getWorkspaceName ? executionBridge.getWorkspaceName() : '';
-  let pathLabel = '~';
-  if (wsName) {
-    pathLabel = terminalCwd ? `~/${wsName}/${terminalCwd}` : `~/${wsName}`;
-  }
-
-  line.innerHTML = `
-    <span class="cli-prompt"><span class="cli-user">sidecode</span><span class="cli-colon">:</span><span class="cli-path">${escapeHtml(pathLabel)}</span><span class="cli-dollar">$</span></span>
-    <span class="cmd-text">${escapeHtml(cmdText)}</span>
-  `;
-
-  if (cliRow) {
-    output.insertBefore(line, cliRow);
-  } else {
-    output.appendChild(line);
-  }
-
-  output.scrollTop = output.scrollHeight;
 }
 
 /**
@@ -271,7 +602,7 @@ function resolveTargetPath(target) {
 }
 
 /**
- * Find directory node in tree by relative path from root
+ * Find directory node in workspace tree by relative path from root
  */
 function findDirectoryNode(relPath) {
   if (!executionBridge) return null;
@@ -295,8 +626,6 @@ function findDirectoryNode(relPath) {
  */
 async function executeCommandLine(raw) {
   const trimmed = raw.trim();
-  appendCommandLineEcho(raw);
-
   if (!trimmed) return;
 
   const tokens = parseCommandLineArgs(trimmed);
@@ -304,30 +633,31 @@ async function executeCommandLine(raw) {
   const args = tokens.slice(1);
   const argLine = args.join(' ');
 
-  const { appendLine, clearConsole } = await import('./console.js');
-
   switch (cmd) {
     case 'help': {
-      appendLine('system', '╔════════════════════════════════════════════════════════════════╗');
-      appendLine('system', '║                  Sidecode Interactive Terminal                 ║');
-      appendLine('system', '╚════════════════════════════════════════════════════════════════╝');
-      appendLine('info', '  cd <path>             Change directory (cd .., cd ~, cd folder)');
-      appendLine('info', '  mkdir <folder>        Create a new folder in current directory');
-      appendLine('info', '  touch <file>          Create a new file in current directory');
-      appendLine('info', '  rm [-r] <name>        Delete a file or folder');
-      appendLine('info', '  rmdir <folder>        Delete an empty or existing folder');
-      appendLine('info', '  mv <src> <dest>       Rename or move a file or folder');
-      appendLine('info', '  ls / dir              List files & folders in current directory');
-      appendLine('info', '  pwd                   Print current working directory path');
-      appendLine('info', '  cat <file>            Print file contents');
-      appendLine('info', '  node <file.js>        Run JS/TS in sandbox (searches in CWD first)');
-      appendLine('info', '  python <file.py>      Run Python file via cloud runner');
-      appendLine('info', '  g++ <file.cpp>        Compile & run C++ file');
-      appendLine('info', '  gcc <file.c>          Compile & run C file');
-      appendLine('info', '  run [file]            Run specified file or currently active tab');
-      appendLine('info', '  clear / cls           Clear terminal screen');
-      appendLine('info', '  echo <text>           Print text');
-      appendLine('system', 'Tip: Type JS expressions directly (e.g. 5*10 or [1,2,3].filter(x => x>1))');
+      writeLineToTerminal('system', '╔════════════════════════════════════════════════════════════════╗');
+      writeLineToTerminal('system', '║                  Sidecode Interactive Terminal                 ║');
+      writeLineToTerminal('system', '╚════════════════════════════════════════════════════════════════╝');
+      writeLineToTerminal('info', '  cd <path>             Change directory (cd .., cd ~, cd folder)');
+      writeLineToTerminal('info', '  mkdir <folder>        Create a new folder in current directory');
+      writeLineToTerminal('info', '  touch <file>          Create a new file in current directory');
+      writeLineToTerminal('info', '  rm [-r] <name>        Delete a file or folder');
+      writeLineToTerminal('info', '  rmdir <folder>        Delete a directory');
+      writeLineToTerminal('info', '  mv <src> <dest>       Rename or move a file or folder');
+      writeLineToTerminal('info', '  ls / dir              List files & folders in current directory');
+      writeLineToTerminal('info', '  pwd                   Print current working directory path');
+      writeLineToTerminal('info', '  cat <file>            Print file contents');
+      writeLineToTerminal('info', '  node <file.js>        Run JS/TS in sandbox (resolves relative modules)');
+      writeLineToTerminal('info', '  python <file.py>      Run Python file via cloud compiler');
+      writeLineToTerminal('info', '  g++ <file.cpp>        Compile & run C++ file (GCC 14.1 / Clang)');
+      writeLineToTerminal('info', '  gcc <file.c>          Compile & run C file (GCC 14.1)');
+      writeLineToTerminal('info', '  rustc <file.rs>       Compile & run Rust file (Rust 1.80)');
+      writeLineToTerminal('info', '  go run <file.go>      Compile & run Go file (Go 1.22)');
+      writeLineToTerminal('info', '  java <file.java>      Compile & run Java file (OpenJDK 21)');
+      writeLineToTerminal('info', '  run [file]            Run specified file or currently active tab');
+      writeLineToTerminal('info', '  clear / cls           Clear terminal screen');
+      writeLineToTerminal('info', '  echo <text>           Print text');
+      writeLineToTerminal('system', 'Tip: Type JS expressions directly (e.g. 5*10 or [1,2,3].filter(x => x>1))');
       return;
     }
 
@@ -363,19 +693,19 @@ async function executeCommandLine(raw) {
 
     case 'clear':
     case 'cls': {
-      clearConsole();
+      if (term) term.clear();
       return;
     }
 
     case 'pwd': {
       const wsName = executionBridge && executionBridge.getWorkspaceName ? executionBridge.getWorkspaceName() : 'workspace';
       const fullPath = terminalCwd ? `/${wsName}/${terminalCwd}` : `/${wsName}`;
-      appendLine('system', fullPath);
+      writeLineToTerminal('system', fullPath);
       return;
     }
 
     case 'echo': {
-      appendLine('log', argLine);
+      writeLineToTerminal('log', argLine);
       return;
     }
 
@@ -388,7 +718,7 @@ async function executeCommandLine(raw) {
     case 'cat':
     case 'type': {
       if (!args[0]) {
-        appendLine('warn', 'Usage: cat <filename>');
+        writeLineToTerminal('warn', 'Usage: cat <filename>');
         return;
       }
       await handleCatFile(args[0]);
@@ -397,9 +727,10 @@ async function executeCommandLine(raw) {
 
     case 'node':
     case 'nodejs':
+    case 'bun':
     case 'ts-node': {
       if (!args[0]) {
-        appendLine('warn', 'Usage: node <filename.js> (e.g. node main.js)');
+        writeLineToTerminal('warn', 'Usage: node <filename.js> (e.g. node main.js)');
         return;
       }
       await handleRunFileByCommand(args[0], 'javascript', ['js', 'mjs', 'cjs', 'ts']);
@@ -410,7 +741,7 @@ async function executeCommandLine(raw) {
     case 'python3':
     case 'py': {
       if (!args[0]) {
-        appendLine('warn', 'Usage: python <filename.py> (e.g. python main.py)');
+        writeLineToTerminal('warn', 'Usage: python <filename.py> (e.g. python main.py)');
         return;
       }
       await handleRunFileByCommand(args[0], 'python', ['py']);
@@ -420,7 +751,7 @@ async function executeCommandLine(raw) {
     case 'g++':
     case 'clang++': {
       if (!args[0]) {
-        appendLine('warn', 'Usage: g++ <filename.cpp> (e.g. g++ main.cpp)');
+        writeLineToTerminal('warn', 'Usage: g++ <filename.cpp> (e.g. g++ main.cpp)');
         return;
       }
       await handleRunFileByCommand(args[0], 'cpp', ['cpp', 'cc', 'cxx']);
@@ -430,7 +761,7 @@ async function executeCommandLine(raw) {
     case 'gcc':
     case 'clang': {
       if (!args[0]) {
-        appendLine('warn', 'Usage: gcc <filename.c> (e.g. gcc main.c)');
+        writeLineToTerminal('warn', 'Usage: gcc <filename.c> (e.g. gcc main.c)');
         return;
       }
       await handleRunFileByCommand(args[0], 'c', ['c']);
@@ -440,7 +771,7 @@ async function executeCommandLine(raw) {
     case 'rustc':
     case 'cargo': {
       if (!args[0]) {
-        appendLine('warn', 'Usage: rustc <filename.rs>');
+        writeLineToTerminal('warn', 'Usage: rustc <filename.rs>');
         return;
       }
       await handleRunFileByCommand(args[0], 'rust', ['rs']);
@@ -450,10 +781,20 @@ async function executeCommandLine(raw) {
     case 'go': {
       const targetFile = args[0] === 'run' ? args[1] : args[0];
       if (!targetFile) {
-        appendLine('warn', 'Usage: go run <filename.go>');
+        writeLineToTerminal('warn', 'Usage: go run <filename.go>');
         return;
       }
       await handleRunFileByCommand(targetFile, 'go', ['go']);
+      return;
+    }
+
+    case 'javac':
+    case 'java': {
+      if (!args[0]) {
+        writeLineToTerminal('warn', 'Usage: java <Main.java>');
+        return;
+      }
+      await handleRunFileByCommand(args[0], 'java', ['java']);
       return;
     }
 
@@ -464,14 +805,13 @@ async function executeCommandLine(raw) {
         if (executionBridge && typeof executionBridge.runActiveTab === 'function') {
           await executionBridge.runActiveTab();
         } else {
-          appendLine('warn', 'No active file to run.');
+          writeLineToTerminal('warn', 'No active file to run.');
         }
       }
       return;
     }
 
     default: {
-      // Check if command looks like direct JS code (e.g. console.log, math, expressions)
       if (isLikelyJavaScript(trimmed)) {
         if (executionBridge && typeof executionBridge.executeRawJs === 'function') {
           await executionBridge.executeRawJs(trimmed);
@@ -479,7 +819,7 @@ async function executeCommandLine(raw) {
         }
       }
 
-      appendLine('error', `${cmd}: command not found. Type "help" for a list of commands.`);
+      writeLineToTerminal('error', `${cmd}: command not found. Type "help" for a list of commands.`);
       return;
     }
   }
@@ -500,55 +840,47 @@ function isLikelyJavaScript(code) {
  * Handle cd <path>
  */
 async function handleCd(targetPath) {
-  const { appendLine } = await import('./console.js');
-
   if (!executionBridge || !executionBridge.getWorkspaceTree()) {
-    appendLine('error', 'cd: no workspace open. Open a folder first.');
+    writeLineToTerminal('error', 'cd: no workspace open. Open a folder first.');
     return;
   }
 
   if (!targetPath || targetPath === '~' || targetPath === '/') {
     terminalCwd = '';
-    updateTerminalPrompt();
     return;
   }
 
   const resolved = resolveTargetPath(targetPath);
   if (resolved === '') {
     terminalCwd = '';
-    updateTerminalPrompt();
     return;
   }
 
   const targetNode = findDirectoryNode(resolved);
   if (!targetNode) {
-    // Check if it was a file
     const fileNode = executionBridge.findWorkspaceFile ? executionBridge.findWorkspaceFile(resolved) : null;
     if (fileNode && fileNode.kind === 'file') {
-      appendLine('error', `cd: not a directory: ${targetPath}`);
+      writeLineToTerminal('error', `cd: not a directory: ${targetPath}`);
     } else {
-      appendLine('error', `cd: no such file or directory: ${targetPath}`);
+      writeLineToTerminal('error', `cd: no such file or directory: ${targetPath}`);
     }
     return;
   }
 
   terminalCwd = resolved;
-  updateTerminalPrompt();
 }
 
 /**
  * Handle mkdir <folder>
  */
 async function handleMkdir(dirname) {
-  const { appendLine } = await import('./console.js');
-
   if (!dirname) {
-    appendLine('warn', 'Usage: mkdir <directory_name>');
+    writeLineToTerminal('warn', 'Usage: mkdir <directory_name>');
     return;
   }
 
   if (!executionBridge || !executionBridge.getWorkspaceRootHandle()) {
-    appendLine('error', 'mkdir: no workspace open. Open a folder first.');
+    writeLineToTerminal('error', 'mkdir: no workspace open. Open a folder first.');
     return;
   }
 
@@ -558,12 +890,12 @@ async function handleMkdir(dirname) {
 
     if (executionBridge.createFolder) {
       await executionBridge.createFolder(parentHandle, dirname);
-      appendLine('info', `Created directory "${dirname}"`);
+      writeLineToTerminal('info', `Created directory "${dirname}"`);
     } else {
-      appendLine('error', 'mkdir: filesystem operation not supported in this environment.');
+      writeLineToTerminal('error', 'mkdir: filesystem operation not supported in this environment.');
     }
   } catch (err) {
-    appendLine('error', `mkdir: ${err.message}`);
+    writeLineToTerminal('error', `mkdir: ${err.message}`);
   }
 }
 
@@ -571,19 +903,17 @@ async function handleMkdir(dirname) {
  * Handle touch <file>
  */
 async function handleTouch(filename) {
-  const { appendLine } = await import('./console.js');
-
   if (!filename) {
-    appendLine('warn', 'Usage: touch <filename>');
+    writeLineToTerminal('warn', 'Usage: touch <filename>');
     return;
   }
 
   if (!executionBridge || !executionBridge.getWorkspaceRootHandle()) {
     if (executionBridge.createTab) {
       executionBridge.createTab(filename);
-      appendLine('info', `Created tab "${filename}"`);
+      writeLineToTerminal('info', `Created tab "${filename}"`);
     } else {
-      appendLine('error', 'touch: no workspace open.');
+      writeLineToTerminal('error', 'touch: no workspace open.');
     }
     return;
   }
@@ -594,12 +924,12 @@ async function handleTouch(filename) {
 
     if (executionBridge.createFile) {
       await executionBridge.createFile(parentHandle, filename, '');
-      appendLine('info', `Created file "${filename}"`);
+      writeLineToTerminal('info', `Created file "${filename}"`);
     } else {
-      appendLine('error', 'touch: filesystem operation not supported.');
+      writeLineToTerminal('error', 'touch: filesystem operation not supported.');
     }
   } catch (err) {
-    appendLine('error', `touch: ${err.message}`);
+    writeLineToTerminal('error', `touch: ${err.message}`);
   }
 }
 
@@ -607,10 +937,8 @@ async function handleTouch(filename) {
  * Handle rm [-r] <target>
  */
 async function handleRm(args) {
-  const { appendLine } = await import('./console.js');
-
   if (args.length === 0) {
-    appendLine('warn', 'Usage: rm [-r] <filename|directory>');
+    writeLineToTerminal('warn', 'Usage: rm [-r] <filename|directory>');
     return;
   }
 
@@ -626,12 +954,12 @@ async function handleRm(args) {
   }
 
   if (!targetName) {
-    appendLine('warn', 'Usage: rm [-r] <filename|directory>');
+    writeLineToTerminal('warn', 'Usage: rm [-r] <filename|directory>');
     return;
   }
 
   if (!executionBridge || !executionBridge.getWorkspaceRootHandle()) {
-    appendLine('error', 'rm: no workspace open.');
+    writeLineToTerminal('error', 'rm: no workspace open.');
     return;
   }
 
@@ -645,18 +973,18 @@ async function handleRm(args) {
     const isDir = child ? child.kind === 'directory' : isRecursive;
 
     if (isDir && !isRecursive) {
-      appendLine('error', `rm: cannot remove '${targetName}': Is a directory (use rm -r or rmdir)`);
+      writeLineToTerminal('error', `rm: cannot remove '${targetName}': Is a directory (use rm -r or rmdir)`);
       return;
     }
 
     if (executionBridge.deleteEntry) {
       await executionBridge.deleteEntry(parentHandle, child ? child.name : targetName, isDir);
-      appendLine('info', `Removed ${isDir ? 'directory' : 'file'} "${targetName}"`);
+      writeLineToTerminal('info', `Removed ${isDir ? 'directory' : 'file'} "${targetName}"`);
     } else {
-      appendLine('error', 'rm: filesystem deletion not supported.');
+      writeLineToTerminal('error', 'rm: filesystem deletion not supported.');
     }
   } catch (err) {
-    appendLine('error', `rm: ${err.message}`);
+    writeLineToTerminal('error', `rm: ${err.message}`);
   }
 }
 
@@ -664,15 +992,13 @@ async function handleRm(args) {
  * Handle rmdir <folder>
  */
 async function handleRmdir(dirname) {
-  const { appendLine } = await import('./console.js');
-
   if (!dirname) {
-    appendLine('warn', 'Usage: rmdir <directory>');
+    writeLineToTerminal('warn', 'Usage: rmdir <directory>');
     return;
   }
 
   if (!executionBridge || !executionBridge.getWorkspaceRootHandle()) {
-    appendLine('error', 'rmdir: no workspace open.');
+    writeLineToTerminal('error', 'rmdir: no workspace open.');
     return;
   }
 
@@ -682,12 +1008,12 @@ async function handleRmdir(dirname) {
 
     if (executionBridge.deleteEntry) {
       await executionBridge.deleteEntry(parentHandle, dirname, true);
-      appendLine('info', `Removed directory "${dirname}"`);
+      writeLineToTerminal('info', `Removed directory "${dirname}"`);
     } else {
-      appendLine('error', 'rmdir: filesystem deletion not supported.');
+      writeLineToTerminal('error', 'rmdir: filesystem deletion not supported.');
     }
   } catch (err) {
-    appendLine('error', `rmdir: ${err.message}`);
+    writeLineToTerminal('error', `rmdir: ${err.message}`);
   }
 }
 
@@ -695,15 +1021,13 @@ async function handleRmdir(dirname) {
  * Handle mv <source> <target>
  */
 async function handleMv(src, dest) {
-  const { appendLine } = await import('./console.js');
-
   if (!src || !dest) {
-    appendLine('warn', 'Usage: mv <source> <target>');
+    writeLineToTerminal('warn', 'Usage: mv <source> <target>');
     return;
   }
 
   if (!executionBridge || !executionBridge.getWorkspaceRootHandle()) {
-    appendLine('error', 'mv: no workspace open.');
+    writeLineToTerminal('error', 'mv: no workspace open.');
     return;
   }
 
@@ -715,29 +1039,27 @@ async function handleMv(src, dest) {
     const child = children.find(c => c.name.toLowerCase() === src.toLowerCase());
 
     if (!child || !child.handle) {
-      appendLine('error', `mv: cannot stat '${src}': No such file or directory`);
+      writeLineToTerminal('error', `mv: cannot stat '${src}': No such file or directory`);
       return;
     }
 
     if (executionBridge.renameEntry) {
       await executionBridge.renameEntry(parentHandle, child.handle, dest);
-      appendLine('info', `Renamed '${src}' -> '${dest}'`);
+      writeLineToTerminal('info', `Renamed '${src}' -> '${dest}'`);
     } else {
-      appendLine('error', 'mv: rename not supported.');
+      writeLineToTerminal('error', 'mv: rename not supported.');
     }
   } catch (err) {
-    appendLine('error', `mv: ${err.message}`);
+    writeLineToTerminal('error', `mv: ${err.message}`);
   }
 }
 
 /**
- * List files in active directory
+ * List files in active directory with ANSI colors
  */
 async function handleListDirectory() {
-  const { appendLine } = await import('./console.js');
-
   if (!executionBridge) {
-    appendLine('system', 'No workspace active.');
+    writeLineToTerminal('system', 'No workspace active.');
     return;
   }
 
@@ -746,37 +1068,36 @@ async function handleListDirectory() {
     if (!currDirNode && !executionBridge.getWorkspaceTree()) {
       const tabs = executionBridge.getTabs ? executionBridge.getTabs() : [];
       if (tabs.length === 0) {
-        appendLine('system', '(empty directory)');
+        writeLineToTerminal('system', '(empty directory)');
         return;
       }
-      const tabList = tabs.map(t => `📄 ${t.label}`).join('   ');
-      appendLine('system', tabList);
+      const tabList = tabs.map(t => `\x1b[32m📄 ${t.label}\x1b[0m`).join('   ');
+      writeLineToTerminal('log', '  ' + tabList);
       return;
     }
-    appendLine('system', '(empty directory)');
+    writeLineToTerminal('system', '(empty directory)');
     return;
   }
 
   const items = currDirNode.children.map(entry => {
-    return entry.kind === 'directory' ? `📁 ${entry.name}/` : `📄 ${entry.name}`;
+    return entry.kind === 'directory' ? `\x1b[1;34m📁 ${entry.name}/\x1b[0m` : `\x1b[37m📄 ${entry.name}\x1b[0m`;
   });
 
-  appendLine('system', items.join('   '));
+  writeLineToTerminal('log', '  ' + items.join('   '));
 }
 
 /**
  * Print contents of a file
  */
 async function handleCatFile(filename) {
-  const { appendLine } = await import('./console.js');
   const fileData = await resolveFileContent(filename);
 
   if (!fileData) {
-    appendLine('error', `cat: ${filename}: No such file or directory`);
+    writeLineToTerminal('error', `cat: ${filename}: No such file or directory`);
     return;
   }
 
-  appendLine('system', fileData.content);
+  writeLineToTerminal('log', fileData.content);
 }
 
 /**
@@ -839,14 +1160,11 @@ async function resolveFileContent(filename) {
 }
 
 /**
- * Execute a file by CLI command (e.g. node main.js, python main.py)
+ * Execute a file by CLI command (e.g. node main.js, python main.py, g++ main.cpp)
  */
 async function handleRunFileByCommand(filename, forcedLanguage = null, candidateExtensions = []) {
-  const { appendLine, appendRunBadge } = await import('./console.js');
-
   let fileData = await resolveFileContent(filename);
 
-  // Fallback: try candidate extensions if not found
   if (!fileData && candidateExtensions.length > 0) {
     for (const ext of candidateExtensions) {
       fileData = await resolveFileContent(`${filename}.${ext}`);
@@ -855,56 +1173,18 @@ async function handleRunFileByCommand(filename, forcedLanguage = null, candidate
   }
 
   if (!fileData) {
-    const cmdName = forcedLanguage === 'python' ? 'python' : (forcedLanguage === 'cpp' ? 'g++' : 'node');
-    appendLine('error', `${cmdName}: cannot open '${filename}': No such file in workspace`);
-    appendRunBadge('Failed', true);
+    const cmdName = forcedLanguage === 'python' ? 'python' : (forcedLanguage === 'cpp' ? 'g++' : (forcedLanguage === 'rust' ? 'rustc' : (forcedLanguage === 'go' ? 'go' : 'node')));
+    writeLineToTerminal('error', `${cmdName}: cannot open '${filename}': No such file in workspace`);
+    writeBadgeToTerminal('Failed', true);
     return;
   }
 
   const lang = forcedLanguage || fileData.language || 'plaintext';
-  appendLine('system', `▶ Executing ${fileData.name} (${lang})...`);
+  writeLineToTerminal('system', `▶ Executing ${fileData.name} (${lang})...`);
 
   if (executionBridge && typeof executionBridge.executeCode === 'function') {
     await executionBridge.executeCode(fileData.content, lang, fileData.path || fileData.name);
   } else {
-    appendLine('warn', 'Execution bridge not available.');
+    writeLineToTerminal('warn', 'Execution bridge not available.');
   }
-}
-
-/**
- * Handle Tab auto-completion for filenames
- */
-function handleTabCompletion(inputEl) {
-  const val = inputEl.value;
-  const parts = val.split(' ');
-  const lastToken = parts[parts.length - 1];
-  if (!lastToken) return;
-
-  const lowerPrefix = lastToken.toLowerCase();
-  const availableFiles = getAvailableFilenames();
-
-  const matches = availableFiles.filter(f => f.toLowerCase().startsWith(lowerPrefix));
-  if (matches.length === 1) {
-    parts[parts.length - 1] = matches[0];
-    inputEl.value = parts.join(' ') + (matches[0].endsWith('/') ? '' : ' ');
-  }
-}
-
-function getAvailableFilenames() {
-  const names = new Set();
-
-  const currDir = findDirectoryNode(terminalCwd);
-  if (currDir && Array.isArray(currDir.children)) {
-    currDir.children.forEach(c => {
-      names.add(c.kind === 'directory' ? `${c.name}/` : c.name);
-    });
-  }
-
-  if (executionBridge && typeof executionBridge.getTabs === 'function') {
-    executionBridge.getTabs().forEach(t => {
-      if (t.label) names.add(t.label);
-    });
-  }
-
-  return Array.from(names);
 }

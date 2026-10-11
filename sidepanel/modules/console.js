@@ -3,6 +3,13 @@
  */
 
 import { escapeHtml } from './constants.js';
+import {
+  writeLineToTerminal,
+  writeBadgeToTerminal,
+  clearTerminal,
+  fitTerminal,
+  focusTerminal
+} from './terminal.js';
 
 let isOpen = false;
 let panelHeight = 200;
@@ -57,7 +64,8 @@ function setupTabs() {
     if (btnRules) btnRules.hidden = activeId !== 'input';
 
     if (activeId === 'console') {
-      outputArea.scrollTop = outputArea.scrollHeight;
+      fitTerminal();
+      focusTerminal();
     } else if (activeId === 'input') {
       inputArea.focus();
     }
@@ -239,8 +247,8 @@ export function openConsole() {
     inputArea.hidden = true;
   }
 
-  const output = $('console-output');
-  if (output) output.scrollTop = output.scrollHeight;
+  fitTerminal();
+  focusTerminal();
 
   if (onLayoutCallback) onLayoutCallback();
 }
@@ -290,6 +298,7 @@ function setupResize() {
     const delta = dragStartY - e.clientY;
     applyHeight(dragStartH + delta);
     if (onLayoutCallback) onLayoutCallback();
+    fitTerminal();
   });
 
   document.addEventListener('mouseup', () => {
@@ -299,86 +308,25 @@ function setupResize() {
     document.body.style.cursor = '';
     document.body.style.userSelect = '';
 
+    fitTerminal();
     if (saveHeightCallback) saveHeightCallback(panelHeight);
   });
 }
 
 export function appendLine(level, text) {
-  const output = $('console-output');
-  if (!output) return;
-
-  const welcome = $('console-welcome');
-  if (welcome) welcome.remove();
-
-  const line = document.createElement('div');
-  line.className = `con-line ${level}`;
-
-  const prefixChar = PREFIXES[level] ?? '';
-  if (prefixChar) {
-    const prefix = document.createElement('span');
-    prefix.className = 'con-prefix';
-    prefix.textContent = prefixChar;
-    line.appendChild(prefix);
-  }
-
-  const span = document.createElement('span');
-  span.className = 'con-text';
-  span.textContent = text;
-  line.appendChild(span);
-
-  const cliRow = $('terminal-cli-row');
-  if (cliRow) {
-    output.insertBefore(line, cliRow);
-  } else {
-    output.appendChild(line);
-  }
-  output.scrollTop = output.scrollHeight;
+  writeLineToTerminal(level, text);
 }
 
 export function appendDivider() {
-  const output = $('console-output');
-  if (!output || output.children.length === 0) return;
-
-  const d = document.createElement('div');
-  d.className = 'con-divider';
-
-  const cliRow = $('terminal-cli-row');
-  if (cliRow) {
-    output.insertBefore(d, cliRow);
-  } else {
-    output.appendChild(d);
-  }
+  writeLineToTerminal('system', '────────────────────────────────────────────────────────────');
 }
 
 export function appendRunBadge(label, hasError = false) {
-  const output = $('console-output');
-  if (!output) return;
-
-  const d = document.createElement('div');
-  d.className = 'con-run-badge' + (hasError ? ' error-run' : '');
-  d.innerHTML = `<span class="badge-dot"></span><span>${escapeHtml(label)}</span>`;
-
-  const cliRow = $('terminal-cli-row');
-  if (cliRow) {
-    output.insertBefore(d, cliRow);
-  } else {
-    output.appendChild(d);
-  }
-  output.scrollTop = output.scrollHeight;
+  writeBadgeToTerminal(label, hasError);
 }
 
 export function clearConsole() {
-  const output = $('console-output');
-  if (output) {
-    const cliRow = $('terminal-cli-row');
-    if (cliRow) {
-      Array.from(output.children).forEach((child) => {
-        if (child !== cliRow) child.remove();
-      });
-    } else {
-      output.innerHTML = '';
-    }
-  }
+  clearTerminal();
   clearAssembly();
 }
 
