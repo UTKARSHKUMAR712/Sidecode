@@ -28,11 +28,13 @@ Sidecode provides native syntax highlighting, auto-detection, code formatting, I
 ## 🌟 Key Features
 
 ### 🖥️ 1. Complete VS Code Look & Feel
-- **Full Menu Bar:** Top-level dropdown menu (`File` > `New File`, `Open File...`, `Open Folder...`, `Save`, `Save As...`, `Auto Save`, `Preferences`, `Close Editor`, `Close Folder`).
+- **Full Menu Bar:** Top-level dropdown menu (`File` > `New File`, `Open File...`, `Open Folder...`, `Toggle Explorer`, `Toggle Terminal / Console`, `Save`, `Save As...`, `Auto Save`, `Close Editor`, `Close Folder`, `Keyboard Shortcuts`, `Preferences: Settings`).
+- **Top Nav Bar Quick-Action Buttons:** Dedicated 1-click icon buttons to toggle the **Explorer (`Ctrl+B`)** and **Terminal / Console (`Ctrl+` `)** with real-time active state highlights.
 - **Collapsible File Explorer (`Ctrl+B`):** Full tree hierarchy with custom file icons (JS, TS, C++, Rust, Python, Go, Java, JSON, etc.), collapsible directories, horizontal side-scrolling for deep folder trees, and right-click context actions.
 - **Direct PC Disk Editing:** Uses the native **File System Access API** (`showDirectoryPicker`) to edit actual project files on your hard drive in place. No import/export hurdles.
-- **IndexedDB Workspace Persistence:** Re-opens your last opened workspace directory across browser restarts with 1-click permission restoration.
+- **IndexedDB Workspace Persistence:** Automatically restores your last opened workspace directory and open file tabs across browser restarts without creating boilerplate untitled scratchpads.
 - **Double-Click Creation:** Double-click empty workspace space to quickly create files or folders, just like in desktop VS Code.
+- **Interactive Keyboard Shortcuts Reference (`Ctrl+K Ctrl+S` / `F1`):** Complete on-screen cheat sheet accessible via File menu, console header button (`⌨`), or keyboard shortcut.
 
 ### 💻 2. Interactive Terminal CLI
 - **Real-Time Shell Environment:** Type shell commands directly into the terminal prompt.
@@ -45,6 +47,7 @@ Sidecode provides native syntax highlighting, auto-detection, code formatting, I
   - `ls` / `dir` — List directory contents with folder icons.
   - `pwd` — Print current working directory path.
   - `cat <file>` — Display file contents.
+  - `shortcuts` — Display the full cheat sheet of all Sidecode keyboard shortcuts.
   - `node <file.js>` / `python <file.py>` / `g++ <file.cpp>` — Run scripts or compile code from the prompt.
   - `clear` / `cls` — Clear terminal screen.
   - **Direct Expression Evaluation:** Type JS or math expressions directly into the prompt (e.g. `[5, 12, 8].filter(x => x > 10)`).
@@ -104,18 +107,24 @@ Sidecode provides native syntax highlighting, auto-detection, code formatting, I
 
 ## ⌨️ Keyboard Shortcuts
 
-| Shortcut | Action |
-| :--- | :--- |
-| `Ctrl + Enter` | Run code (active tab or command) |
-| `Ctrl + S` | Save active tab directly to disk |
-| `Ctrl + Shift + S` | Save As... (choose disk location) |
-| `Ctrl + O` | Open file from PC |
-| `Ctrl + B` | Toggle File Explorer sidebar |
-| `Ctrl + N` | New file |
-| `Ctrl + \`` / `Ctrl + ~` | Toggle Terminal / Console panel |
-| `Ctrl + Alt + F` | Format Document |
-| `Ctrl + Alt + A` | Run Static Analysis on active file |
-| `Ctrl + Shift + Z` | Close Side Panel |
+| Shortcut | Action | Scope / Context |
+| :--- | :--- | :--- |
+| `Ctrl + B` | **Toggle File Explorer sidebar** | Global |
+| `Ctrl + \`` / `Ctrl + ~` | **Toggle Terminal / Console panel** | Global |
+| `Ctrl + K Ctrl + S` / `F1` | **Open Keyboard Shortcuts Reference modal** | Global |
+| `Ctrl + Enter` | **Run code** (via Cloud, Local PC, or Browser Sandbox) | Global |
+| `Ctrl + N` / `Ctrl + T` | **New file / tab** | Global |
+| `Ctrl + O` | **Open file from disk** | Global |
+| `Ctrl + K Ctrl + O` | **Open folder from disk** (File System Access API) | Global |
+| `Ctrl + S` | **Save active file directly to disk** | Editor |
+| `Ctrl + Shift + S` | **Save As...** (choose destination on PC) | Editor |
+| `Ctrl + W` | **Close active tab** | Editor / Tabs |
+| `Ctrl + 1 ... 9` | **Switch between open tabs 1 to 9** | Global |
+| `Ctrl + Alt + F` | **Format Document** | Editor |
+| `Ctrl + Alt + A` | **Run Static Code Analysis** on active file | Editor |
+| `Ctrl + ,` | **Open Settings & Preferences** | Global |
+| `Ctrl + Shift + Z` | **Close Sidecode panel** | Global |
+| `shortcuts` (CLI command) | **Show all shortcuts in terminal output** | Terminal |
 
 ---
 
