@@ -200,7 +200,7 @@ function codeExpectsInput(code, lang) {
     const { getTerminalMode, writeLineToTerminal, focusTerminal, getTerm } = await import('./modules/terminal.js');
     const isLocalMode = getTerminalMode() === 'local';
 
-    if (isLocalMode && tab.language !== 'javascript' && tab.language !== 'typescript') {
+    if (isLocalMode) {
       const { ensureBridgeRunning, executeViaBridge } = await import('./modules/bridgeClient.js');
       const folderName = getWorkspaceName() || 'workspace';
       const bridgeStatus = await ensureBridgeRunning(folderName);
@@ -215,11 +215,30 @@ function codeExpectsInput(code, lang) {
 
       const isWin = bridgeStatus.data?.platform === 'win32';
       const exeName = isWin ? 'a.exe' : './a.out';
-      const targetFile = tab.label || tab.filePath || 'main.c';
+      const extMap = {
+        c: 'c',
+        cpp: 'cpp',
+        python: 'py',
+        py: 'py',
+        javascript: 'js',
+        js: 'js',
+        typescript: 'ts',
+        ts: 'ts',
+        rust: 'rs',
+        go: 'go',
+        java: 'java'
+      };
+      let targetFile = tab.label || tab.filePath || 'main';
+      if (!targetFile.includes('.')) {
+        targetFile = `${targetFile}.${extMap[tab.language] || 'txt'}`;
+      }
+
       let localCmd = '';
       if (tab.language === 'c') localCmd = `gcc "${targetFile}" -o ${isWin ? 'a.exe' : 'a.out'} && ${exeName}`;
       else if (tab.language === 'cpp') localCmd = `g++ "${targetFile}" -o ${isWin ? 'a.exe' : 'a.out'} && ${exeName}`;
-      else if (tab.language === 'python') localCmd = `python -u "${targetFile}"`;
+      else if (tab.language === 'python' || tab.language === 'py') localCmd = `python -u "${targetFile}"`;
+      else if (tab.language === 'javascript' || tab.language === 'js') localCmd = `node "${targetFile}"`;
+      else if (tab.language === 'typescript' || tab.language === 'ts') localCmd = `node "${targetFile}"`;
       else if (tab.language === 'rust') localCmd = `rustc "${targetFile}" && ${exeName}`;
       else if (tab.language === 'go') localCmd = `go run "${targetFile}"`;
       else if (tab.language === 'java') localCmd = `java "${targetFile}"`;
