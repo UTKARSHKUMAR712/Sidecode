@@ -72,7 +72,13 @@ import {
   isWorkspaceOpen,
   getWorkspaceTree,
   getWorkspaceName,
-  findNodeInTree
+  getWorkspaceRootHandle,
+  findNodeInTree,
+  createFileInWorkspace,
+  createFolderInWorkspace,
+  deleteWorkspaceEntry,
+  renameWorkspaceEntry,
+  refreshWorkspaceTree
 } from './modules/workspace.js';
 import {
   initExplorer,
@@ -619,11 +625,14 @@ async function init() {
   if (customPistonEl) customPistonEl.value = customPistonUrl;
 
   // Apply IDE settings
-  currentIdeSettings = saved.ideSettings || { fontSize: 13, tabSize: 2, wordWrap: true, libraries: [] };
+  currentIdeSettings = saved.ideSettings || { fontSize: 13, tabSize: 2, wordWrap: false, libraries: [] };
+  if (saved.ideSettings && saved.ideSettings.wordWrap === undefined) {
+    currentIdeSettings.wordWrap = false;
+  }
   const savedIdeSettings = currentIdeSettings;
   if ($('setting-font-size')) $('setting-font-size').value = savedIdeSettings.fontSize;
   if ($('setting-tab-size')) $('setting-tab-size').value = savedIdeSettings.tabSize;
-  if ($('setting-word-wrap')) $('setting-word-wrap').checked = savedIdeSettings.wordWrap;
+  if ($('setting-word-wrap')) $('setting-word-wrap').checked = !!savedIdeSettings.wordWrap;
 
   document.documentElement.style.setProperty('--ide-font-size', `${savedIdeSettings.fontSize}px`);
 
@@ -693,11 +702,18 @@ async function init() {
   initTerminal({
     getWorkspaceTree: () => getWorkspaceTree(),
     getWorkspaceName: () => getWorkspaceName(),
+    getWorkspaceRootHandle: () => getWorkspaceRootHandle(),
     getTabs: () => getTabs(),
     getActiveTab: () => getActiveTab(),
     getModelContent: (tabId) => getModel(tabId)?.getValue() || null,
     findWorkspaceFile: (filename) => findNodeInTree(filename),
     readFileFromDisk: (handle) => readFileFromDisk(handle),
+    createFile: (dirHandle, name, content) => createFileInWorkspace(dirHandle, name, content),
+    createFolder: (dirHandle, name) => createFolderInWorkspace(dirHandle, name),
+    deleteEntry: (dirHandle, name, isDir) => deleteWorkspaceEntry(dirHandle, name, isDir),
+    renameEntry: (parentHandle, handle, newName) => renameWorkspaceEntry(parentHandle, handle, newName),
+    refreshTree: () => refreshWorkspaceTree(),
+    createTab: (label) => createTab(label),
     runActiveTab: () => handleRunCode(),
     executeCode: async (code, lang, filename) => {
       if (SANDBOX_LANGUAGES.has(lang)) {
@@ -717,6 +733,9 @@ async function init() {
   onWorkspaceChange(({ action }) => {
     updateTerminalPrompt();
     if (action === 'closed') {
+      import('./modules/terminal.js').then(({ resetTerminalCwd }) => {
+        if (typeof resetTerminalCwd === 'function') resetTerminalCwd();
+      });
       toggleExplorer(false);
     } else {
       renderExplorerTree(getDirtyPaths());

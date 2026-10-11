@@ -10,12 +10,12 @@ let onLayoutCallback = null;
 let saveHeightCallback = null;
 
 const PREFIXES = {
-  log: '›',
+  log: '',
   info: 'ℹ',
   warn: '⚠',
   error: '✖',
   system: '',
-  result: '←'
+  result: ''
 };
 
 const $ = (id) => document.getElementById(id);
@@ -313,15 +313,17 @@ export function appendLine(level, text) {
   const line = document.createElement('div');
   line.className = `con-line ${level}`;
 
-  const prefix = document.createElement('span');
-  prefix.className = 'con-prefix';
-  prefix.textContent = PREFIXES[level] || '›';
+  const prefixChar = PREFIXES[level] ?? '';
+  if (prefixChar) {
+    const prefix = document.createElement('span');
+    prefix.className = 'con-prefix';
+    prefix.textContent = prefixChar;
+    line.appendChild(prefix);
+  }
 
   const span = document.createElement('span');
   span.className = 'con-text';
   span.textContent = text;
-
-  line.appendChild(prefix);
   line.appendChild(span);
 
   const cliRow = $('terminal-cli-row');
