@@ -50,24 +50,23 @@ export async function getAnalyzerForLanguage(lang) {
       return null;
     }
 
-    // 1. C++ Analyzer: Clang-Tidy with curated student-friendly checks
+    // 1. C++ Analyzer: Clang-Tidy with non-noisy, real bug detection checks only
     if (lang === 'cpp') {
       const tidy = tools.find(t => t.id === 'clangtidytrunk' || t.name?.toLowerCase().includes('clang-tidy'));
       if (tidy) {
-        // Exclude noisy internal LLVM libc checks and trailing return type enforcement
-        const checks = '-checks=-*,bugprone-*,clang-analyzer-*,readability-*,performance-*,misc-*,-llvmlibc-*,-llvm-header-guard,-modernize-use-trailing-return-type';
+        // Exclude noisy stylistic warnings (const-correctness, rand/scanf warnings, branch clone, narrowing)
+        const checks = '-checks=-*,clang-analyzer-*,bugprone-use-after-move,bugprone-dangling-handle,bugprone-null-dereference';
         const config = { id: tidy.id, name: 'Clang-Tidy', args: checks };
         toolCache.set(lang, config);
         return config;
       }
     }
 
-    // 2. C Analyzer: Clang-Tidy with C-specific checks (NO C++ specific checks)
+    // 2. C Analyzer: Clang-Tidy with C-specific checks (real bugs only)
     if (lang === 'c') {
       const tidy = tools.find(t => t.id === 'clangtidytrunk' || t.name?.toLowerCase().includes('clang-tidy'));
       if (tidy) {
-        // Exclude C++ checks like modernize or cppcoreguidelines
-        const checks = '-checks=-*,bugprone-*,clang-analyzer-*,misc-*,-llvmlibc-*,-llvm-header-guard';
+        const checks = '-checks=-*,clang-analyzer-*,bugprone-use-after-move,bugprone-null-dereference';
         const config = { id: tidy.id, name: 'Clang-Tidy (C)', args: checks };
         toolCache.set(lang, config);
         return config;
@@ -184,8 +183,8 @@ export function parseDiagnostics(tools = [], language = '', buildStderr = []) {
 
         if (!line || line <= 0) continue;
 
-        // Skip non-actionable sub-notes that simply repeat the parent warning
-        if (severity === 'info' && seen.has(`${line}:${column}`)) {
+        // Skip informational sub-notes (e.g. "clone 1 starts here", "end of original", macro expansions)
+        if (severity === 'info') {
           continue;
         }
 

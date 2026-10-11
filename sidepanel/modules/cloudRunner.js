@@ -23,7 +23,7 @@ import {
 } from './console.js';
 
 import { debugLog } from './logger.js';
-import { getAnalyzerForLanguage, parseDiagnostics, updateProblemsView } from './analysis.js';
+import { parseDiagnostics, updateProblemsView } from './analysis.js';
 
 // Godbolt Compiler Explorer API
 const GODBOLT_BASE = 'https://godbolt.org/api';
@@ -163,10 +163,8 @@ async function executeViaGodbolt(code, language, stdin = '', libraries = [], tab
     asmPayload.files = companionFiles;
   }
 
-  const analyzer = await getAnalyzerForLanguage(language);
-  if (analyzer) {
-    asmPayload.options.tools.push({ id: analyzer.id, args: analyzer.args });
-  }
+  // Note: Static analyzers (clang-tidy) are only invoked when user clicks "Analyze", not on every run.
+  // This keeps execution fast and prevents noisy pedantic linter warnings during normal runs.
 
   // Inject requested third-party libraries (e.g. boost:192 or { id, version })
   if (libraries && libraries.length > 0) {
@@ -259,8 +257,8 @@ async function executeViaGodbolt(code, language, stdin = '', libraries = [], tab
       }
     }
 
-    // 4.5 Static Analysis Diagnostics (routed to Problems panel & Monaco markers, not Console)
-    const diagnostics = parseDiagnostics(data.tools, language, data.buildResult?.stderr);
+    // 4.5 Compiler diagnostics (errors and warnings from compiler buildResult.stderr)
+    const diagnostics = parseDiagnostics([], language, data.buildResult?.stderr);
     updateProblemsView(diagnostics, tabId);
 
     // Check exit code
