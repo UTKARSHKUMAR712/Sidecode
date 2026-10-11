@@ -817,10 +817,9 @@ async function executeCommandLine(raw) {
         writeLineToTerminal('info', '  Programs run directly on your PC with real live interactive terminal (step-by-step scanf / cin).');
       } else {
         writeLineToTerminal('warn', '○ Local Native Bridge is NOT running.');
-        writeLineToTerminal('log', '  To enable real interactive terminal execution (live step-by-step scanf/cin):');
-        writeLineToTerminal('system', '  1. Open a terminal in the Sidecode folder');
-        writeLineToTerminal('system', '  2. Run: node bridge.js');
-        writeLineToTerminal('log', '  Sidecode automatically connects when bridge is started!');
+        writeLineToTerminal('system', 'To install & start in 1 click, run in PowerShell:');
+        writeLineToTerminal('log', '\x1b[36mirm https://raw.githubusercontent.com/UTKARSHKUMAR712/Sidecode/main/install-bridge.ps1 | iex\x1b[0m');
+        writeLineToTerminal('info', 'Or switch to ☁ Cloud Terminal in the dropdown for instant execution.');
       }
       return;
     }

@@ -136,5 +136,15 @@ export const storage = {
   /** Get persisted terminal mode */
   getTerminalMode() {
     return _cache?.terminalMode || 'browser';
+  },
+
+  /** Persist whether user has seen the first-time bridge intro banner */
+  saveBridgeIntroSeen(seen) {
+    _cache = { ..._cache, bridgeIntroSeen: !!seen };
+    this._flush();
+  },
+
+  hasSeenBridgeIntro() {
+    return !!_cache?.bridgeIntroSeen;
   }
 };

@@ -101,6 +101,35 @@
   <!-- ── Main split area ── -->
   <div id="main-area">
 
+    <!-- First-Time Local Native Bridge Setup Card -->
+    <div id="first-time-bridge-banner" class="workspace-banner hidden" style="flex-direction: column; align-items: flex-start; padding: 10px 14px; gap: 8px; background: #1c2128; border-bottom: 1px solid #30363d;">
+      <div style="display:flex; width:100%; justify-content:space-between; align-items:center;">
+        <span style="font-weight:600; color:#58a6ff; font-size:12px;">⚡ Local Native Terminal Bridge</span>
+        <button id="btn-dismiss-first-time-bridge" class="modal-close-btn" style="color:var(--muted); font-size:14px; cursor:pointer;" title="Dismiss">✕</button>
+      </div>
+      <p style="font-size:11.5px; color:#cccccc; margin:0; line-height:1.45;">
+        Run C, C++, Python, and Node.js directly on your computer with real-time interactive terminal input (<code>scanf</code> / <code>cin</code>). Run in PowerShell:
+      </p>
+      <div style="display:flex; flex-direction:column; gap:6px; width:100%;">
+        <!-- Install Command -->
+        <div style="display:flex; align-items:center; gap:6px; background:#161b22; border:1px solid #30363d; border-radius:4px; padding:3px 8px;">
+          <span style="font-size:10px; color:#3fb950; font-weight:bold; min-width:44px;">INSTALL:</span>
+          <code style="font-size:11px; color:#e6edf3; flex:1; font-family:var(--mono); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" id="code-install-bridge">irm https://raw.githubusercontent.com/UTKARSHKUMAR712/Sidecode/main/install-bridge.ps1 | iex</code>
+          <button id="btn-copy-install-bridge" class="btn-secondary" style="padding:2px 8px; font-size:11px; white-space:nowrap; height:22px;">📋 Copy</button>
+        </div>
+        <!-- Uninstall Command -->
+        <div style="display:flex; align-items:center; gap:6px; background:#161b22; border:1px solid #30363d; border-radius:4px; padding:3px 8px;">
+          <span style="font-size:10px; color:#f85149; font-weight:bold; min-width:44px;">UNINSTALL:</span>
+          <code style="font-size:11px; color:#e6edf3; flex:1; font-family:var(--mono); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" id="code-uninstall-bridge">irm https://raw.githubusercontent.com/UTKARSHKUMAR712/Sidecode/main/uninstall-bridge.ps1 | iex</code>
+          <button id="btn-copy-uninstall-bridge" class="btn-secondary" style="padding:2px 8px; font-size:11px; white-space:nowrap; height:22px;">📋 Copy</button>
+        </div>
+      </div>
+      <div style="display:flex; justify-content:space-between; align-items:center; width:100%; margin-top:2px;">
+        <span style="font-size:10px; color:var(--muted);">Paste in PowerShell &amp; press Enter. Uninstall code is always available in Settings (⚙).</span>
+        <button id="btn-got-it-first-time-bridge" class="btn-vsc-primary" style="padding:3px 12px; font-size:11px; height:24px;">Got It</button>
+      </div>
+    </div>
+
     <!-- Reconnect Banner (if permission needs re-authorization after browser restart) -->
     <div id="workspace-reconnect-bar" class="workspace-banner hidden">
       <span class="banner-text">🔑 Workspace "<span id="reconnect-folder-name"></span>" needs re-authorization.</span>
@@ -331,6 +360,35 @@
             Leave blank to use Compiler Explorer (100% free, no key needed). If you host a private Piston instance, enter its execute URL here.
           </p>
           <input id="setting-custom-piston" type="url" class="setting-input" placeholder="https://my-piston-server/api/v2/piston/execute" />
+        </div>
+
+        <!-- Local PC Bridge Setup & Uninstall -->
+        <div class="setting-item">
+          <label class="setting-label">⚡ Local Native Terminal Bridge</label>
+          <p class="setting-desc">
+            Runs C, C++, Python, and Node.js directly on your computer with real-time interactive input (<code>scanf</code>, <code>cin</code>, <code>input()</code>).
+          </p>
+          <div style="display:flex; flex-direction:column; gap:8px; margin-top:8px;">
+            <div>
+              <div style="font-size:11px; color:#cccccc; margin-bottom:4px; display:flex; justify-content:space-between; align-items:center;">
+                <span>1-Click Install (PowerShell):</span>
+                <span id="settings-bridge-status" style="font-size:10.5px; color:var(--muted);">Checking status...</span>
+              </div>
+              <div style="display:flex; gap:6px;">
+                <input type="text" class="setting-input" value="irm https://raw.githubusercontent.com/UTKARSHKUMAR712/Sidecode/main/install-bridge.ps1 | iex" readonly style="font-family:var(--mono); font-size:11px; flex:1;" id="input-settings-install-bridge" />
+                <button id="btn-settings-copy-install" class="btn-secondary" style="padding:4px 10px; font-size:11px; white-space:nowrap;">📋 Copy</button>
+              </div>
+            </div>
+            <div>
+              <div style="font-size:11px; color:#cccccc; margin-bottom:4px;">
+                <span>1-Click Uninstall (PowerShell — completely removes bridge &amp; registry entries):</span>
+              </div>
+              <div style="display:flex; gap:6px;">
+                <input type="text" class="setting-input" value="irm https://raw.githubusercontent.com/UTKARSHKUMAR712/Sidecode/main/uninstall-bridge.ps1 | iex" readonly style="font-family:var(--mono); font-size:11px; flex:1;" id="input-settings-uninstall-bridge" />
+                <button id="btn-settings-copy-uninstall" class="btn-secondary" style="padding:4px 10px; font-size:11px; white-space:nowrap;">📋 Copy</button>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- Debug Zone -->

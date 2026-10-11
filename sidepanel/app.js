@@ -206,7 +206,10 @@ function codeExpectsInput(code, lang) {
       const folderName = getWorkspaceName() || 'workspace';
       const bridgeStatus = await ensureBridgeRunning(folderName);
       if (!bridgeStatus.ok) {
-        writeLineToTerminal('warn', '⚠ Local PC Bridge not running on port 3888. (See README.md for 1-click setup)');
+        writeLineToTerminal('warn', '⚠ Local PC Bridge is not running on your computer.');
+        writeLineToTerminal('system', 'To install & start in 1 click, run in PowerShell:');
+        writeLineToTerminal('log', '\x1b[36mirm https://raw.githubusercontent.com/UTKARSHKUMAR712/Sidecode/main/install-bridge.ps1 | iex\x1b[0m');
+        writeLineToTerminal('info', 'Tip: You can switch back to ☁ Cloud Terminal anytime for instant execution.');
         return;
       }
       if (bridgeStatus.resolvedPath) {
@@ -822,8 +825,19 @@ function wireEventListeners() {
 
   // ── Settings Modal controls ──
   const modal = $('settings-modal');
-  $('btn-settings')?.addEventListener('click', () => {
+  $('btn-settings')?.addEventListener('click', async () => {
     if (modal) modal.hidden = false;
+    const statusEl = $('settings-bridge-status');
+    if (statusEl) {
+      statusEl.textContent = 'Checking...';
+      const { checkBridgeStatus } = await import('./modules/bridgeClient.js');
+      const bStatus = await checkBridgeStatus();
+      if (bStatus.ok) {
+        statusEl.innerHTML = '<span style="color:#3fb950; font-weight:600;">● Active</span>';
+      } else {
+        statusEl.innerHTML = '<span style="color:var(--muted);">○ Not Running</span>';
+      }
+    }
   });
   $('btn-close-settings')?.addEventListener('click', () => {
     if (modal) modal.hidden = true;
@@ -915,7 +929,12 @@ function wireEventListeners() {
         }
         clearTerminal();
       } else {
-        clearTerminal('⚠ Local PC Bridge not running on port 3888. (See README.md for 1-click setup)');
+        clearTerminal();
+        writeLineToTerminal('warn', '⚠ Local PC Bridge is not running on your computer.');
+        writeLineToTerminal('system', 'To install & start in 1 click, run in PowerShell:');
+        writeLineToTerminal('log', '\x1b[36mirm https://raw.githubusercontent.com/UTKARSHKUMAR712/Sidecode/main/install-bridge.ps1 | iex\x1b[0m');
+        writeLineToTerminal('info', 'Or switch to ☁ Cloud Terminal in the dropdown for instant free cloud execution.');
+        writePrompt();
       }
     } else {
       setTerminalMode('browser');
@@ -924,6 +943,58 @@ function wireEventListeners() {
       clearTerminal();
     }
   });
+
+  // Local Bridge copy command helpers
+  const INSTALL_CMD = 'irm https://raw.githubusercontent.com/UTKARSHKUMAR712/Sidecode/main/install-bridge.ps1 | iex';
+  const UNINSTALL_CMD = 'irm https://raw.githubusercontent.com/UTKARSHKUMAR712/Sidecode/main/uninstall-bridge.ps1 | iex';
+
+  function copyToClipboard(text, btnEl) {
+    const doFeedback = () => {
+      if (btnEl) {
+        const orig = btnEl.textContent;
+        btnEl.textContent = '✔ Copied!';
+        setTimeout(() => { btnEl.textContent = orig; }, 2000);
+      }
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(doFeedback).catch(() => {
+        fallbackCopy(text);
+        doFeedback();
+      });
+    } else {
+      fallbackCopy(text);
+      doFeedback();
+    }
+  }
+
+  function fallbackCopy(text) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+  }
+
+  $('btn-copy-install-bridge')?.addEventListener('click', (e) => {
+    copyToClipboard(INSTALL_CMD, e.currentTarget);
+  });
+  $('btn-copy-uninstall-bridge')?.addEventListener('click', (e) => {
+    copyToClipboard(UNINSTALL_CMD, e.currentTarget);
+  });
+  $('btn-settings-copy-install')?.addEventListener('click', (e) => {
+    copyToClipboard(INSTALL_CMD, e.currentTarget);
+  });
+  $('btn-settings-copy-uninstall')?.addEventListener('click', (e) => {
+    copyToClipboard(UNINSTALL_CMD, e.currentTarget);
+  });
+
+  const dismissIntro = () => {
+    $('first-time-bridge-banner')?.classList.add('hidden');
+    storage.saveBridgeIntroSeen(true);
+  };
+  $('btn-dismiss-first-time-bridge')?.addEventListener('click', dismissIntro);
+  $('btn-got-it-first-time-bridge')?.addEventListener('click', dismissIntro);
 
   // Wire VS Code File Menu
   wireFileMenu();
@@ -1187,6 +1258,11 @@ async function init() {
     if (!hasWorkspace) {
       createTab();
     }
+  }
+
+  // Show first-time bridge intro banner if never seen
+  if (!storage.hasSeenBridgeIntro()) {
+    $('first-time-bridge-banner')?.classList.remove('hidden');
   }
 
   updateToolbarActiveStates();
