@@ -264,7 +264,12 @@ async function executeViaGodbolt(code, language, stdin = '', libraries = [], tab
     // Check exit code
     if (data.code !== undefined && data.code !== 0 && data.code !== null) {
       hasError = true;
-      appendLine('warn', `Process exited with code ${data.code}`);
+      if (data.code === 143 || data.code === 137) {
+        appendLine('warn', `Process timed out / killed (Exit code ${data.code})`);
+        appendLine('info', `Tip: This usually indicates an infinite loop, or a loop reading input (scanf / cin / input) without checking for EOF when input runs out.`);
+      } else {
+        appendLine('warn', `Process exited with code ${data.code}`);
+      }
     }
 
     // If completely silent with no output
