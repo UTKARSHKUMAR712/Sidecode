@@ -8,7 +8,7 @@
 - **License**: MIT
 - **Current Version**: 2.0.0
 - **Platform**: Chrome Extension Manifest V3 (Chrome, Brave, Microsoft Edge)
-- **Tutorial Walkthrough Video**: [docs/videos/sidecode-tutorial.mp4](docs/videos/sidecode-tutorial.mp4) (1080p HD walkthrough)
+- **Tutorial Walkthrough Video**: [LinkedIn Video Walkthrough](https://www.linkedin.com/posts/utkarsh-kumar-8344b1337_sidecode-compiler-programming-ugcPost-7515121508214689793-i1se/) | [Local File](docs/videos/sidecode-tutorial.mp4)
 
 ## Overview & Killer Use Case
 Sidecode eliminates context switching for developers, competitive programmers, and students. By rendering a complete VS Code-style development environment directly in the browser's side panel:

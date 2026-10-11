@@ -25,14 +25,14 @@ Write, edit real PC files, compile multi-file projects, run an interactive termi
 Watch **Sidecode** running in real time — code along with YouTube tutorials, edit files with Monaco, and execute programs via the local native bridge:
 
 <div align="center">
-  <a href="https://github.com/UTKARSHKUMAR712/Sidecode/blob/main/docs/videos/sidecode-tutorial.mp4" title="Click to watch full 5-minute HD tutorial video on GitHub">
+  <a href="https://www.linkedin.com/posts/utkarsh-kumar-8344b1337_sidecode-compiler-programming-ugcPost-7515121508214689793-i1se/" target="_blank" rel="noopener" title="Click to watch full HD tutorial video on LinkedIn">
     <img src="docs/videos/sidecode-demo.gif" alt="Sidecode Live Walkthrough Animation" width="880" />
   </a>
   <p>
-    <strong>▶️ <a href="https://github.com/UTKARSHKUMAR712/Sidecode/blob/main/docs/videos/sidecode-tutorial.mp4">Click to Watch the Full 5-Minute HD Walkthrough (with Audio) in GitHub's Video Player</a></strong>
+    <strong>▶️ <a href="https://www.linkedin.com/posts/utkarsh-kumar-8344b1337_sidecode-compiler-programming-ugcPost-7515121508214689793-i1se/" target="_blank" rel="noopener">Watch Full Video Walkthrough on LinkedIn (Complete Tutorial with Audio)</a></strong>
     <br/>
-    <strong>🌐 <a href="https://utkarshkumar712.github.io/Sidecode/">Open Web Player (GitHub Pages)</a></strong> &nbsp;•&nbsp;
-    <strong>⬇️ <a href="https://github.com/UTKARSHKUMAR712/Sidecode/raw/main/docs/videos/sidecode-tutorial.mp4">Direct Download MP4 (13.5 MB)</a></strong>
+    <strong>🎥 <a href="https://dms.licdn.com/playlist/vid/v2/D4D05AQEEEEmfYBqbuA/mp4-720p-30fp-crf28/B4DaEsTMawHgB4-/0/1791744613189?e=1792353600&v=beta&t=mo3wh9ALDHDLBrKEwHQFWptnZzl_6MsJag4pt3e65t8" target="_blank" rel="noopener">Direct HD Video Stream</a></strong> &nbsp;•&nbsp;
+    <strong>⬇️ <a href="docs/videos/sidecode-tutorial.mp4" download>Download Video MP4 (docs/videos/sidecode-tutorial.mp4)</a></strong>
   </p>
 </div>
 
@@ -302,6 +302,7 @@ To ensure search engines (Google, Bing, DuckDuckGo) and AI crawlers (ChatGPT, Pe
 **Sidecode** is created and actively maintained by **[utkarshkumar712](https://github.com/UTKARSHKUMAR712)**.
 
 - **GitHub Profile:** [@UTKARSHKUMAR712](https://github.com/UTKARSHKUMAR712)
+- **LinkedIn Profile:** [Utkarsh Kumar](https://www.linkedin.com/posts/utkarsh-kumar-8344b1337_sidecode-compiler-programming-ugcPost-7515121508214689793-i1se/)
 - **Repository:** [https://github.com/UTKARSHKUMAR712/Sidecode](https://github.com/UTKARSHKUMAR712/Sidecode)
 - **Issue Tracker:** [Report a Bug or Request a Feature](https://github.com/UTKARSHKUMAR712/Sidecode/issues)
 
