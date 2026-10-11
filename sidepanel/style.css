@@ -259,6 +259,7 @@ html, body {
   transition: background 0.1s, color 0.1s; flex-shrink: 0;
 }
 #bar-actions button:hover { background: var(--surface2); color: var(--text); }
+#bar-actions button.active { background: rgba(255, 255, 255, 0.08); color: #ffffff; }
 #btn-close-panel:hover    { color: var(--danger) !important; }
 
 /* Run button */
@@ -1671,3 +1672,56 @@ html, body {
   color: var(--accent);
 }
 
+/* ═══════════════════════════════════════════
+   KEYBOARD SHORTCUTS REFERENCE & CONSOLE STYLES
+   ═══════════════════════════════════════════ */
+#btn-console-shortcuts {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 0 4px;
+  font-size: 13px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r);
+  transition: color 0.1s, background 0.1s;
+}
+#btn-console-shortcuts:hover {
+  color: var(--text);
+  background: var(--surface2);
+}
+
+.shortcuts-section {
+  margin-bottom: 16px;
+}
+.shortcuts-group-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--accent);
+  margin-bottom: 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+}
+.shortcut-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 0;
+  color: var(--text);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+.shortcut-row kbd {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 2px 7px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: #ffffff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}

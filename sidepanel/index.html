@@ -29,6 +29,15 @@
             <span class="vsc-menu-key">Ctrl+K Ctrl+O</span>
           </div>
           <div class="vsc-menu-separator"></div>
+          <div class="vsc-menu-entry" id="menu-toggle-explorer">
+            <span class="vsc-menu-label">Toggle Explorer</span>
+            <span class="vsc-menu-key">Ctrl+B</span>
+          </div>
+          <div class="vsc-menu-entry" id="menu-toggle-console">
+            <span class="vsc-menu-label">Toggle Terminal / Console</span>
+            <span class="vsc-menu-key">Ctrl+`</span>
+          </div>
+          <div class="vsc-menu-separator"></div>
           <div class="vsc-menu-entry" id="menu-save">
             <span class="vsc-menu-label">Save</span>
             <span class="vsc-menu-key">Ctrl+S</span>
@@ -51,6 +60,10 @@
             <span class="vsc-menu-label">Close Folder</span>
           </div>
           <div class="vsc-menu-separator"></div>
+          <div class="vsc-menu-entry" id="menu-shortcuts">
+            <span class="vsc-menu-label">Keyboard Shortcuts</span>
+            <span class="vsc-menu-key">Ctrl+K Ctrl+S</span>
+          </div>
           <div class="vsc-menu-entry" id="menu-preferences">
             <span class="vsc-menu-label">Preferences: Settings</span>
             <span class="vsc-menu-key">Ctrl+,</span>
@@ -63,6 +76,20 @@
     <div id="tabs" role="tablist"></div>
 
     <div id="bar-actions">
+      <!-- Toggle Explorer button -->
+      <button id="btn-toggle-explorer" title="Toggle Explorer (Ctrl+B)" aria-label="Explorer">
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor">
+          <path d="M1 3.5A1.5 1.5 0 0 1 2.5 2h3.086a1.5 1.5 0 0 1 1.06.44L8.087 3.88A.5.5 0 0 0 8.44 4H13.5A1.5 1.5 0 0 1 15 5.5v7a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 1 12.5v-9zm1.5-.5a.5.5 0 0 0-.5.5v9a.5.5 0 0 0 .5.5h11a.5.5 0 0 0 .5-.5V5.5a.5.5 0 0 0-.5-.5H8.44a1.5 1.5 0 0 1-1.06-.44L5.94 3.12A.5.5 0 0 0 5.586 3H2.5z"/>
+        </svg>
+      </button>
+
+      <!-- Toggle Console/Terminal button -->
+      <button id="btn-toggle-console" title="Toggle Terminal / Console (Ctrl+`)" aria-label="Terminal">
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor">
+          <path fill-rule="evenodd" d="M0 2.75C0 1.784.784 1 1.75 1h12.5c.966 0 1.75.784 1.75 1.75v10.5A1.75 1.75 0 0 1 14.25 15H1.75A1.75 1.75 0 0 1 0 13.25V2.75zm1.75-.25a.25.25 0 0 0-.25.25v10.5c0 .138.112.25.25.25h12.5a.25.25 0 0 0 .25-.25V2.75a.25.25 0 0 0-.25-.25H1.75zM3.22 5.47a.75.75 0 0 1 1.06 0l2.25 2.25a.75.75 0 0 1 0 1.06l-2.25 2.25a.75.75 0 0 1-1.06-1.06L4.94 8.25 3.22 6.53a.75.75 0 0 1 0-1.06zm4.53 4.28a.75.75 0 0 1 .75-.75h3.5a.75.75 0 0 1 0 1.5h-3.5a.75.75 0 0 1-.75-.75z"/>
+        </svg>
+      </button>
+
       <!-- Run button — shown for runnable languages -->
       <button id="btn-run" title="Run code (Ctrl+Enter)" aria-label="Run" hidden>&#9654;</button>
 
@@ -121,6 +148,7 @@
           </select>
           <button id="btn-console-run"   title="Run (Ctrl+Enter)">&#9654; Run</button>
           <button id="btn-console-clear" title="Clear terminal">&#8856; Clear</button>
+          <button id="btn-console-shortcuts" title="Keyboard Shortcuts (Ctrl+K Ctrl+S)">&#9000;</button>
           <button id="btn-console-close" title="Close console (Ctrl+&#x60;)">&#10005;</button>
         </div>
       </div>
@@ -312,6 +340,50 @@
           <button id="btn-open-debug" style="margin-top: 8px; padding: 6px 12px; background: var(--accent); color: white; border: none; border-radius: 4px; cursor: pointer;">Open Debug Zone</button>
         </div>
 
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Keyboard Shortcuts Modal ── -->
+  <div id="shortcuts-modal" class="modal-overlay" hidden>
+    <div class="modal-card">
+      <div class="modal-header">
+        <span class="modal-title">&#9000; Keyboard Shortcuts Reference</span>
+        <button id="btn-close-shortcuts" class="modal-close-btn" title="Close Shortcuts">&#10005;</button>
+      </div>
+      <div class="modal-body" style="font-size: 12.5px; line-height: 1.6; max-height: 70vh; overflow-y: auto;">
+        <div class="shortcuts-section">
+          <div class="shortcuts-group-title">Navigation &amp; Views</div>
+          <div class="shortcut-row"><span>Toggle Explorer Sidebar</span><kbd>Ctrl+B</kbd></div>
+          <div class="shortcut-row"><span>Toggle Terminal / Console</span><kbd>Ctrl+`</kbd></div>
+          <div class="shortcut-row"><span>Switch Tabs (1 to 9)</span><kbd>Ctrl+1...9</kbd></div>
+          <div class="shortcut-row"><span>Preferences: Settings</span><kbd>Ctrl+,</kbd></div>
+          <div class="shortcut-row"><span>Close Sidecode Panel</span><kbd>Ctrl+Shift+Z</kbd></div>
+        </div>
+
+        <div class="shortcuts-section">
+          <div class="shortcuts-group-title">File Operations</div>
+          <div class="shortcut-row"><span>New File / Tab</span><kbd>Ctrl+N</kbd> / <kbd>Ctrl+T</kbd></div>
+          <div class="shortcut-row"><span>Open File from Disk...</span><kbd>Ctrl+O</kbd></div>
+          <div class="shortcut-row"><span>Open Folder from Disk...</span><kbd>Ctrl+K Ctrl+O</kbd></div>
+          <div class="shortcut-row"><span>Save Active File</span><kbd>Ctrl+S</kbd></div>
+          <div class="shortcut-row"><span>Save As...</span><kbd>Ctrl+Shift+S</kbd></div>
+          <div class="shortcut-row"><span>Close Active Tab</span><kbd>Ctrl+W</kbd></div>
+        </div>
+
+        <div class="shortcuts-section">
+          <div class="shortcuts-group-title">Code &amp; Execution</div>
+          <div class="shortcut-row"><span>Run Code (Terminal / Cloud / Local)</span><kbd>Ctrl+Enter</kbd></div>
+          <div class="shortcut-row"><span>Format Document</span><kbd>Ctrl+Alt+F</kbd></div>
+          <div class="shortcut-row"><span>Static Code Analysis</span><kbd>Ctrl+Alt+A</kbd></div>
+        </div>
+
+        <div class="shortcuts-section">
+          <div class="shortcuts-group-title">Terminal Commands</div>
+          <div class="shortcut-row"><span>View All Terminal Commands</span><kbd>help</kbd></div>
+          <div class="shortcut-row"><span>Clear Terminal Screen</span><kbd>clear</kbd> / <kbd>Ctrl+L</kbd></div>
+          <div class="shortcut-row"><span>Show Shortcuts in Terminal</span><kbd>shortcuts</kbd></div>
+        </div>
       </div>
     </div>
   </div>

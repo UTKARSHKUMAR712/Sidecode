@@ -202,7 +202,7 @@ export function renderExplorerTree(dirtyPaths = []) {
   const titleBar = document.createElement('div');
   titleBar.className = 'vsc-explorer-topbar';
   titleBar.innerHTML = `
-    <span class="vsc-explorer-heading">Explorer</span>
+    <span class="vsc-explorer-heading">Explorer <span style="font-size:10px; font-weight:normal; opacity:0.6; margin-left:4px;">(Ctrl+B)</span></span>
     <button class="vsc-topbar-action" id="vsc-more-actions" title="More Actions...">${SVGS.moreOptions}</button>
   `;
   containerEl.appendChild(titleBar);
@@ -230,7 +230,7 @@ export function renderExplorerTree(dirtyPaths = []) {
     emptyDiv.innerHTML = `
       <p class="vsc-empty-title">NO FOLDER OPENED</p>
       <p class="vsc-empty-desc">You have not yet opened a folder.</p>
-      <button id="btn-open-folder-empty" class="btn-vsc-primary">Open Folder</button>
+      <button id="btn-open-folder-empty" class="btn-vsc-primary">Open Folder (Ctrl+K Ctrl+O)</button>
     `;
     emptyDiv.querySelector('#btn-open-folder-empty').addEventListener('click', async () => {
       try {
@@ -252,7 +252,7 @@ export function renderExplorerTree(dirtyPaths = []) {
       <span class="vsc-section-name" title="${wsName}">${wsName}</span>
     </div>
     <div class="vsc-section-actions">
-      <button class="vsc-action-btn" id="vsc-add-file" title="New File">${SVGS.newFile}</button>
+      <button class="vsc-action-btn" id="vsc-add-file" title="New File (Ctrl+N)">${SVGS.newFile}</button>
       <button class="vsc-action-btn" id="vsc-add-folder" title="New Folder">${SVGS.newFolder}</button>
       <button class="vsc-action-btn" id="vsc-refresh" title="Refresh Explorer">${SVGS.refresh}</button>
       <button class="vsc-action-btn" id="vsc-collapse-all" title="Collapse Folders in Explorer">${SVGS.collapseAll}</button>

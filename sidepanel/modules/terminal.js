@@ -778,8 +778,30 @@ async function executeCommandLine(raw) {
       writeLineToTerminal('info', '  run [file]            Run specified file or currently active tab');
       writeLineToTerminal('info', '  bridge                Check Local Native Bridge status (real PC terminal)');
       writeLineToTerminal('info', '  clear / cls           Clear terminal screen');
+      writeLineToTerminal('info', '  shortcuts             Show all IDE keyboard shortcuts (Ctrl+B, Ctrl+`, etc.)');
       writeLineToTerminal('info', '  echo <text>           Print text');
       writeLineToTerminal('system', 'Tip: Type JS expressions directly (e.g. 5*10 or [1,2,3].filter(x => x>1))');
+      return;
+    }
+
+    case 'shortcuts': {
+      writeLineToTerminal('system', '╔════════════════════════════════════════════════════════════════╗');
+      writeLineToTerminal('system', '║                Sidecode Keyboard Shortcuts                     ║');
+      writeLineToTerminal('system', '╚════════════════════════════════════════════════════════════════╝');
+      writeLineToTerminal('info', '  Ctrl+B          Toggle File Explorer');
+      writeLineToTerminal('info', '  Ctrl+`          Toggle Terminal / Console');
+      writeLineToTerminal('info', '  Ctrl+Enter      Run Code');
+      writeLineToTerminal('info', '  Ctrl+N / Ctrl+T New File / Tab');
+      writeLineToTerminal('info', '  Ctrl+O          Open File from Disk');
+      writeLineToTerminal('info', '  Ctrl+K Ctrl+O   Open Folder from Disk');
+      writeLineToTerminal('info', '  Ctrl+S          Save File');
+      writeLineToTerminal('info', '  Ctrl+Shift+S    Save As...');
+      writeLineToTerminal('info', '  Ctrl+W          Close Active Tab');
+      writeLineToTerminal('info', '  Ctrl+Alt+F      Format Document');
+      writeLineToTerminal('info', '  Ctrl+Alt+A      Static Code Analysis');
+      writeLineToTerminal('info', '  Ctrl+,          Preferences: Settings');
+      writeLineToTerminal('info', '  Ctrl+1...9      Switch Tabs (1 to 9)');
+      writeLineToTerminal('info', '  Ctrl+Shift+Z    Close Sidecode Panel');
       return;
     }
 

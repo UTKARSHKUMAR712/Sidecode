@@ -16,7 +16,8 @@ import {
   toggleConsole,
   closeConsole,
   clearConsole,
-  getStdin
+  getStdin,
+  isConsoleOpen
 } from './modules/console.js';
 import { initRunner, executeCode } from './modules/runner.js';
 import { executeViaCloud, isCloudSupported } from './modules/cloudRunner.js';
@@ -307,19 +308,65 @@ function updateRunControls(language) {
   if (runBtn) runBtn.hidden = !canRun;
 }
 
+// ─── Toolbar button states & Shortcuts Modal ──────────────────────────────
+function updateToolbarActiveStates() {
+  const btnExp = $('btn-toggle-explorer');
+  if (btnExp) {
+    btnExp.classList.toggle('active', isExplorerVisible());
+  }
+  const btnCon = $('btn-toggle-console');
+  if (btnCon) {
+    btnCon.classList.toggle('active', isConsoleOpen());
+  }
+}
+
+function openShortcutsModal() {
+  const modal = $('shortcuts-modal');
+  if (modal) modal.hidden = false;
+}
+
+function closeShortcutsModal() {
+  const modal = $('shortcuts-modal');
+  if (modal) modal.hidden = true;
+}
+
+function toggleShortcutsModal() {
+  const modal = $('shortcuts-modal');
+  if (modal) modal.hidden = !modal.hidden;
+}
+
 // ─── Keyboard shortcuts ──────────────────────────────────────────────────────
 function setupKeyboard() {
   window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      closeShortcutsModal();
+    }
+
+    // F1 — Open Shortcuts Modal
+    if (e.key === 'F1') {
+      e.preventDefault();
+      toggleShortcutsModal();
+      return;
+    }
+
     const mod = e.ctrlKey || e.metaKey;
 
     // Ctrl+` or Ctrl+~ — toggle console
     if (mod && (e.key === '`' || e.key === '~')) {
       e.preventDefault();
       toggleConsole();
+      updateToolbarActiveStates();
       return;
     }
 
     if (!mod) return;
+
+    // Ctrl+Shift+K — Keyboard Shortcuts Reference
+    if (e.shiftKey && (e.key === 'k' || e.key === 'K')) {
+      e.preventDefault();
+      toggleShortcutsModal();
+      return;
+    }
 
     // Ctrl+Shift+Z — close panel
     if (e.shiftKey && (e.key === 'z' || e.key === 'Z')) {
@@ -391,6 +438,7 @@ function setupKeyboard() {
     if (e.key === 'b' || e.key === 'B') {
       e.preventDefault();
       toggleExplorer();
+      updateToolbarActiveStates();
       return;
     }
 
@@ -525,6 +573,18 @@ function wireFileMenu() {
     handleOpenFolder();
   });
 
+  $('menu-toggle-explorer')?.addEventListener('click', () => {
+    closeMenu();
+    toggleExplorer();
+    updateToolbarActiveStates();
+  });
+
+  $('menu-toggle-console')?.addEventListener('click', () => {
+    closeMenu();
+    toggleConsole();
+    updateToolbarActiveStates();
+  });
+
   $('menu-save')?.addEventListener('click', () => {
     closeMenu();
     saveActiveTabToDisk();
@@ -552,6 +612,11 @@ function wireFileMenu() {
   $('menu-close-folder')?.addEventListener('click', () => {
     closeMenu();
     closeWorkspaceFolder();
+  });
+
+  $('menu-shortcuts')?.addEventListener('click', () => {
+    closeMenu();
+    openShortcutsModal();
   });
 
   $('menu-preferences')?.addEventListener('click', () => {
@@ -688,7 +753,14 @@ async function restoreWorkspaceFilesFromDisk() {
 function wireEventListeners() {
   // Workspace & Explorer buttons
   $('btn-open-folder')?.addEventListener('click', handleOpenFolder);
-  $('btn-toggle-explorer')?.addEventListener('click', () => toggleExplorer());
+  $('btn-toggle-explorer')?.addEventListener('click', () => {
+    toggleExplorer();
+    updateToolbarActiveStates();
+  });
+  $('btn-toggle-console')?.addEventListener('click', () => {
+    toggleConsole();
+    updateToolbarActiveStates();
+  });
   $('btn-reconnect-workspace')?.addEventListener('click', handleReconnectWorkspace);
   $('btn-enable-brave-flag')?.addEventListener('click', () => redirectToBraveFlag());
 
@@ -809,7 +881,17 @@ function wireEventListeners() {
   // Console buttons
   $('btn-console-run')?.addEventListener('click', () => handleRunCode());
   $('btn-console-clear')?.addEventListener('click', clearConsole);
-  $('btn-console-close')?.addEventListener('click', closeConsole);
+  $('btn-console-close')?.addEventListener('click', () => {
+    closeConsole();
+    updateToolbarActiveStates();
+  });
+  $('btn-console-shortcuts')?.addEventListener('click', () => openShortcutsModal());
+
+  // Shortcuts modal controls
+  $('btn-close-shortcuts')?.addEventListener('click', () => closeShortcutsModal());
+  $('shortcuts-modal')?.addEventListener('click', (e) => {
+    if (e.target === $('shortcuts-modal')) closeShortcutsModal();
+  });
 
   // Unified Execution Environment selector (#env-select)
   $('env-select')?.addEventListener('change', async (e) => {
@@ -920,6 +1002,7 @@ async function init() {
     onLayout: () => {
       layoutEditor();
       fitTerminal();
+      updateToolbarActiveStates();
     },
     onSaveHeight: (h) => storage.saveConsoleHeight(h)
   });
@@ -1105,6 +1188,8 @@ async function init() {
       createTab();
     }
   }
+
+  updateToolbarActiveStates();
 }
 
 // Start application
