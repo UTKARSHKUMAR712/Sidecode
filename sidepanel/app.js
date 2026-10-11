@@ -187,10 +187,7 @@ function codeExpectsInput(code, lang) {
       const folderName = getWorkspaceName() || 'workspace';
       const bridgeStatus = await ensureBridgeRunning(folderName);
       if (!bridgeStatus.ok) {
-        writeLineToTerminal('warn', '⚡ Local PC Bridge is not running on your computer.');
-        writeLineToTerminal('log', '  To start the bridge, run: \x1b[1;36mnode bridge.js\x1b[0m (or double-click \x1b[1;36mstart-bridge.cmd\x1b[0m)');
-        writeLineToTerminal('log', '  Or run \x1b[1;36minstall-bridge.cmd\x1b[0m once to enable 1-click auto-start in Chrome/Brave!');
-        writeLineToTerminal('log', '  Or switch back to "🌐 Browser Terminal" for instant cloud execution.');
+        writeLineToTerminal('warn', '⚡ Local PC Bridge is not running. (See README.md for 1-click setup)');
         return;
       }
       if (bridgeStatus.resolvedPath) {
@@ -791,13 +788,13 @@ function wireEventListeners() {
   // Terminal Mode selector (Browser Terminal vs Local PC Terminal)
   $('terminal-mode-select')?.addEventListener('change', async (e) => {
     const mode = e.target.value;
-    const { setTerminalMode, writeLineToTerminal, writePrompt, setLocalResolvedPath } = await import('./modules/terminal.js');
+    const { setTerminalMode, writeLineToTerminal, writePrompt, setLocalResolvedPath, clearTerminal } = await import('./modules/terminal.js');
     const { ensureBridgeRunning, startBridgeHeartbeat, stopBridgeHeartbeat } = await import('./modules/bridgeClient.js');
     setTerminalMode(mode);
     storage.saveTerminalMode(mode);
 
     if (mode === 'local') {
-      writeLineToTerminal('system', '⚡ Connecting to Local Native Bridge...');
+      clearTerminal();
       const wsName = getWorkspaceName();
       const res = await ensureBridgeRunning(wsName);
       if (res.ok) {
@@ -805,28 +802,17 @@ function wireEventListeners() {
         if (res.resolvedPath) {
           setLocalResolvedPath(res.resolvedPath);
         }
-        writeLineToTerminal('log', '\x1b[1;32m✔ Local PC Terminal Active\x1b[0m (MSYS2 GCC, Clang, Python, Node.js, Rust)');
-        if (res.resolvedPath) {
-          writeLineToTerminal('system', `  📁 Local Directory: \x1b[1;36m${res.resolvedPath}\x1b[0m`);
-        } else {
-          writeLineToTerminal('system', '  Direct interactive terminal connected to your PC.');
-        }
+        clearTerminal();
       } else {
-        writeLineToTerminal('warn', '⚡ Local PC Bridge is not running on your computer.');
-        writeLineToTerminal('log', '  \x1b[1;37mHow to start:\x1b[0m');
-        writeLineToTerminal('log', '  1. Double-click \x1b[1;36mstart-bridge.cmd\x1b[0m in your Sidecode folder');
-        writeLineToTerminal('system', '     (or run: node bridge.js in your terminal)');
-        writeLineToTerminal('log', '  2. Or run \x1b[1;36minstall-bridge.cmd\x1b[0m once for 1-click auto-start in Chrome/Brave!');
-        writeLineToTerminal('log', '  \x1b[90mTip: You can switch back to "🌐 Browser Terminal" anytime for instant cloud execution.\x1b[0m');
+        clearTerminal();
+        writeLineToTerminal('warn', '⚡ Local PC Bridge is not running. (See README.md for 1-click setup)');
+        writePrompt();
       }
     } else {
       stopBridgeHeartbeat();
       setLocalResolvedPath('');
-      writeLineToTerminal('log', '\x1b[1;36m🌐 Switched to Browser Terminal (Default)\x1b[0m');
+      clearTerminal();
     }
-
-    // Immediately display prompt with active location so user never has to type clear!
-    writePrompt();
   });
 
   // Wire VS Code File Menu

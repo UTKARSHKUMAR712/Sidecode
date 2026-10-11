@@ -69,7 +69,14 @@ Sidecode provides native syntax highlighting, auto-detection, code formatting, I
     ```powershell
     irm https://raw.githubusercontent.com/UTKARSHKUMAR712/Sidecode/main/uninstall-bridge.ps1 | iex
     ```
-  - **Or Double-Click:** Run `start-bridge.cmd`, `install-bridge.cmd`, or `uninstall-bridge.cmd` in the `Sidecode` folder.
+  - **Manual Start (Folder double-click or CLI):**
+    - Double-click `start-bridge.cmd` in your `Sidecode` folder (or run `node bridge.js` in your terminal).
+    - Or double-click `install-bridge.cmd` to register auto-start without opening PowerShell.
+    - Double-click `uninstall-bridge.cmd` to remove.
+  - **Clean Terminal Auto-Setup:**
+    - When switching to **`⚡ Local PC Terminal`**, the terminal immediately runs a clean clear command and connects to your local folder.
+    - If you see `⚡ Local PC Bridge is not running`, run the 1-click installer above or double-click `start-bridge.cmd`.
+    - You can switch back to **`🌐 Browser Terminal`** anytime in the dropdown for instant free cloud execution without any local tools.
   - **100% Background Auto-Start:** Once registered, Chrome / Brave will automatically spawn the bridge in the background whenever you select `⚡ Local PC Terminal`.
   - **Auto-Close Safeguards:** Terminates automatically whenever you close the extension side panel or exit your browser.
   - **Authentic Step-by-Step Interactive I/O:** Truly real-time bidirectional standard input (`scanf`, `cin`, `input()`). Loops pause live between iterations and accept inputs interactively just like native terminal.

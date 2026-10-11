@@ -1325,11 +1325,7 @@ async function handleRunFileByCommand(filename, forcedLanguage = null, candidate
     const folderName = executionBridge?.getWorkspaceName ? executionBridge.getWorkspaceName() : 'workspace';
     const bridgeStatus = await ensureBridgeRunning(folderName);
     if (!bridgeStatus.ok) {
-      writeLineToTerminal('warn', '⚡ Local PC Bridge is not running on your computer.');
-      writeLineToTerminal('log', '  To start the bridge, run in your Sidecode folder:');
-      writeLineToTerminal('system', '    node bridge.js   (or double-click start-bridge.cmd)');
-      writeLineToTerminal('log', '  Or run \x1b[1;36minstall-bridge.cmd\x1b[0m once for 100% auto-start in Chrome/Brave!');
-      writeLineToTerminal('log', '  Or switch the dropdown to "🌐 Browser Terminal" for instant cloud execution.');
+      writeLineToTerminal('warn', '⚡ Local PC Bridge is not running. (See README.md for 1-click setup)');
       return;
     }
     if (bridgeStatus.resolvedPath) {
