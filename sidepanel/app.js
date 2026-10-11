@@ -101,6 +101,7 @@ import {
   writePrompt,
   promptStdinFromTerminal
 } from './modules/terminal.js';
+import { sendBridgeShutdown } from './modules/bridgeClient.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -1216,12 +1217,8 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
 // Auto-close bridge background service when extension sidepanel is closed
 window.addEventListener('beforeunload', () => {
-  import('./modules/bridgeClient.js').then(({ sendBridgeShutdown }) => {
-    sendBridgeShutdown();
-  });
+  sendBridgeShutdown();
 });
 window.addEventListener('pagehide', () => {
-  import('./modules/bridgeClient.js').then(({ sendBridgeShutdown }) => {
-    sendBridgeShutdown();
-  });
+  sendBridgeShutdown();
 });
