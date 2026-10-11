@@ -127,6 +127,28 @@ export function initExplorer(container, onFileSelect) {
     showContextMenu(e, node);
   });
 
+  // Clicking on empty explorer background deselects folder selection (targets root)
+  containerEl.addEventListener('click', (e) => {
+    if (!e.target.closest('.vsc-tree-row')) {
+      selectedFolderHandle = null;
+      containerEl.querySelectorAll('.vsc-row-dir').forEach((n) => n.classList.remove('selected'));
+    }
+  });
+
+  // Double-clicking in empty space creates a new file (authentic VS Code behavior)
+  containerEl.addEventListener('dblclick', (e) => {
+    // If double-click is on a tree row, button, or header action, don't trigger
+    if (e.target.closest('.vsc-tree-row') || e.target.closest('button') || e.target.closest('.vsc-section-header')) {
+      return;
+    }
+    const tree = getWorkspaceTree();
+    if (tree) {
+      handleCreateFile(selectedFolderHandle || null);
+    } else {
+      import('./tabs.js').then(({ createTab }) => createTab());
+    }
+  });
+
   window.addEventListener('click', closeContextMenu);
   window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') closeContextMenu();

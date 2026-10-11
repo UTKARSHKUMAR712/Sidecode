@@ -488,7 +488,9 @@ html, body {
 .vsc-tree-container {
   display: flex;
   flex-direction: column;
-  padding-bottom: 8px;
+  padding-bottom: 30px;
+  flex: 1;
+  min-height: 120px;
 }
 
 .vsc-tree-children {
