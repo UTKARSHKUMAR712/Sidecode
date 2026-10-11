@@ -96,6 +96,20 @@ async function executeViaGodbolt(code, language, stdin = '', libraries = [], tab
   appendLine('system', `▶ Running via Cloud (${config.name})`);
 
   let codeToRun = code;
+  let companionFiles = [];
+
+  // Multi-file workspace support
+  try {
+    const { getActiveTab } = await import('./tabs.js');
+    const { prepareMultiFilePayload } = await import('./multifileCompiler.js');
+    const activeTab = getActiveTab();
+    const activeFilename = activeTab?.label || (language === 'cpp' ? 'main.cpp' : 'main');
+    const multi = await prepareMultiFilePayload(code, language, activeFilename);
+    codeToRun = multi.source;
+    companionFiles = multi.files || [];
+  } catch (err) {
+    console.warn('Could not prepare multi-file payload:', err);
+  }
 
   // In Java on Godbolt, source is compiled as example.java.
   // Replace top-level 'public class <Name>' with 'class <Name>' to avoid class/file mismatch.
@@ -134,6 +148,12 @@ async function executeViaGodbolt(code, language, stdin = '', libraries = [], tab
     lang: config.lang,
     allowStoreCodeDebug: true
   };
+
+  // Inject companion workspace files into Godbolt root-level files array
+  if (companionFiles.length > 0) {
+    execPayload.files = companionFiles;
+    asmPayload.files = companionFiles;
+  }
 
   const analyzer = await getAnalyzerForLanguage(language);
   if (analyzer) {

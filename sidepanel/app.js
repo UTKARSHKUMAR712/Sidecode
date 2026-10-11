@@ -54,8 +54,30 @@ import {
   getTabs,
   renderTabs,
   setDefaultLanguage,
-  getDefaultLanguage
+  getDefaultLanguage,
+  openFileInTab,
+  saveActiveTabToDisk,
+  getDirtyPaths
 } from './modules/tabs.js';
+import {
+  openWorkspaceFolder,
+  restoreSavedWorkspace,
+  reauthorizeWorkspace,
+  closeWorkspaceFolder,
+  onWorkspaceChange,
+  readFileFromDisk,
+  isWorkspaceOpen
+} from './modules/workspace.js';
+import {
+  initExplorer,
+  toggleExplorer,
+  renderExplorerTree,
+  isExplorerVisible
+} from './modules/explorer.js';
+import {
+  checkFsaSupport,
+  redirectToBraveFlag
+} from './modules/permissions.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -187,6 +209,20 @@ function setupKeyboard() {
       return;
     }
 
+    // Ctrl+S — save active tab directly to disk
+    if (e.key === 's' || e.key === 'S') {
+      e.preventDefault();
+      saveActiveTabToDisk();
+      return;
+    }
+
+    // Ctrl+B — toggle file explorer sidebar
+    if (e.key === 'b' || e.key === 'B') {
+      e.preventDefault();
+      toggleExplorer();
+      return;
+    }
+
     // Ctrl+T — new tab
     if (e.key === 't' || e.key === 'T') {
       e.preventDefault();
@@ -215,8 +251,97 @@ function setupKeyboard() {
   });
 }
 
+// ─── Workspace and Explorer handlers ─────────────────────────────────────────
+async function handleExplorerFileSelect(node) {
+  try {
+    const content = await readFileFromDisk(node.handle);
+    const tab = openFileInTab(node, content);
+    if (!getModel(tab.id)) {
+      createModel(tab, (tabId, val) => {
+        updateTabContent(tabId, val);
+      });
+    }
+    renderExplorerTree(getDirtyPaths());
+  } catch (err) {
+    alert(`Could not open file "${node.name}": ${err.message}`);
+  }
+}
+
+async function handleOpenFolder() {
+  const fsa = await checkFsaSupport();
+  if (fsa.isBlockedInBrave) {
+    $('brave-flag-banner')?.classList.remove('hidden');
+    redirectToBraveFlag();
+    return;
+  }
+
+  try {
+    await openWorkspaceFolder();
+    toggleExplorer(true);
+    renderExplorerTree(getDirtyPaths());
+  } catch (err) {
+    if (err.name !== 'AbortError') {
+      alert(`Failed to open folder: ${err.message}`);
+    }
+  }
+}
+
+async function handleReconnectWorkspace() {
+  try {
+    const ok = await reauthorizeWorkspace();
+    if (ok) {
+      $('workspace-reconnect-bar')?.classList.add('hidden');
+      toggleExplorer(true);
+      renderExplorerTree(getDirtyPaths());
+    }
+  } catch (err) {
+    alert(`Failed to reconnect workspace: ${err.message}`);
+  }
+}
+
 // ─── Wire all event listeners ────────────────────────────────────────────────
 function wireEventListeners() {
+  // Workspace & Explorer buttons
+  $('btn-open-folder')?.addEventListener('click', handleOpenFolder);
+  $('btn-toggle-explorer')?.addEventListener('click', () => toggleExplorer());
+  $('btn-reconnect-workspace')?.addEventListener('click', handleReconnectWorkspace);
+  $('btn-enable-brave-flag')?.addEventListener('click', () => redirectToBraveFlag());
+
+  // Drag-to-resize explorer sidebar
+  const splitter = $('explorer-splitter');
+  const sidebar = $('explorer-sidebar');
+  if (splitter && sidebar) {
+    let isDragging = false;
+    let startX = 0;
+    let startWidth = 0;
+
+    splitter.addEventListener('mousedown', (e) => {
+      isDragging = true;
+      startX = e.clientX;
+      startWidth = sidebar.getBoundingClientRect().width;
+      splitter.classList.add('dragging');
+      document.body.style.cursor = 'col-resize';
+      e.preventDefault();
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      const dx = e.clientX - startX;
+      const newWidth = Math.max(100, Math.min(320, startWidth + dx));
+      sidebar.style.width = `${newWidth}px`;
+      layoutEditor();
+    });
+
+    window.addEventListener('mouseup', () => {
+      if (isDragging) {
+        isDragging = false;
+        splitter.classList.remove('dragging');
+        document.body.style.cursor = '';
+        layoutEditor();
+      }
+    });
+  }
+
   // Navigation & Toolbar buttons
   $('btn-new-tab')?.addEventListener('click', () => createTab());
   $('btn-close-panel')?.addEventListener('click', () => window.close());
@@ -410,18 +535,36 @@ async function init() {
     onTabCreate: (tab) => {
       createModel(tab, (tabId, content) => {
         updateTabContent(tabId, content);
-        storage.saveTabContent(tabId, content);
+        if (!tab.filePath) {
+          storage.saveTabContent(tabId, content);
+        }
       });
-      storage.saveTabs(getTabs());
+      storage.saveTabs(getTabs().filter((t) => !t.filePath));
     },
     onTabClose: (tabId) => {
       deleteModel(tabId);
-      storage.saveTabs(getTabs());
+      storage.saveTabs(getTabs().filter((t) => !t.filePath));
     },
     onTabsChange: (allTabs) => {
-      storage.saveTabs(allTabs);
+      storage.saveTabs(allTabs.filter((t) => !t.filePath));
+      renderExplorerTree(getDirtyPaths());
     }
   }, savedDefaultLang);
+
+  // Initialize Explorer
+  const explorerContent = $('explorer-content');
+  if (explorerContent) {
+    initExplorer(explorerContent, handleExplorerFileSelect);
+  }
+
+  // Listen to workspace state changes
+  onWorkspaceChange(({ action }) => {
+    if (action === 'closed') {
+      toggleExplorer(false);
+    } else {
+      renderExplorerTree(getDirtyPaths());
+    }
+  });
 
   // Boot Monaco Editor
   await initMonaco(editorContainer, handleRunCode);
@@ -432,8 +575,29 @@ async function init() {
   for (const tab of getTabs()) {
     createModel(tab, (tabId, content) => {
       updateTabContent(tabId, content);
-      storage.saveTabContent(tabId, content);
+      if (!tab.filePath) {
+        storage.saveTabContent(tabId, content);
+      }
     });
+  }
+
+  // Check FSA support & restore saved workspace if available
+  const fsa = await checkFsaSupport();
+  if (fsa.isBlockedInBrave) {
+    $('brave-flag-banner')?.classList.remove('hidden');
+  }
+
+  const restored = await restoreSavedWorkspace();
+  if (restored.status === 'granted') {
+    toggleExplorer(true);
+    renderExplorerTree(getDirtyPaths());
+  } else if (restored.status === 'prompt' && restored.handle) {
+    const banner = $('workspace-reconnect-bar');
+    const nameEl = $('reconnect-folder-name');
+    if (banner && nameEl) {
+      nameEl.textContent = restored.handle.name;
+      banner.classList.remove('hidden');
+    }
   }
 
   // Activate initial tab or create first tab with default language if none exist

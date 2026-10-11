@@ -1,8 +1,12 @@
 /**
  * tabs.js — Tab manager for Sidecode
+ *
+ * Supports both Scratchpad mode (ephemeral untitled tabs) and
+ * Workspace mode (direct disk files with real paths, dirty tracking, and Ctrl+S saving).
  */
 
 import { uid, escapeHtml, LANG_BADGE, getDefaultContent, RUNNABLE_LANGUAGES } from './constants.js';
+import { saveFileToDisk } from './workspace.js';
 
 let tabs = [];
 let activeTabId = null;
@@ -14,6 +18,46 @@ let onTabClose = null;
 let onTabsChange = null;
 
 const $ = (id) => document.getElementById(id);
+
+export function detectLanguageByFilename(filename) {
+  const ext = filename.split('.').pop().toLowerCase();
+  const map = {
+    cpp: 'cpp',
+    cc: 'cpp',
+    cxx: 'cpp',
+    c: 'c',
+    h: 'cpp',
+    hpp: 'cpp',
+    rs: 'rust',
+    py: 'python',
+    js: 'javascript',
+    mjs: 'javascript',
+    cjs: 'javascript',
+    ts: 'typescript',
+    html: 'html',
+    htm: 'html',
+    css: 'css',
+    scss: 'scss',
+    less: 'less',
+    json: 'json',
+    md: 'markdown',
+    markdown: 'markdown',
+    go: 'go',
+    java: 'java',
+    sql: 'sql',
+    sh: 'shell',
+    bash: 'shell',
+    yaml: 'yaml',
+    yml: 'yaml',
+    xml: 'xml',
+    cs: 'csharp',
+    php: 'php',
+    rb: 'ruby',
+    swift: 'swift',
+    kt: 'kotlin'
+  };
+  return map[ext] || 'plaintext';
+}
 
 export function initTabs(savedTabs = [], savedActiveId = null, listeners = {}, initialDefaultLang = 'javascript') {
   tabs = savedTabs || [];
@@ -46,6 +90,14 @@ export function getActiveTab() {
   return tabs.find((t) => t.id === activeTabId) || null;
 }
 
+export function getTabByPath(filePath) {
+  return tabs.find((t) => t.filePath === filePath) || null;
+}
+
+export function getDirtyPaths() {
+  return tabs.filter((t) => t.isDirty && t.filePath).map((t) => t.filePath);
+}
+
 export function createTab(language = null) {
   const chosenLang = language || defaultLang;
   const id = uid();
@@ -53,7 +105,42 @@ export function createTab(language = null) {
     id,
     label: `Tab ${tabs.length + 1}`,
     language: chosenLang,
-    content: getDefaultContent(chosenLang)
+    content: getDefaultContent(chosenLang),
+    originalContent: getDefaultContent(chosenLang),
+    filePath: null,
+    fileHandle: null,
+    parentHandle: null,
+    isDirty: false
+  };
+
+  tabs.push(tab);
+
+  if (onTabCreate) onTabCreate(tab);
+  if (onTabsChange) onTabsChange(tabs);
+
+  activateTab(id);
+  return tab;
+}
+
+export function openFileInTab(node, content) {
+  const existing = getTabByPath(node.path);
+  if (existing) {
+    activateTab(existing.id);
+    return existing;
+  }
+
+  const id = uid();
+  const detectedLang = detectLanguageByFilename(node.name);
+  const tab = {
+    id,
+    label: node.name,
+    language: detectedLang,
+    content,
+    originalContent: content,
+    filePath: node.path,
+    fileHandle: node.handle,
+    parentHandle: node.parentHandle,
+    isDirty: false
   };
 
   tabs.push(tab);
@@ -77,18 +164,72 @@ export function activateTab(id) {
 
   syncRunButton();
 
+  // Notify explorer of selection
+  if (tab.filePath) {
+    import('./explorer.js').then(({ setSelectedFile }) => setSelectedFile(tab.filePath));
+  }
+
   if (onTabActivate) onTabActivate(tab);
 }
 
-export function closeTab(id) {
+export async function saveActiveTabToDisk() {
+  const tab = getActiveTab();
+  if (!tab) return false;
+
+  if (tab.fileHandle) {
+    try {
+      await saveFileToDisk(tab.fileHandle, tab.content);
+      tab.originalContent = tab.content;
+      tab.isDirty = false;
+      renderTabs();
+
+      // Update explorer tree dirty indicators
+      import('./explorer.js').then(({ renderExplorerTree }) => {
+        renderExplorerTree(getDirtyPaths());
+      });
+
+      import('./console.js').then(({ openConsole, appendLine }) => {
+        appendLine('system', `✔ Saved "${tab.label}" directly to disk.`);
+      });
+      return true;
+    } catch (err) {
+      alert(`Save failed for "${tab.label}": ${err.message}`);
+      return false;
+    }
+  } else {
+    // Scratchpad tab — content is persisted in extension storage
+    tab.isDirty = false;
+    renderTabs();
+    return true;
+  }
+}
+
+export async function closeTab(id) {
   const idx = tabs.findIndex((t) => t.id === id);
   if (idx === -1) return;
+
+  const tab = tabs[idx];
+
+  // Intercept dirty changes with prompt
+  if (tab.isDirty) {
+    const choice = confirm(`Do you want to save the changes you made to "${tab.label}"?\n\nClick OK to Save and Close, or Cancel to Discard Changes.`);
+    if (choice) {
+      if (tab.fileHandle) {
+        await saveFileToDisk(tab.fileHandle, tab.content);
+      }
+    }
+  }
 
   const closingActive = activeTabId === id;
   tabs.splice(idx, 1);
 
   if (onTabClose) onTabClose(id);
   if (onTabsChange) onTabsChange(tabs);
+
+  // Update explorer tree dirty indicator
+  import('./explorer.js').then(({ renderExplorerTree }) => {
+    renderExplorerTree(getDirtyPaths());
+  });
 
   if (closingActive) {
     const next = tabs[idx] || tabs[idx - 1] || null;
@@ -120,6 +261,15 @@ export function updateTabContent(id, content) {
   const tab = tabs.find((t) => t.id === id);
   if (tab) {
     tab.content = content;
+    const wasDirty = tab.isDirty;
+    tab.isDirty = tab.content !== tab.originalContent;
+
+    if (wasDirty !== tab.isDirty) {
+      renderTabs();
+      import('./explorer.js').then(({ renderExplorerTree }) => {
+        renderExplorerTree(getDirtyPaths());
+      });
+    }
   }
 }
 
@@ -133,12 +283,15 @@ export function renderTabs() {
     el.className = 'tab' + (tab.id === activeTabId ? ' active' : '');
     el.dataset.id = tab.id;
     el.setAttribute('role', 'tab');
-    el.title = tab.label;
+    el.title = tab.filePath || tab.label;
 
     const badge = LANG_BADGE[tab.language] || tab.language.toUpperCase().slice(0, 4);
+    const dirtyIcon = tab.isDirty ? '<span class="tab-dirty-dot">●</span>' : '';
+
     el.innerHTML = `
       <span class="tab-label">${escapeHtml(tab.label)}</span>
       <span class="tab-lang-badge">${badge}</span>
+      ${dirtyIcon}
       <button class="tab-close" title="Close (Ctrl+W)" aria-label="Close tab">&#10005;</button>
     `;
 

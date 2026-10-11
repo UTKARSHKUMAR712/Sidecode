@@ -13,6 +13,12 @@
     <div id="tabs" role="tablist"></div>
 
     <div id="bar-actions">
+      <!-- Toggle Explorer button -->
+      <button id="btn-toggle-explorer" title="Toggle Explorer (Ctrl+B)" aria-label="Toggle Explorer">&#128193;</button>
+
+      <!-- Open Folder button -->
+      <button id="btn-open-folder" title="Open PC Folder..." aria-label="Open Folder">&#128194;</button>
+
       <button id="btn-new-tab" title="New tab (Ctrl+T)" aria-label="New tab">+</button>
 
       <select id="lang-select" title="Select language" aria-label="Select language">
@@ -54,8 +60,26 @@
   <!-- ── Main split area ── -->
   <div id="main-area">
 
-    <!-- Editor -->
-    <div id="editor-container"></div>
+    <!-- Reconnect Banner (if permission needs re-authorization after browser restart) -->
+    <div id="workspace-reconnect-bar" class="workspace-banner hidden">
+      <span class="banner-text">🔑 Workspace "<span id="reconnect-folder-name"></span>" needs re-authorization.</span>
+      <button id="btn-reconnect-workspace" class="btn-banner-action">Reconnect</button>
+    </div>
+
+    <!-- Brave Flag Notice Banner (if FSA is blocked in Brave) -->
+    <div id="brave-flag-banner" class="workspace-banner banner-warning hidden">
+      <span class="banner-text">⚠️ Local folder access is disabled by Brave's privacy settings.</span>
+      <button id="btn-enable-brave-flag" class="btn-banner-action">Enable in Brave</button>
+    </div>
+
+    <!-- Workspace split: Collapsible Explorer + Splitter + Editor -->
+    <div id="workspace-container">
+      <div id="explorer-sidebar" class="explorer-sidebar" hidden>
+        <div id="explorer-content"></div>
+      </div>
+      <div id="explorer-splitter" class="explorer-splitter" hidden></div>
+      <div id="editor-container"></div>
+    </div>
 
     <!-- Drag-to-resize handle (VS Code style) -->
     <div id="console-resize-handle" hidden>

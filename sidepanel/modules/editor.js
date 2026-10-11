@@ -126,6 +126,26 @@ export function initMonaco(containerEl, onRunCommand) {
         );
       }
 
+      // Add Ctrl+S command to save active tab to disk
+      editor.addCommand(
+        window.monaco.KeyMod.CtrlCmd | window.monaco.KeyCode.KeyS,
+        () => {
+          import('./tabs.js').then(({ saveActiveTabToDisk }) => {
+            saveActiveTabToDisk();
+          });
+        }
+      );
+
+      // Add Ctrl+B command to toggle file explorer
+      editor.addCommand(
+        window.monaco.KeyMod.CtrlCmd | window.monaco.KeyCode.KeyB,
+        () => {
+          import('./explorer.js').then(({ toggleExplorer }) => {
+            toggleExplorer();
+          });
+        }
+      );
+
       // Add Ctrl+Alt+F command to trigger Monaco's native format document
       editor.addCommand(
         window.monaco.KeyMod.CtrlCmd | window.monaco.KeyMod.Alt | window.monaco.KeyCode.KeyF,
@@ -147,6 +167,20 @@ export function initMonaco(containerEl, onRunCommand) {
           }
         }
       );
+
+      // Add right-click context menu item: Save to Disk
+      editor.addAction({
+        id: 'sidecode.save-to-disk',
+        label: 'Save File (Ctrl+S)',
+        keybindings: [window.monaco.KeyMod.CtrlCmd | window.monaco.KeyCode.KeyS],
+        contextMenuGroupId: '1_modification',
+        contextMenuOrder: 1.5,
+        run: () => {
+          import('./tabs.js').then(({ saveActiveTabToDisk }) => {
+            saveActiveTabToDisk();
+          });
+        }
+      });
 
       // Add right-click context menu item: Manage Libraries (Dependencies)...
       editor.addAction({
@@ -206,12 +240,17 @@ const LANG_EXTENSIONS = {
   xml: 'xml'
 };
 
-function getModelUri(tabId, language) {
-  const ext = LANG_EXTENSIONS[language] || 'txt';
-  return window.monaco.Uri.file(`/workspace/${tabId}.${ext}`);
+function getModelUri(tab, language) {
+  if (tab.filePath) {
+    return window.monaco.Uri.file('/' + tab.filePath);
+  }
+  const ext = LANG_EXTENSIONS[language || tab.language] || 'txt';
+  return window.monaco.Uri.file(`/workspace/${tab.id}.${ext}`);
 }
 
 const contentChangeCallbacks = new Map();
+const viewStates = new Map();
+let currentActiveTabId = null;
 
 export function createModel(tab, onContentChange) {
   if (!window.monaco) return null;
@@ -220,7 +259,7 @@ export function createModel(tab, onContentChange) {
     contentChangeCallbacks.set(tab.id, onContentChange);
   }
 
-  const uri = getModelUri(tab.id, tab.language || 'plaintext');
+  const uri = getModelUri(tab, tab.language || 'plaintext');
   const existing = window.monaco.editor.getModel(uri);
   if (existing) existing.dispose();
 
@@ -237,7 +276,7 @@ export function createModel(tab, onContentChange) {
     saveTimer = setTimeout(() => {
       const cb = contentChangeCallbacks.get(tab.id);
       if (cb) cb(tab.id, content);
-    }, 600);
+    }, 400);
   });
 
   models.set(tab.id, model);
@@ -250,6 +289,7 @@ export function getModel(tabId) {
 
 export function deleteModel(tabId) {
   contentChangeCallbacks.delete(tabId);
+  viewStates.delete(tabId);
   if (models.has(tabId)) {
     models.get(tabId).dispose();
     models.delete(tabId);
@@ -268,9 +308,20 @@ export function applyIdeSettingsToEditor(settings) {
 
 export function setEditorModel(tabId) {
   if (!editor) return;
+
+  // Save view state of outgoing tab
+  if (currentActiveTabId && editor.getModel()) {
+    viewStates.set(currentActiveTabId, editor.saveViewState());
+  }
+  currentActiveTabId = tabId;
+
   const model = models.get(tabId);
   if (model) {
     editor.setModel(model);
+    // Restore previous scroll and cursor position if saved
+    if (viewStates.has(tabId)) {
+      editor.restoreViewState(viewStates.get(tabId));
+    }
     editor.focus();
   } else {
     editor.setModel(null);

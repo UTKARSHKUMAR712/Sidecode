@@ -410,6 +410,16 @@ export async function runStandaloneAnalysis(tab) {
     payload.options.libraries = libsForPayload;
   }
 
+  // Inject companion workspace files for static analysis
+  try {
+    const { prepareMultiFilePayload } = await import('./multifileCompiler.js');
+    const multi = await prepareMultiFilePayload(code, tab.language, tab.label || 'main');
+    payload.source = multi.source;
+    if (multi.files && multi.files.length > 0) {
+      payload.files = multi.files;
+    }
+  } catch (_) {}
+
   try {
     const res = await fetch(`https://godbolt.org/api/compiler/${config.compiler}/compile`, {
       method: 'POST',
