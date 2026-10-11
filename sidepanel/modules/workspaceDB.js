@@ -19,7 +19,7 @@ function openDB() {
         db.createObjectStore(STORE_HANDLES, { keyPath: 'id' });
       }
     };
-    req.onsuccess = () => resolve(req.target.result);
+    req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
   });
 }

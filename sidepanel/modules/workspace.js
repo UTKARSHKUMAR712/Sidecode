@@ -155,8 +155,8 @@ export async function scanWorkspaceTree(dirHandle = currentRootHandle, depth = 0
 
   try {
     for await (const [name, entry] of dirHandle.entries()) {
-      // Ignore common clutter directories (.git, node_modules, .vscode)
-      if (entry.kind === 'directory' && (name === '.git' || name === 'node_modules' || name === '.vscode')) {
+      // Only ignore internal .git repository directory
+      if (entry.kind === 'directory' && name === '.git') {
         continue;
       }
 
