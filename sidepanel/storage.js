@@ -27,7 +27,15 @@ export const storage = {
   },
 
   saveTabs(tabs) {
-    _cache = { ..._cache, tabs };
+    const serializable = (tabs || []).map((t) => ({
+      id: t.id,
+      label: t.label,
+      language: t.language,
+      content: t.content,
+      filePath: t.filePath || null,
+      isDirty: !!t.isDirty
+    }));
+    _cache = { ..._cache, tabs: serializable };
     this._flush();
   },
 
@@ -97,6 +105,16 @@ export const storage = {
   /** Get persisted open workspace session */
   getWorkspaceSession() {
     return _cache?.workspaceSession || { openPaths: [], activePath: null };
+  },
+
+  /** Persist active workspace folder name */
+  saveWorkspaceName(name) {
+    _cache = { ..._cache, activeWorkspaceName: name };
+    this._flush();
+  },
+
+  getWorkspaceName() {
+    return _cache?.activeWorkspaceName || null;
   },
 
   /** Persist execution environment: 'cloud' (default), 'local', or 'sandbox' */

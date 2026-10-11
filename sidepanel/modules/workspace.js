@@ -76,6 +76,9 @@ export async function openWorkspaceFolder() {
 
   // Persist handle to IndexedDB
   await saveWorkspaceHandle(handle);
+  import('../storage.js').then(({ storage }) => {
+    storage.saveWorkspaceName(handle.name);
+  });
 
   // Scan tree
   currentTree = await scanWorkspaceTree(handle);
@@ -145,6 +148,7 @@ export async function closeWorkspaceFolder() {
   await clearWorkspaceHandle();
 
   import('../storage.js').then(({ storage }) => {
+    storage.saveWorkspaceName(null);
     storage.saveWorkspaceSession({ openPaths: [], activePath: null });
   });
 

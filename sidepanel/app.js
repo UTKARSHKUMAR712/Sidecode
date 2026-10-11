@@ -952,20 +952,18 @@ async function init() {
     onTabCreate: (tab) => {
       createModel(tab, (tabId, content) => {
         updateTabContent(tabId, content);
-        if (!tab.filePath) {
-          storage.saveTabContent(tabId, content);
-        }
+        storage.saveTabContent(tabId, content);
       });
-      storage.saveTabs(getTabs().filter((t) => !t.filePath));
+      storage.saveTabs(getTabs());
       syncWorkspaceSession();
     },
     onTabClose: (tabId) => {
       deleteModel(tabId);
-      storage.saveTabs(getTabs().filter((t) => !t.filePath));
+      storage.saveTabs(getTabs());
       syncWorkspaceSession();
     },
     onTabsChange: (allTabs) => {
-      storage.saveTabs(allTabs.filter((t) => !t.filePath));
+      storage.saveTabs(allTabs);
       renderExplorerTree(getDirtyPaths());
       syncWorkspaceSession();
     }
@@ -1049,9 +1047,7 @@ async function init() {
   for (const tab of getTabs()) {
     createModel(tab, (tabId, content) => {
       updateTabContent(tabId, content);
-      if (!tab.filePath) {
-        storage.saveTabContent(tabId, content);
-      }
+      storage.saveTabContent(tabId, content);
     });
   }
 
@@ -1067,6 +1063,8 @@ async function init() {
     renderExplorerTree(getDirtyPaths());
     await restoreWorkspaceFilesFromDisk();
   } else if (restored.status === 'prompt' && restored.handle) {
+    toggleExplorer(true);
+    renderExplorerTree(getDirtyPaths());
     const banner = $('workspace-reconnect-bar');
     const nameEl = $('reconnect-folder-name');
     if (banner && nameEl) {
@@ -1076,21 +1074,36 @@ async function init() {
     // Auto-reconnect on first click anywhere in the window
     const autoReconnect = async () => {
       window.removeEventListener('pointerdown', autoReconnect);
-      if (!isWorkspaceOpen()) {
+      if (!isWorkspaceOpen() || !getWorkspaceTree()) {
         await handleReconnectWorkspace();
       }
     };
     window.addEventListener('pointerdown', autoReconnect, { once: true });
   }
 
-  // Activate initial tab or create first tab with default language if none exist
-  if (getTabs().length === 0) {
-    createTab();
-  } else {
+  // If we have real files open, clean up any unmodified Untitled scratchpads
+  const realFileTabs = getTabs().filter((t) => !!t.filePath);
+  if (realFileTabs.length > 0) {
+    const emptyScratchpads = getTabs().filter(
+      (t) => !t.filePath && t.label.startsWith('Untitled-') && !t.isDirty && t.content === getDefaultContent(t.language)
+    );
+    for (const s of emptyScratchpads) {
+      closeTab(s.id);
+    }
+  }
+
+  // Activate initial tab or create first tab with default language ONLY if completely brand new
+  if (getTabs().length > 0) {
     const initialId = savedActiveId && getTabs().some((t) => t.id === savedActiveId)
       ? savedActiveId
       : getTabs()[0].id;
     activateTab(initialId);
+  } else {
+    // Only create an Untitled scratchpad if the user has NEVER opened a folder and has no workspace session
+    const hasWorkspace = !!restored.handle || !!storage.getWorkspaceSession()?.openPaths?.length || !!storage.getWorkspaceName();
+    if (!hasWorkspace) {
+      createTab();
+    }
   }
 }
 

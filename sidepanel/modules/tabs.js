@@ -140,6 +140,12 @@ export function createTab(language = null, customLabel = null) {
 export function openFileInTab(node, content) {
   const existing = getTabByPath(node.path);
   if (existing) {
+    if (node.handle) existing.fileHandle = node.handle;
+    if (node.parentHandle) existing.parentHandle = node.parentHandle;
+    if (!existing.isDirty && content !== undefined && content !== null) {
+      existing.content = content;
+      existing.originalContent = content;
+    }
     activateTab(existing.id);
     return existing;
   }

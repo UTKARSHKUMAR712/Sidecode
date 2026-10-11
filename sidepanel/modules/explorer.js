@@ -209,6 +209,22 @@ export function renderExplorerTree(dirtyPaths = []) {
 
   // If no workspace folder is open
   if (!tree) {
+    if (wsName) {
+      const reconnectDiv = document.createElement('div');
+      reconnectDiv.className = 'vsc-explorer-empty';
+      reconnectDiv.innerHTML = `
+        <p class="vsc-empty-title">WORKSPACE: ${wsName.toUpperCase()}</p>
+        <p class="vsc-empty-desc">Folder is saved. Click below to reconnect disk access.</p>
+        <button id="btn-reconnect-folder-empty" class="btn-vsc-primary">📁 Reconnect ${wsName}</button>
+      `;
+      reconnectDiv.querySelector('#btn-reconnect-folder-empty').addEventListener('click', async () => {
+        const { reauthorizeWorkspace } = await import('./workspace.js');
+        await reauthorizeWorkspace();
+      });
+      containerEl.appendChild(reconnectDiv);
+      return;
+    }
+
     const emptyDiv = document.createElement('div');
     emptyDiv.className = 'vsc-explorer-empty';
     emptyDiv.innerHTML = `
