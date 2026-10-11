@@ -125,19 +125,34 @@ export async function executeCode(rawCode, language = 'javascript', monacoModel 
       resolve({ hasError: true, timedOut: true });
     }, 10000);
 
-    // Post to sandbox once ready
-    function post() {
-      sandboxIframe.contentWindow.postMessage({
-        action: 'execute',
-        code: codeToRun,
-        runId
-      }, '*');
-    }
+    // Gather companion workspace files for require() resolution
+    import('./workspace.js').then(async ({ collectAllWorkspaceFiles, isWorkspaceOpen }) => {
+      let filesMap = {};
+      try {
+        if (isWorkspaceOpen()) {
+          const allFiles = await collectAllWorkspaceFiles();
+          for (const item of allFiles) {
+            filesMap[item.filename] = item.contents;
+          }
+        }
+      } catch (_) {}
 
-    if (isSandboxReady || sandboxIframe.contentWindow) {
-      post();
-    } else {
-      sandboxIframe.addEventListener('load', post, { once: true });
-    }
+      function post() {
+        sandboxIframe.contentWindow.postMessage({
+          action: 'execute',
+          code: codeToRun,
+          runId,
+          files: filesMap
+        }, '*');
+      }
+
+      if (isSandboxReady || sandboxIframe.contentWindow) {
+        post();
+      } else {
+        sandboxIframe.addEventListener('load', post, { once: true });
+      }
+    }).catch(() => {
+      sandboxIframe.contentWindow.postMessage({ action: 'execute', code: codeToRun, runId }, '*');
+    });
   });
 }

@@ -68,6 +68,35 @@ export async function prepareMultiFilePayload(mainCode, mainLanguage, mainFilena
     if (virtualIncludes.length > 0) {
       finalSource = mainCode + '\n' + virtualIncludes.join('\n');
     }
+  // For JavaScript / TypeScript projects:
+  // If companion files exist in workspace, inject virtual require module bundle for Cloud V8
+  const isJs = mainLanguage === 'javascript' || mainLanguage === 'js' || mainLanguage === 'typescript' || mainLanguage === 'ts';
+  if (isJs && filesPayload.length > 0) {
+    const filesObj = {};
+    for (const f of filesPayload) {
+      filesObj[f.filename] = f.contents;
+    }
+    const virtualBundle = `/* Sidecode Virtual CommonJS Bundle */
+if (typeof require === 'undefined') {
+  var _vFiles = ${JSON.stringify(filesObj)};
+  var _vCache = {};
+  var require = function(p) {
+    var clean = String(p).replace(/^(\\.\\/|\\/)/, '');
+    for (var k in _vFiles) {
+      var normK = k.replace(/\\\\/g, '/');
+      if (normK === clean || normK.endsWith('/' + clean) || normK === clean + '.js' || normK.endsWith('/' + clean + '.js')) {
+        if (_vCache[normK]) return _vCache[normK].exports;
+        var m = { exports: {} };
+        _vCache[normK] = m;
+        var fn = new Function('module', 'exports', 'require', _vFiles[k]);
+        fn(m, m.exports, require);
+        return m.exports;
+      }
+    }
+    throw new Error("Cannot find module '" + p + "' in workspace");
+  };
+}\n`;
+    finalSource = virtualBundle + finalSource;
   }
 
   return {

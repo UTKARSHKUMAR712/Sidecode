@@ -69,8 +69,9 @@ export const GODBOLT_MAP = {
 
 /** Clean ANSI color and cursor codes from compiler diagnostic text */
 function stripAnsi(str) {
-  if (!str) return '';
-  return str
+  if (str === null || str === undefined) return '';
+  const s = typeof str === 'string' ? str : (typeof str.text === 'string' ? str.text : String(str));
+  return s
     .replace(/\u001b\[[0-9;]*[a-zA-Z]/g, '')
     .replace(/\u001b\[K/g, '')
     .replace(/\r/g, '');
@@ -117,11 +118,11 @@ async function executeViaGodbolt(code, language, stdin = '', libraries = [], tab
     codeToRun = codeToRun.replace(/\bpublic\s+class\b/g, 'class');
   }
 
-  // In Godbolt V8 (d8 shell), console.log uses native print() which formats arrays as "1,2,3" without brackets.
-  // Prepend a single-line polyfill so console.log outputs [ 1, 2, 3 ] matching Node.js & Browser without altering line numbers.
+  // In Godbolt V8 (d8 shell), console.log uses native print() which formats arrays as "1,2,3" without brackets,
+  // and CommonJS 'module' and 'exports' globals are not natively defined. Prepend a single-line polyfill.
   let execSource = codeToRun;
   if (language === 'javascript' || language === 'js' || language === 'typescript' || language === 'ts') {
-    const v8Polyfill = `/* V8 */ try { if (typeof console !== 'undefined' && console.log) { const _o = console.log.bind(console), _f = (v, d = 0) => v === null ? 'null' : v === undefined ? 'undefined' : typeof v === 'string' ? (d === 0 ? v : JSON.stringify(v)) : Array.isArray(v) ? ('[ ' + v.map(x => _f(x, d + 1)).join(', ') + ' ]') : (typeof v === 'object' ? (JSON.stringify(v) || String(v)) : String(v)); console.log = (...a) => _o(...a.map(x => (Array.isArray(x) || (typeof x === 'object' && x !== null)) ? _f(x, 0) : x)); } } catch (_) {}; `;
+    const v8Polyfill = `/* V8 */ try { if (typeof module === 'undefined') { var module = { exports: {} }; var exports = module.exports; } if (typeof console !== 'undefined' && console.log) { const _o = console.log.bind(console), _f = (v, d = 0) => v === null ? 'null' : v === undefined ? 'undefined' : typeof v === 'string' ? (d === 0 ? v : JSON.stringify(v)) : Array.isArray(v) ? ('[ ' + v.map(x => _f(x, d + 1)).join(', ') + ' ]') : (typeof v === 'object' ? (JSON.stringify(v) || String(v)) : String(v)); console.log = (...a) => _o(...a.map(x => (Array.isArray(x) || (typeof x === 'object' && x !== null)) ? _f(x, 0) : x)); } } catch (_) {}; `;
     execSource = v8Polyfill + codeToRun;
   }
 

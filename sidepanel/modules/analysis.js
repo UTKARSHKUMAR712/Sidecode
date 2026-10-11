@@ -18,8 +18,9 @@ const toolCache = new Map();
  * Clean ANSI color codes and carriage returns
  */
 function stripAnsi(str) {
-  if (!str) return '';
-  return str
+  if (str === null || str === undefined) return '';
+  const s = typeof str === 'string' ? str : (typeof str.text === 'string' ? str.text : String(str));
+  return s
     .replace(/\u001b\[[0-9;]*[a-zA-Z]/g, '')
     .replace(/\u001b\[K/g, '')
     .replace(/\r/g, '');

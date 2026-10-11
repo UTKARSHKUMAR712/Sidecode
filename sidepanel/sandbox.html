@@ -154,16 +154,36 @@
         window.addEventListener('unhandledrejection', onUnhandledRejection);
 
         try {
+          const companionFiles = data.files || {};
+          const vCache = {};
+          function virtualRequire(relPath) {
+            const clean = String(relPath).replace(/^(\.\/|\/)/, '');
+            for (const k in companionFiles) {
+              const normK = k.replace(/\\/g, '/');
+              if (normK === clean || normK.endsWith('/' + clean) ||
+                  normK === clean + '.js' || normK.endsWith('/' + clean + '.js')) {
+                if (vCache[normK]) return vCache[normK].exports;
+                const subMod = { exports: {} };
+                vCache[normK] = subMod;
+                const subFn = new Function('module', 'exports', 'require', companionFiles[k]);
+                subFn(subMod, subMod.exports, virtualRequire);
+                return subMod.exports;
+              }
+            }
+            throw new Error("Cannot find module '" + relPath + "' in workspace");
+          }
+
+          const mod = { exports: {} };
           // Execute asynchronously allowing top-level await if supported
           const AsyncFunction = Object.getPrototypeOf(async function(){}).constructor;
           let fn;
           try {
-            fn = new AsyncFunction(code);
+            fn = new AsyncFunction('module', 'exports', 'require', code);
           } catch (syntaxErr) {
             // Direct eval fallback for expressions
-            fn = new AsyncFunction('return (' + code + ')');
+            fn = new AsyncFunction('module', 'exports', 'require', 'return (' + code + ')');
           }
-          const result = await fn();
+          const result = await fn(mod, mod.exports, virtualRequire);
           if (result !== undefined) {
             post('output', { level: 'result', text: serializeArg(result) });
           }
