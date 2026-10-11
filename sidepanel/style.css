@@ -968,7 +968,8 @@ html, body {
 #btn-console-run:hover { background: rgba(63,185,80,0.12) !important; }
 #btn-console-close:hover { color: var(--danger) !important; }
 
-/* Terminal Engine Mode selector (Browser vs Local Native PC) */
+/* Unified Execution Environment Selector (#env-select) */
+#env-select,
 #terminal-mode-select {
   height: 20px;
   font-size: 10.5px;
@@ -982,27 +983,12 @@ html, body {
   max-width: 145px;
   flex-shrink: 0;
 }
+#env-select:focus,
 #terminal-mode-select:focus { border-color: var(--accent); }
+#env-select option,
 #terminal-mode-select option { background: var(--surface); color: var(--text); }
+#env-select[hidden],
 #terminal-mode-select[hidden] { display: none !important; }
-
-/* Runner selector (VS Code-style terminal picker) */
-#runner-select {
-  height: 20px;
-  font-size: 10.5px;
-  background: var(--surface2);
-  border: 1px solid var(--border);
-  border-radius: var(--r);
-  color: var(--text);
-  padding: 0 3px;
-  cursor: pointer;
-  outline: none;
-  max-width: 85px;
-  flex-shrink: 0;
-}
-#runner-select:focus { border-color: var(--accent); }
-#runner-select option { background: var(--surface); }
-#runner-select[hidden] { display: none; }
 
 
 /* Console body (wraps output and input) */

@@ -83,20 +83,24 @@ function killProcess(proc) {
   }
 }
 
+let hasEverConnected = false;
 let lastHeartbeat = Date.now();
-const IDLE_TIMEOUT_MS = 30000; // 30s auto-exit watchdog if Sidecode extension is closed
+const IDLE_TIMEOUT_MS = 5 * 60 * 1000; // 5-minute failsafe idle watchdog AFTER first connection
 
 function touchHeartbeat() {
+  hasEverConnected = true;
   lastHeartbeat = Date.now();
 }
 
 const watchdog = setInterval(() => {
-  const elapsed = Date.now() - lastHeartbeat;
-  if (elapsed > IDLE_TIMEOUT_MS) {
-    if (activeChild) killProcess(activeChild);
-    process.exit(0);
+  if (hasEverConnected) {
+    const elapsed = Date.now() - lastHeartbeat;
+    if (elapsed > IDLE_TIMEOUT_MS) {
+      if (activeChild) killProcess(activeChild);
+      process.exit(0);
+    }
   }
-}, 5000);
+}, 10000);
 watchdog.unref();
 
 const folderPathCache = new Map();

@@ -56,10 +56,11 @@ Sidecode provides native syntax highlighting, auto-detection, code formatting, I
 - **Multi-Tab Lifecycle:** Switch effortlessly between open files with view state persistence (scroll position and cursor position are saved when switching tabs).
 - **Dirty State Tracking (`●`):** Unsaved changes display a dirty bullet indicator on tab headers and tree items, with unsaved change safeguards when closing.
 
-### 🚀 4. Hybrid Execution Engine (Browser & Local)
-- **Terminal Environment Dropdown:**
-  - **`🌐 Browser Terminal` (Default):** Zero setup. Executes instantly in the browser sandbox or free Cloud containers (Compiler Explorer). No local tools required.
-  - **`⚡ Local PC Terminal`:** Connects directly to your local computer's compilers (MSYS2 GCC, Clang, Python, Node.js, Rust, Go) with true real-time interactive terminal input.
+### 🚀 4. Hybrid Execution Engine (Cloud, Local PC, Browser Sandbox)
+- **Single Unified Environment Selector (In Console Header):**
+  - **`☁ Cloud Terminal` (Default):** Zero setup! Executes code instantly in cloud compiler environments (GCC 14.1, Clang, Python 3.12+, OpenJDK 21, Rust 1.80, Go 1.22). No local compilers needed.
+  - **`⚡ Local PC Terminal`:** Connects directly to your local computer's toolchains (MSYS2 GCC, Clang, Python, Node.js, Rust, Go) with real-time interactive terminal input (`scanf`/`cin` live loop).
+  - **`💻 Browser Sandbox`:** 100% offline in-browser sandbox with 0ms network latency for JavaScript and TypeScript.
 - **Local Native Bridge Setup (1-Click Install & Uninstall):**
   - **Install (One-line PowerShell command from any terminal):**
     ```powershell
@@ -71,15 +72,15 @@ Sidecode provides native syntax highlighting, auto-detection, code formatting, I
     ```
   - **Manual Start (Folder double-click or CLI):**
     - Double-click `start-bridge.cmd` in your `Sidecode` folder (or run `node bridge.js` in your terminal).
-    - Or double-click `install-bridge.cmd` to register auto-start without opening PowerShell.
+    - Or double-click `install-bridge.cmd` to register auto-start.
     - Double-click `uninstall-bridge.cmd` to remove.
   - **Clean Terminal Auto-Setup:**
     - When switching to **`⚡ Local PC Terminal`**, the terminal immediately runs a clean clear command and connects to your local folder.
-    - If you see `⚡ Local PC Bridge is not running`, run the 1-click installer above or double-click `start-bridge.cmd`.
-    - You can switch back to **`🌐 Browser Terminal`** anytime in the dropdown for instant free cloud execution without any local tools.
+    - If you see `⚠ Local PC Bridge not running on port 3888`, run the 1-click installer above or double-click `start-bridge.cmd`.
+    - You can switch back to **`☁ Cloud Terminal`** anytime in the dropdown for instant free cloud execution without any local tools.
   - **100% Background Auto-Start:** Once registered, Chrome / Brave will automatically spawn the bridge in the background whenever you select `⚡ Local PC Terminal`.
   - **Auto-Close Safeguards:** Terminates automatically whenever you close the extension side panel or exit your browser.
-  - **Authentic Step-by-Step Interactive I/O:** Truly real-time bidirectional standard input (`scanf`, `cin`, `input()`). Loops pause live between iterations and accept inputs interactively just like native terminal.
+  - **Authentic Step-by-Step Interactive I/O:** Truly real-time bidirectional standard input (`scanf`, `cin`, `input()`). Loops pause live between iterations and accept inputs interactively just like native VS Code terminal.
   - **Zero npm Dependencies:** Built purely using standard Node.js libraries (`node:http`, `node:child_process`).
 - **In-Browser Sandbox (100% Offline):**
   - **Languages:** JavaScript, TypeScript.

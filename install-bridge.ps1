@@ -45,6 +45,42 @@ try {
 $ManifestPath = Join-Path $InstallDir "com.sidecode.bridge.json"
 $HostCmdPath = (Join-Path $InstallDir "native-host.cmd").Replace("\", "\\")
 
+# Discover extension IDs from Brave, Chrome, and Edge profiles
+$detectedExtIds = [System.Collections.Generic.List[string]]::new()
+$detectedExtIds.Add("kmocfiinobnmaibnoblilejogcljaolc")
+
+$searchBases = @(
+    "$env:LOCALAPPDATA\BraveSoftware\Brave-Browser\User Data",
+    "$env:LOCALAPPDATA\Google\Chrome\User Data",
+    "$env:LOCALAPPDATA\Microsoft\Edge\User Data"
+)
+foreach ($base in $searchBases) {
+    if (Test-Path $base) {
+        $profiles = Get-ChildItem -Path $base -Directory -ErrorAction SilentlyContinue | Where-Object { $_.Name -match "^(Default|Profile \d+)$" }
+        foreach ($prof in $profiles) {
+            foreach ($pfName in @("Preferences", "Secure Preferences")) {
+                $pf = Join-Path $prof.FullName $pfName
+                if (Test-Path $pf) {
+                    try {
+                        $txt = [System.IO.File]::ReadAllText($pf)
+                        if ($txt -match "Sidecode") {
+                            $matches = [regex]::Matches($txt, '"([a-p]{32})":\{[^}]*"path":"[^"]*Sidecode')
+                            foreach ($m in $matches) {
+                                $id = $m.Groups[1].Value
+                                if (!$detectedExtIds.Contains($id)) {
+                                    $detectedExtIds.Add($id)
+                                }
+                            }
+                        }
+                    } catch {}
+                }
+            }
+        }
+    }
+}
+
+$originLines = ($detectedExtIds | ForEach-Object { "    `"chrome-extension://$_/`"" }) -join ",`n"
+
 $manifestContent = @"
 {
   "name": "com.sidecode.bridge",
@@ -52,8 +88,7 @@ $manifestContent = @"
   "path": "$HostCmdPath",
   "type": "stdio",
   "allowed_origins": [
-    "chrome-extension://kmocfiinobnmaibnoblilejogcljaolc/",
-    "chrome-extension://*/*"
+$originLines
   ]
 }
 "@
@@ -92,8 +127,15 @@ try {
 if (!$isRunning) {
     Write-Host "Starting local bridge background process..." -ForegroundColor Yellow
     $bridgeScript = Join-Path $InstallDir "bridge.js"
-    Start-Process -FilePath "node" -ArgumentList "`"$bridgeScript`"" -WorkingDirectory $InstallDir -WindowStyle Hidden
-    Start-Sleep -Milliseconds 800
+    $psi = New-Object System.Diagnostics.ProcessStartInfo
+    $psi.FileName = "node"
+    $psi.Arguments = "`"$bridgeScript`""
+    $psi.WorkingDirectory = $InstallDir
+    $psi.WindowStyle = [System.Diagnostics.ProcessWindowStyle]::Hidden
+    $psi.CreateNoWindow = $true
+    $psi.UseShellExecute = $true
+    [System.Diagnostics.Process]::Start($psi) | Out-Null
+    Start-Sleep -Milliseconds 1000
     try {
         $resp = Invoke-RestMethod -Uri "http://127.0.0.1:3888/status" -TimeoutSec 2 -ErrorAction SilentlyContinue
         if ($resp.ok) { $isRunning = $true }

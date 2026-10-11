@@ -113,19 +113,11 @@
           <span class="console-tab" id="tab-assembly">Assembly</span>
         </div>
         <div id="console-actions">
-          <!-- Terminal Engine mode selector (Browser/Cloud by default vs Local Native PC) -->
-          <select id="terminal-mode-select" class="terminal-mode-select" title="Switch Terminal Environment">
-            <option value="browser">&#x1F310; Browser Terminal</option>
+          <!-- Unified Execution Environment selector: Cloud (default), Local PC, Browser Sandbox -->
+          <select id="env-select" class="terminal-mode-select" title="Execution Environment">
+            <option value="cloud" selected>&#x2601; Cloud Terminal</option>
             <option value="local">&#x26A1; Local PC Terminal</option>
-          </select>
-          <!--
-            Runner selector — VS Code-style terminal picker.
-            Visible only when active language is JavaScript or TypeScript,
-            giving the user a choice between the in-browser sandbox and Piston cloud.
-          -->
-          <select id="runner-select" title="Select JavaScript runner" hidden>
-            <option value="sandbox">&#x1F4BB; Browser</option>
-            <option value="cloud">&#x2601; Cloud</option>
+            <option value="sandbox">&#x1F4BB; Browser Sandbox</option>
           </select>
           <button id="btn-console-run"   title="Run (Ctrl+Enter)">&#9654; Run</button>
           <button id="btn-console-clear" title="Clear terminal">&#8856; Clear</button>

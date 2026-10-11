@@ -1325,7 +1325,7 @@ async function handleRunFileByCommand(filename, forcedLanguage = null, candidate
     const folderName = executionBridge?.getWorkspaceName ? executionBridge.getWorkspaceName() : 'workspace';
     const bridgeStatus = await ensureBridgeRunning(folderName);
     if (!bridgeStatus.ok) {
-      writeLineToTerminal('warn', '⚡ Local PC Bridge is not running. (See README.md for 1-click setup)');
+      writeLineToTerminal('warn', '⚠ Local PC Bridge not running on port 3888. (See README.md for 1-click setup)');
       return;
     }
     if (bridgeStatus.resolvedPath) {

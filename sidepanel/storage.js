@@ -99,6 +99,16 @@ export const storage = {
     return _cache?.workspaceSession || { openPaths: [], activePath: null };
   },
 
+  /** Persist execution environment: 'cloud' (default), 'local', or 'sandbox' */
+  saveEnv(env) {
+    _cache = { ..._cache, activeEnv: env };
+    this._flush();
+  },
+
+  getEnv() {
+    return _cache?.activeEnv || 'cloud';
+  },
+
   /** Persist terminal mode: 'browser' (default) or 'local' */
   saveTerminalMode(mode) {
     _cache = { ..._cache, terminalMode: mode };

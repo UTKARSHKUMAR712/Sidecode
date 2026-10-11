@@ -18,8 +18,7 @@ echo   "description": "Sidecode Local Native Terminal Bridge Host",
 echo   "path": "%HOST_PATH%",
 echo   "type": "stdio",
 echo   "allowed_origins": [
-echo     "chrome-extension://kmocfiinobnmaibnoblilejogcljaolc/",
-echo     "chrome-extension://*/*"
+echo     "chrome-extension://kmocfiinobnmaibnoblilejogcljaolc/"
 echo   ]
 echo }
 ) > "%MANIFEST_PATH%"

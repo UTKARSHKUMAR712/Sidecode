@@ -104,26 +104,43 @@ import {
 
 const $ = (id) => document.getElementById(id);
 
-// ─── Settings state ─────────────────────────────────────────────────────────
-let jsRunnerPreference = 'sandbox'; // 'sandbox' | 'cloud'
+// ─── Settings & Execution Environment state ───────────────────────────────
+let activeEnv = 'cloud'; // 'cloud' (default) | 'local' | 'sandbox'
 let customPistonUrl = '';
 let currentIdeSettings = { libraries: [] };
 
-function setJsRunnerPreference(val) {
-  jsRunnerPreference = val;
-  const consoleSelect = $('runner-select');
+function setActiveEnv(val) {
+  activeEnv = val;
+  const envSelect = $('env-select');
+  if (envSelect && envSelect.value !== val) envSelect.value = val;
   const settingsSelect = $('setting-js-runner');
-  if (consoleSelect && consoleSelect.value !== val) consoleSelect.value = val;
-  if (settingsSelect && settingsSelect.value !== val) settingsSelect.value = val;
+  if (settingsSelect) settingsSelect.value = val === 'sandbox' ? 'sandbox' : 'cloud';
+}
+
+function getActiveEnv() {
+  return activeEnv;
+}
+
+function setJsRunnerPreference(val) {
+  setActiveEnv(val);
 }
 
 // ─── Decide which runner to use for a given language ────────────────────────
 function pickRunner(language) {
-  if (SANDBOX_LANGUAGES.has(language)) {
-    return jsRunnerPreference;
+  if (activeEnv === 'local') {
+    return 'local';
   }
+  if (activeEnv === 'sandbox') {
+    if (SANDBOX_LANGUAGES.has(language)) return 'sandbox';
+    if (isCloudSupported(language) || customPistonUrl) return 'cloud';
+    return null;
+  }
+  // Default is 'cloud'
   if (isCloudSupported(language) || customPistonUrl) {
     return 'cloud';
+  }
+  if (SANDBOX_LANGUAGES.has(language)) {
+    return 'sandbox';
   }
   return null;
 }
@@ -187,7 +204,7 @@ function codeExpectsInput(code, lang) {
       const folderName = getWorkspaceName() || 'workspace';
       const bridgeStatus = await ensureBridgeRunning(folderName);
       if (!bridgeStatus.ok) {
-        writeLineToTerminal('warn', '⚡ Local PC Bridge is not running. (See README.md for 1-click setup)');
+        writeLineToTerminal('warn', '⚠ Local PC Bridge not running on port 3888. (See README.md for 1-click setup)');
         return;
       }
       if (bridgeStatus.resolvedPath) {
@@ -263,16 +280,11 @@ function codeExpectsInput(code, lang) {
 }
 
 
-// ─── Show/hide Run button & runner selector based on active language ─────────
+// ─── Show/hide Run button based on active language ──────────────────────────
 function updateRunControls(language) {
   const runBtn = $('btn-run');
-  const runnerSelect = $('runner-select');
-
   const canRun = RUNNABLE_LANGUAGES.has(language) || (!!customPistonUrl && isCloudSupported(language));
-  const isJsOrTs = SANDBOX_LANGUAGES.has(language);
-
   if (runBtn) runBtn.hidden = !canRun;
-  if (runnerSelect) runnerSelect.hidden = !isJsOrTs;
 }
 
 // ─── Keyboard shortcuts ──────────────────────────────────────────────────────
@@ -715,12 +727,6 @@ function wireEventListeners() {
     });
   });
 
-  // ── Runner selector in console header (JS/TS only) ──
-  $('runner-select')?.addEventListener('change', (e) => {
-    const val = e.target.value;
-    setJsRunnerPreference(val);
-    storage.saveJsRunner(val);
-  });
 
   // ── Settings Modal controls ──
   const modal = $('settings-modal');
@@ -785,15 +791,19 @@ function wireEventListeners() {
   $('btn-console-clear')?.addEventListener('click', clearConsole);
   $('btn-console-close')?.addEventListener('click', closeConsole);
 
-  // Terminal Mode selector (Browser Terminal vs Local PC Terminal)
-  $('terminal-mode-select')?.addEventListener('change', async (e) => {
-    const mode = e.target.value;
+  // Unified Execution Environment selector (#env-select)
+  $('env-select')?.addEventListener('change', async (e) => {
+    const chosenEnv = e.target.value;
+    setActiveEnv(chosenEnv);
+    storage.saveEnv(chosenEnv);
+    storage.saveTerminalMode(chosenEnv === 'local' ? 'local' : 'browser');
+    storage.saveJsRunner(chosenEnv === 'sandbox' ? 'sandbox' : 'cloud');
+
     const { setTerminalMode, writeLineToTerminal, writePrompt, setLocalResolvedPath, clearTerminal } = await import('./modules/terminal.js');
     const { ensureBridgeRunning, startBridgeHeartbeat, stopBridgeHeartbeat } = await import('./modules/bridgeClient.js');
-    setTerminalMode(mode);
-    storage.saveTerminalMode(mode);
 
-    if (mode === 'local') {
+    if (chosenEnv === 'local') {
+      setTerminalMode('local');
       clearTerminal();
       const wsName = getWorkspaceName();
       const res = await ensureBridgeRunning(wsName);
@@ -805,10 +815,11 @@ function wireEventListeners() {
         clearTerminal();
       } else {
         clearTerminal();
-        writeLineToTerminal('warn', '⚡ Local PC Bridge is not running. (See README.md for 1-click setup)');
+        writeLineToTerminal('warn', '⚠ Local PC Bridge not running on port 3888. (See README.md for 1-click setup)');
         writePrompt();
       }
     } else {
+      setTerminalMode('browser');
       stopBridgeHeartbeat();
       setLocalResolvedPath('');
       clearTerminal();
@@ -833,21 +844,21 @@ async function init() {
   const savedActiveId = saved.activeTabId || null;
   const savedConsoleHeight = saved.consoleHeight || 200;
   const savedDefaultLang = saved.defaultLanguage || 'javascript';
-  const savedJsRunner = saved.jsRunner || 'sandbox';
   const savedAutoSave = saved.autoSave !== undefined ? saved.autoSave : false;
   customPistonUrl = saved.customPistonUrl || '';
-  const savedTerminalMode = saved.terminalMode || 'browser';
+  const savedEnv = saved.activeEnv || (saved.terminalMode === 'local' ? 'local' : (saved.jsRunner === 'sandbox' ? 'sandbox' : 'cloud'));
 
   // Apply persisted settings
-  setJsRunnerPreference(savedJsRunner);
+  setActiveEnv(savedEnv);
   setAutoSave(savedAutoSave);
   $('autosave-check')?.classList.toggle('active', savedAutoSave);
 
-  const terminalModeSelect = $('terminal-mode-select');
-  if (terminalModeSelect) terminalModeSelect.value = savedTerminalMode;
+  const envSelect = $('env-select');
+  if (envSelect) envSelect.value = savedEnv;
+
   import('./modules/terminal.js').then(async ({ setTerminalMode, setLocalResolvedPath }) => {
-    setTerminalMode(savedTerminalMode);
-    if (savedTerminalMode === 'local') {
+    setTerminalMode(savedEnv === 'local' ? 'local' : 'browser');
+    if (savedEnv === 'local') {
       const { checkBridgeStatus, startBridgeHeartbeat } = await import('./modules/bridgeClient.js');
       startBridgeHeartbeat();
       const wsName = getWorkspaceName();
