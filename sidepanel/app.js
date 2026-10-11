@@ -98,7 +98,8 @@ import {
   getRunCommandForTab,
   fitTerminal,
   setTerminalFontSize,
-  writePrompt
+  writePrompt,
+  promptStdinFromTerminal
 } from './modules/terminal.js';
 
 const $ = (id) => document.getElementById(id);
@@ -158,22 +159,38 @@ async function handleRunCode() {
     return;
   }
 
+function codeExpectsInput(code, lang) {
+  if (!code) return false;
+  if (lang === 'c' || lang === 'cpp') {
+    return /\b(scanf|cin\s*>>|getline|fgets|getchar|gets)\b/.test(code);
+  }
+  if (lang === 'python' || lang === 'py') {
+    return /\b(input\s*\(|sys\.stdin)\b/.test(code);
+  }
+  if (lang === 'java') {
+    return /\b(Scanner|System\.in|BufferedReader)\b/.test(code);
+  }
+  if (lang === 'rust') {
+    return /\b(stdin\(\)\.read_line|read_line)\b/.test(code);
+  }
+  return false;
+}
+
   const activePath = tab.filePath || tab.label || '';
   try {
     if (runner === 'sandbox') {
       await executeCode(code, tab.language, model, activePath);
     } else {
+      let stdinVal = '';
       const stdin = getStdin();
-      if (!stdin.valid) {
-        import('./modules/console.js').then(({ appendLine, appendRunBadge, setExecTime }) => {
-          appendLine('error', `✖ ${stdin.error}`);
-          appendRunBadge('Input Error', true);
-          setExecTime('—');
-        });
-        return;
+      if (stdin.valid && stdin.value.trim()) {
+        stdinVal = stdin.value;
+      } else if (codeExpectsInput(code, tab.language)) {
+        stdinVal = await promptStdinFromTerminal('? Enter input for program:');
       }
+
       const activeLibs = getSelectedLibrariesForLanguage(tab.language);
-      await executeViaCloud(code, tab.language, customPistonUrl, stdin.value, activeLibs, tab.id, activePath);
+      await executeViaCloud(code, tab.language, customPistonUrl, stdinVal, activeLibs, tab.id, activePath);
     }
   } finally {
     import('./modules/terminal.js').then(({ writePrompt }) => writePrompt());
@@ -780,9 +797,15 @@ async function init() {
       if (SANDBOX_LANGUAGES.has(lang)) {
         await executeCode(code, lang, null, filenameOrPath);
       } else {
+        let stdinVal = '';
         const stdin = getStdin();
+        if (stdin.valid && stdin.value.trim()) {
+          stdinVal = stdin.value;
+        } else if (codeExpectsInput(code, lang)) {
+          stdinVal = await promptStdinFromTerminal('? Enter input for program:');
+        }
         const activeLibs = getSelectedLibrariesForLanguage(lang);
-        await executeViaCloud(code, lang, customPistonUrl, stdin.valid ? stdin.value : '', activeLibs, null, filenameOrPath);
+        await executeViaCloud(code, lang, customPistonUrl, stdinVal, activeLibs, null, filenameOrPath);
       }
     },
     executeRawJs: async (code) => {

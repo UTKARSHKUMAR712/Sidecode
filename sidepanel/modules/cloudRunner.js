@@ -267,7 +267,7 @@ async function executeViaGodbolt(code, language, stdin = '', libraries = [], tab
       hasError = true;
       if (data.code === 143 || data.code === 137) {
         appendLine('warn', `Process timed out / killed (Exit code ${data.code})`);
-        appendLine('info', `Tip: This usually indicates an infinite loop, or a loop reading input (scanf / cin / input) without checking for EOF when input runs out.`);
+        appendLine('info', `Tip: For programs with loops reading input (like the Number Guessing Game), the loop ran out of entered inputs. Enter your guesses separated by spaces (e.g. 1 2 3 4 5 6 7 8 9 10) so the loop can test each guess until it succeeds!`);
       } else {
         appendLine('warn', `Process exited with code ${data.code}`);
       }

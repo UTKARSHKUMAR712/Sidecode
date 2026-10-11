@@ -195,11 +195,68 @@ function setLine(newLine) {
   term.write(currentInput);
 }
 
+let activeStdinResolver = null;
+
+/**
+ * Ask the user for stdin directly in the xterm terminal
+ */
+export async function promptStdinFromTerminal(promptText = '? Enter input for program:') {
+  if (!term) return '';
+  term.write(`\r\n\x1b[1;33m⌨  This program expects input (scanf / cin / input).\x1b[0m\r\n`);
+  term.write(`\x1b[1;36m${promptText} \x1b[0m`);
+  currentInput = '';
+  cursorPos = 0;
+
+  return new Promise((resolve) => {
+    activeStdinResolver = resolve;
+  });
+}
+
 /**
  * Main keystroke handler for interactive line editing
  */
 function handleTerminalInput(data) {
   if (!term) return;
+
+  // 1. If program is actively prompting for standard input (stdin) in terminal
+  if (activeStdinResolver) {
+    if (data === '\r') {
+      term.write('\r\n');
+      const val = currentInput;
+      currentInput = '';
+      cursorPos = 0;
+      const resolver = activeStdinResolver;
+      activeStdinResolver = null;
+      resolver(val);
+      return;
+    }
+    if (data === '\x03') {
+      term.write('^C\r\n');
+      currentInput = '';
+      cursorPos = 0;
+      const resolver = activeStdinResolver;
+      activeStdinResolver = null;
+      resolver('');
+      return;
+    }
+    if (data === '\x7f' || data === '\b') {
+      if (cursorPos > 0) {
+        currentInput = currentInput.slice(0, cursorPos - 1) + currentInput.slice(cursorPos);
+        cursorPos--;
+        term.write('\b');
+        term.write(currentInput.slice(cursorPos) + ' ');
+        term.write(`\x1b[${currentInput.length - cursorPos + 1}D`);
+      }
+      return;
+    }
+    if (data >= ' ' || data === '\t') {
+      currentInput += data;
+      cursorPos += data.length;
+      term.write(data);
+      return;
+    }
+    return;
+  }
 
   if (isBusy) {
     // If a process is running and user presses Ctrl+C, send abort

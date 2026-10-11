@@ -191,9 +191,18 @@
               ];
               for (let ci = 0; ci < cands.length; ci++) {
                 const c = cands[ci];
+                const lowerC = c.toLowerCase();
                 for (const k in companionFiles) {
                   const normK = k.replace(/\\/g, '/');
-                  if (normK === c || normK.endsWith('/' + c)) {
+                  const lowerK = normK.toLowerCase();
+                  if (
+                    lowerK === lowerC ||
+                    lowerK.endsWith('/' + lowerC) ||
+                    lowerK === lowerC + '.js' ||
+                    lowerK.endsWith('/' + lowerC + '.js') ||
+                    lowerK.split('/').pop() === lowerC ||
+                    lowerK.split('/').pop() === lowerC + '.js'
+                  ) {
                     if (vCache[normK]) return vCache[normK].exports;
                     const subMod = { exports: {} };
                     vCache[normK] = subMod;
