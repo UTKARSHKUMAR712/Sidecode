@@ -324,12 +324,29 @@ async function handleOpenFile() {
     const { openFileDialog } = await import('./modules/workspace.js');
     const result = await openFileDialog();
     if (!result) return;
+
+    const existingTab = getTabByPath(result.path);
+    if (existingTab) {
+      activateTab(existingTab.id);
+      let model = getModel(existingTab.id);
+      if (!model || model.isDisposed()) {
+        model = createModel(existingTab, (tabId, val) => {
+          updateTabContent(tabId, val);
+        });
+      }
+      setEditorModel(existingTab.id);
+      renderExplorerTree(getDirtyPaths());
+      return;
+    }
+
     const tab = openFileInTab(result, result.content);
-    if (!getModel(tab.id)) {
-      createModel(tab, (tabId, val) => {
+    let model = getModel(tab.id);
+    if (!model || model.isDisposed()) {
+      model = createModel(tab, (tabId, val) => {
         updateTabContent(tabId, val);
       });
     }
+    setEditorModel(tab.id);
     renderExplorerTree(getDirtyPaths());
   } catch (err) {
     if (err.name !== 'AbortError') {
@@ -427,13 +444,31 @@ function wireFileMenu() {
 // ─── Workspace and Explorer handlers ─────────────────────────────────────────
 async function handleExplorerFileSelect(node) {
   try {
+    // 1. If tab is already open, smoothly switch to that exact tab
+    const existingTab = getTabByPath(node.path);
+    if (existingTab) {
+      activateTab(existingTab.id);
+      let model = getModel(existingTab.id);
+      if (!model || model.isDisposed()) {
+        model = createModel(existingTab, (tabId, val) => {
+          updateTabContent(tabId, val);
+        });
+      }
+      setEditorModel(existingTab.id);
+      renderExplorerTree(getDirtyPaths());
+      return;
+    }
+
+    // 2. Otherwise read from disk and open new tab
     const content = await readFileFromDisk(node.handle);
     const tab = openFileInTab(node, content);
-    if (!getModel(tab.id)) {
-      createModel(tab, (tabId, val) => {
+    let model = getModel(tab.id);
+    if (!model || model.isDisposed()) {
+      model = createModel(tab, (tabId, val) => {
         updateTabContent(tabId, val);
       });
     }
+    setEditorModel(tab.id);
     renderExplorerTree(getDirtyPaths());
   } catch (err) {
     alert(`Could not open file "${node.name}": ${err.message}`);

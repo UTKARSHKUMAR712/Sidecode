@@ -310,14 +310,23 @@ export function createModel(tab, onContentChange) {
 }
 
 export function getModel(tabId) {
-  return models.get(tabId) || null;
+  const m = models.get(tabId);
+  if (!m) return null;
+  if (typeof m.isDisposed === 'function' && m.isDisposed()) {
+    models.delete(tabId);
+    return null;
+  }
+  return m;
 }
 
 export function deleteModel(tabId) {
   contentChangeCallbacks.delete(tabId);
   viewStates.delete(tabId);
   if (models.has(tabId)) {
-    models.get(tabId).dispose();
+    const m = models.get(tabId);
+    if (m && typeof m.dispose === 'function' && !m.isDisposed()) {
+      m.dispose();
+    }
     models.delete(tabId);
   }
 }
@@ -336,12 +345,12 @@ export function setEditorModel(tabId) {
   if (!editor) return;
 
   // Save view state of outgoing tab
-  if (currentActiveTabId && editor.getModel()) {
+  if (currentActiveTabId && editor.getModel() && !editor.getModel().isDisposed()) {
     viewStates.set(currentActiveTabId, editor.saveViewState());
   }
   currentActiveTabId = tabId;
 
-  const model = models.get(tabId);
+  const model = getModel(tabId);
   if (model) {
     editor.setModel(model);
     // Restore previous scroll and cursor position if saved
@@ -355,39 +364,9 @@ export function setEditorModel(tabId) {
 }
 
 export function setModelLanguage(tabId, language) {
-  const oldModel = models.get(tabId);
-  if (!oldModel || !window.monaco) return;
-
-  const targetUri = getModelUri(tabId, language);
-  if (oldModel.uri.toString() === targetUri.toString()) {
-    window.monaco.editor.setModelLanguage(oldModel, language);
-    return;
-  }
-
-  // Language changed with a different file extension — recreate model with new URI so language services attach
-  const content = oldModel.getValue();
-  const isCurrentModel = editor && editor.getModel() === oldModel;
-
-  oldModel.dispose();
-  const existing = window.monaco.editor.getModel(targetUri);
-  if (existing) existing.dispose();
-
-  const newModel = window.monaco.editor.createModel(content, language, targetUri);
-
-  let saveTimer = null;
-  newModel.onDidChangeContent(() => {
-    const val = newModel.getValue();
-    clearTimeout(saveTimer);
-    saveTimer = setTimeout(() => {
-      const cb = contentChangeCallbacks.get(tabId);
-      if (cb) cb(tabId, val);
-    }, 600);
-  });
-
-  models.set(tabId, newModel);
-  if (isCurrentModel && editor) {
-    editor.setModel(newModel);
-  }
+  const model = getModel(tabId);
+  if (!model || !window.monaco || model.isDisposed()) return;
+  window.monaco.editor.setModelLanguage(model, language);
 }
 
 export function layoutEditor() {

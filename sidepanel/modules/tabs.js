@@ -95,7 +95,9 @@ export function getActiveTab() {
 }
 
 export function getTabByPath(filePath) {
-  return tabs.find((t) => t.filePath === filePath) || null;
+  if (!filePath) return null;
+  const norm = filePath.replace(/\\/g, '/').toLowerCase();
+  return tabs.find((t) => t.filePath && t.filePath.replace(/\\/g, '/').toLowerCase() === norm) || null;
 }
 
 export function getDirtyPaths() {
