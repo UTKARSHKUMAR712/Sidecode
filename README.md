@@ -1,52 +1,134 @@
-# Sidecode: Browser Extension IDE
+# Sidecode: VS Code-Style IDE in Your Browser Side Panel
 
-Sidecode is a lightweight, Monaco-powered Integrated Development Environment (IDE) that lives entirely in your browser's side panel (Chrome/Edge/Brave). It enables developers to quickly write, compile, and execute code snippets in multiple languages without leaving their current web tab.
+<div align="center">
+  <p><strong>A lightweight, ultra-fast, Monaco-powered Integrated Development Environment that lives directly inside your browser's side panel (Chrome, Brave, Edge).</strong></p>
+  <p>Write, edit real PC files, compile multi-file projects, run an interactive terminal, and execute code in multiple languages without ever leaving your active web tab.</p>
+</div>
 
-## Features
+---
 
-- **Monaco Editor:** Industry-standard editing experience (powers VS Code) with syntax highlighting, autocomplete, and intelligent code suggestions.
-- **Multi-Language Support:** Write code in JavaScript, TypeScript, Python, C, C++, Java, Rust, and Go.
-- **Smart Boilerplates:** Switching to a compiled language like C or Java automatically populates the editor with the minimum required boilerplate so you can start coding immediately.
-- **Integrated Console:** View your program's standard output (stdout), errors (stderr), and execution time directly in the IDE.
-- **Standard Input (`stdin`) Support:** An integrated "Input" tab allows you to supply standard input for algorithms requiring user input. Includes a **Strict Typing Parser** that enforces data types (Booleans, Strings, Arrays) before executing.
-- **Hybrid Execution Engine:**
-  - **Browser Sandbox:** JavaScript and TypeScript run 100% offline via an isolated sandbox.
-  - **Cloud Runner:** System languages (C/C++, Java, Rust, Go, Python) are compiled and executed instantly using a fast Cloud API.
-- **Local PC Folder Workspace (In-Place Disk Editing):** Click the `📂` Open Folder button to link a real directory from your PC. Edit actual files in place, press `Ctrl+S` to write directly to disk via the File System Access API (`createWritable`), and manage nested directories without importing into a virtual container.
-- **VS Code-Style Collapsible File Explorer:** Press `Ctrl+B` (or click `📁`) to toggle the resizable file explorer sidebar. Supports recursive nested folders, file extension icons, file/folder creation (`+📄`, `+📁`), rename, delete, and real-time tree synchronization.
-- **Multi-File Cloud Compilation:** Seamlessly compile and run multi-file projects (e.g. `main.cpp`, `utils.cpp`, `utils.h`, Rust modules, companion Python files). Companion files are bundled directly into the Compiler Explorer payload, with automatic Virtual Unity Build linking for C/C++ separate compilation units.
-- **Dirty State Tracking & Save Safeguards:** Visual bullet dots (`●`) indicate unsaved changes across both editor tabs and the explorer tree. Closing an edited tab prompts a safeguard confirmation to prevent accidental loss of unwritten work.
-- **Persistent Workspaces Across Restarts:** Directory handles are serialized into IndexedDB via the Structured Clone Algorithm. Restores your last opened project across side-panel reloads and provides a 1-click re-authorization button after browser restarts.
-- **Assembly Viewer:** A dedicated Assembly tab dynamically displays compiler-generated machine code (mapped to your source code lines) whenever a supported cloud language is compiled (e.g. C, C++, Rust, Go, etc.).
-- **Dedicated Problems Panel & Static Analysis:** A VS Code-style Problems panel separates static analysis from runtime stdout/stderr. Features Clang-Tidy (C/C++) and Clippy (Rust) with student-curated rules, Monaco squiggly underlines, clickable error/warning navigation, and real-time badge counts.
-- **Instant Third-Party Libraries (Dependencies Menu):** Click the `📚` Dependencies button to instantly attach from 350+ precompiled libraries (such as Boost, fmt, nlohmann/json, Catch2, serde, tokio, etc.) across C++, Rust, C, Go, D, and Zig without downloading or configuring anything.
-- **Code Formatting:** Press `Ctrl+Alt+F` (or right-click inside the editor -> "Format Document") to format code using Monaco's native formatters or cloud formatters (`clang-format`, `rustfmt`, `gofmt`).
-- **Advanced Debug Zone:** A dedicated, real-time logging dashboard to monitor exact API payloads, compiler execution errors, and standard input/output streams. Accessible via Settings.
+## 🌟 Key Features
 
-## Installation (Developer Mode)
+### 🖥️ 1. Complete VS Code Look & Feel
+- **Full Menu Bar:** Top-level dropdown menu (`File` > `New File`, `Open File...`, `Open Folder...`, `Save`, `Save As...`, `Auto Save`, `Preferences`, `Close Editor`, `Close Folder`).
+- **Collapsible File Explorer (`Ctrl+B`):** Full tree hierarchy with custom file icons (JS, TS, C++, Rust, Python, Go, Java, JSON, etc.), collapsible directories, horizontal side-scrolling for deep folder trees, and right-click context actions.
+- **Direct PC Disk Editing:** Uses the native **File System Access API** (`showDirectoryPicker`) to edit actual project files on your hard drive in place. No import/export hurdles.
+- **IndexedDB Workspace Persistence:** Re-opens your last opened workspace directory across browser restarts with 1-click permission restoration.
+- **Double-Click Creation:** Double-click empty workspace space to quickly create files or folders, just like in desktop VS Code.
 
-1. Clone or download this repository.
-2. Open Chrome/Edge and navigate to `chrome://extensions/` (or `edge://extensions/`).
-3. Enable **Developer mode** (toggle in the top right).
-4. Click **Load unpacked** and select the folder containing `manifest.json`.
-5. Pin the Sidecode extension to your browser toolbar.
-6. Click the Sidecode icon to open it in your Side Panel.
+### 💻 2. Interactive Terminal CLI
+- **Real-Time Shell Environment:** Type shell commands directly into the terminal prompt.
+- **Built-in Commands:**
+  - `cd <dir>` — Navigate directories (`cd ..`, `cd ~`, `cd folder`).
+  - `mkdir <name>` — Create folders on disk.
+  - `touch <name>` — Create files on disk.
+  - `rm [-r] <name>` — Delete files or directories.
+  - `mv <src> <dest>` — Rename or move files and folders.
+  - `ls` / `dir` — List directory contents with folder icons.
+  - `pwd` — Print current working directory path.
+  - `cat <file>` — Display file contents.
+  - `node <file.js>` / `python <file.py>` / `g++ <file.cpp>` — Run scripts or compile code from the prompt.
+  - `clear` / `cls` — Clear terminal screen.
+  - **Direct Expression Evaluation:** Type JS or math expressions directly into the prompt (e.g. `[5, 12, 8].filter(x => x > 10)`).
+- **Prompt Synchronization:** Displays your active workspace and current relative working directory (`sidecode:~/workspace/src$`).
 
-## Architecture & Documentation
+### ⚡ 3. Multi-Model Monaco Editor
+- **Industry-Standard Editing:** Powered by Monaco Editor (the core of VS Code) with syntax highlighting, bracket matching, code folding, word wrap, and customizable font size and tab size.
+- **Auto Language Detection:** Automatically associates Monaco language modes, IntelliSense, and compilation tools based on file extensions (`.js`, `.ts`, `.py`, `.cpp`, `.c`, `.rs`, `.go`, `.java`, etc.).
+- **Multi-Tab Lifecycle:** Switch effortlessly between open files with view state persistence (scroll position and cursor position are saved when switching tabs).
+- **Dirty State Tracking (`●`):** Unsaved changes display a dirty bullet indicator on tab headers and tree items, with unsaved change safeguards when closing.
 
-- For a detailed breakdown of how the execution engine works, API limitations, and self-hosting instructions, see [docs/COMPILER.md](./docs/COMPILER.md).
+### 🚀 4. Hybrid Execution Engine
+- **In-Browser Sandbox (100% Offline):**
+  - **Languages:** JavaScript, TypeScript.
+  - Runs in a secure, isolated browser sandbox. Instant execution with 0ms network latency.
+  - Full support for modern ECMAScript, formatted object/array inspection, and error stacks.
+- **Cloud Runner (Compiler Explorer / Piston):**
+  - **Languages:** C, C++, Python, Java, Rust, Go.
+  - Executes code via Compiler Explorer in isolated Docker nsjail containers with standard library support.
+  - **Unified Array & Object Output:** Harmonized standalone Google V8 (`d8`) output so array filtering and object logs match Node.js and browser formatting (`[ 12, 20, 15 ]`).
+  - **Custom Piston Endpoint:** Option to configure a self-hosted Piston execution server in Settings.
 
-## Usage Tips
+### 🛠️ 5. Developer Tools & Productivity
+- **Strict Input (`stdin`) Parser:** Supply batch standard input for interactive prompts (`scanf`, `cin`, `input()`). Includes strict data typing for strings, booleans, and arrays.
+- **Problems Panel & Clean Diagnostics:** Isolates compilation errors and warnings from program output. Clicking any problem immediately navigates and highlights the exact line and column in the editor.
+- **Assembly Inspector:** Real-time disassembly viewer displaying compiler-generated machine instructions mapped to source code lines.
+- **Instant Libraries (Dependencies Menu):** Link 350+ pre-compiled libraries (Boost, fmt, nlohmann/json, Catch2, Tokio, Serde, etc.) with a single click.
+- **Document Formatting (`Ctrl+Alt+F`):** Format code on-demand via Monaco's built-in formatters and language formatters.
+- **Debug Zone:** Dedicated diagnostics dashboard to inspect extension memory usage, API requests, and execution telemetry.
 
-- **Run Shortcut:** Press `Ctrl+Enter` while inside the editor to quickly run your code.
-- **Format Shortcut:** Press `Ctrl+Alt+F` or right-click and choose "Format Document" to format your code.
-- **Static Analysis Shortcut:** Press `Ctrl+Alt+A` or right-click and choose "Analyze Code (Static Analysis)" to run linters without executing code.
-- **Clear Console:** Press the `Clear` button in the console header or re-run code.
-- **Standard Input:** Since cloud execution happens in batches, interactive prompts (like Python's `input()` or C's `scanf()`) will immediately hit EOF unless you provide input upfront. Use the **Input (stdin)** tab to write your input before hitting Run.
-- **Strict Typing Mode:** Our custom parser enforces data typing. Wrap strings in `"double quotes"`, arrays in `[1,2,3]`, or use `` `backticks` `` for raw strings.
-- **Developer Settings:** Click the gear icon `⚙` to adjust your Font Size, Word Wrap, Tab Size, set your default language, or provide a custom execution server URL.
+---
 
-## Security
+## ⌨️ Keyboard Shortcuts
 
-- Web extensions execute with elevated privileges. Sidecode leverages strict Content Security Policies (CSP) and relies on `chrome.userScripts` and iframe sandboxing to ensure malicious code cannot escape the JavaScript runtime.
-- System languages are executed in securely isolated nsjail environments provided by the Compiler Explorer API or your custom Piston deployment.
+| Shortcut | Action |
+| :--- | :--- |
+| `Ctrl + Enter` | Run code (active tab or command) |
+| `Ctrl + S` | Save active tab directly to disk |
+| `Ctrl + Shift + S` | Save As... (choose disk location) |
+| `Ctrl + O` | Open file from PC |
+| `Ctrl + B` | Toggle File Explorer sidebar |
+| `Ctrl + N` | New file |
+| `Ctrl + \`` / `Ctrl + ~` | Toggle Terminal / Console panel |
+| `Ctrl + Alt + F` | Format Document |
+| `Ctrl + Alt + A` | Run Static Analysis on active file |
+| `Ctrl + Shift + Z` | Close Side Panel |
+
+---
+
+## 📁 Project Structure
+
+```text
+Sidecode/
+├── manifest.json              # Chrome Extension Manifest V3 configuration
+├── background.js              # Service worker managing side panel behavior
+├── sidepanel/
+│   ├── index.html             # Main IDE DOM layout
+│   ├── app.js                 # Central application controller & event wiring
+│   ├── style.css              # VS Code dark theme styling & responsive layout
+│   ├── sandbox.html           # Isolated offline iframe sandbox for JS/TS
+│   ├── storage.js             # Chrome storage & IndexedDB persistence
+│   ├── modules/
+│   │   ├── editor.js          # Monaco editor instance & multi-model manager
+│   │   ├── explorer.js        # File tree explorer UI, context menus, and CRUD
+│   │   ├── workspace.js       # File System Access API & disk synchronization
+│   │   ├── terminal.js        # Interactive terminal CLI & command dispatcher
+│   │   ├── tabs.js            # Tab bar state, lifecycle, and dirty flags
+│   │   ├── cloudRunner.js     # Compiler Explorer & cloud execution engine
+│   │   ├── analysis.js        # Problems panel & diagnostic parser
+│   │   ├── console.js         # Terminal output stream, stdin, & assembly panel
+│   │   ├── libraries.js       # Third-party dependency search & injection
+│   │   ├── multifileCompiler.js # Multi-file compilation payload builder
+│   │   ├── completions.js     # Code autocompletion dictionaries
+│   │   └── permissions.js     # Brave & Chrome permission helpers
+│   ├── vs/                    # Monaco Editor core distribution
+│   └── workers/               # Monaco Editor web workers
+├── debug/                     # Sidecode Debug Zone dashboard
+└── docs/                      # Technical architecture documentation
+```
+
+---
+
+## 📥 Installation (Developer Mode)
+
+1. Clone or download this repository to your computer:
+   ```bash
+   git clone https://github.com/<your-username>/Sidecode.git
+   ```
+2. Open Google Chrome, Brave, or Microsoft Edge.
+3. Navigate to:
+   - Chrome: `chrome://extensions/`
+   - Brave: `brave://extensions/`
+   - Edge: `edge://extensions/`
+4. Toggle **Developer mode** in the top right corner.
+5. Click **Load unpacked** and select the root `Sidecode` folder (where `manifest.json` is located).
+6. Pin **Sidecode** to your browser toolbar.
+7. Click the extension icon to launch the IDE in your browser side panel.
+
+---
+
+## 🔒 Security & Privacy
+
+- **Offline Safety:** All JavaScript and TypeScript executions run locally in your browser's sandboxed iframe without transmitting code over the network.
+- **Local Disk Privacy:** Files accessed via Open Folder remain on your local machine; only the files you explicitly execute via Cloud Runner are transmitted over HTTPS to isolated sandbox runners.
+- **No Telemetry / No Tracking:** Sidecode does not collect personal data, track user keystrokes, or display advertisements.
