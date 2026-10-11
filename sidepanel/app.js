@@ -847,6 +847,7 @@ async function init() {
   const savedAutoSave = saved.autoSave !== undefined ? saved.autoSave : false;
   customPistonUrl = saved.customPistonUrl || '';
   const savedEnv = saved.activeEnv || (saved.terminalMode === 'local' ? 'local' : (saved.jsRunner === 'sandbox' ? 'sandbox' : 'cloud'));
+  const savedJsRunner = saved.jsRunner || (savedEnv === 'sandbox' ? 'sandbox' : 'cloud');
 
   // Apply persisted settings
   setActiveEnv(savedEnv);
