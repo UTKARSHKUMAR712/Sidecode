@@ -36,7 +36,7 @@ export function initRunner() {
  * @param {string} language - 'javascript' or 'typescript'
  * @param {any} monacoModel - Current Monaco text model (optional, for TS emit)
  */
-export async function executeCode(rawCode, language = 'javascript', monacoModel = null) {
+export async function executeCode(rawCode, language = 'javascript', monacoModel = null, activeFilePath = '') {
   if (!isConsoleOpen()) {
     openConsole();
   }
@@ -132,7 +132,9 @@ export async function executeCode(rawCode, language = 'javascript', monacoModel 
         if (isWorkspaceOpen()) {
           const allFiles = await collectAllWorkspaceFiles();
           for (const item of allFiles) {
-            filesMap[item.filename] = item.contents;
+            const cleanPath = (item.path || '').replace(/\\/g, '/');
+            if (cleanPath) filesMap[cleanPath] = item.contents;
+            if (item.filename) filesMap[item.filename] = item.contents;
           }
         }
       } catch (_) {}
@@ -142,7 +144,8 @@ export async function executeCode(rawCode, language = 'javascript', monacoModel 
           action: 'execute',
           code: codeToRun,
           runId,
-          files: filesMap
+          files: filesMap,
+          activeFilePath: (activeFilePath || '').replace(/\\/g, '/')
         }, '*');
       }
 

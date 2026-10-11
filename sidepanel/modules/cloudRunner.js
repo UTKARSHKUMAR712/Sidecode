@@ -85,7 +85,7 @@ export function isCloudSupported(lang) {
 /**
  * Execute code via Godbolt Compiler Explorer
  */
-async function executeViaGodbolt(code, language, stdin = '', libraries = [], tabId = null) {
+async function executeViaGodbolt(code, language, stdin = '', libraries = [], tabId = null, overrideFilename = null) {
   const config = GODBOLT_MAP[language];
   if (!config) {
     appendLine('error', `✖ Language "${language}" is not supported by cloud runner.`);
@@ -104,7 +104,7 @@ async function executeViaGodbolt(code, language, stdin = '', libraries = [], tab
     const { getActiveTab } = await import('./tabs.js');
     const { prepareMultiFilePayload } = await import('./multifileCompiler.js');
     const activeTab = getActiveTab();
-    const activeFilename = activeTab?.label || (language === 'cpp' ? 'main.cpp' : 'main');
+    const activeFilename = overrideFilename || activeTab?.filePath || activeTab?.label || (language === 'cpp' ? 'main.cpp' : 'main');
     const multi = await prepareMultiFilePayload(code, language, activeFilename);
     codeToRun = multi.source;
     companionFiles = multi.files || [];
@@ -313,7 +313,7 @@ async function executeViaGodbolt(code, language, stdin = '', libraries = [], tab
 /**
  * Main entry point for Cloud Execution
  */
-export async function executeViaCloud(code, language, customPistonUrl = null, stdin = '', libraries = [], tabId = null) {
+export async function executeViaCloud(code, language, customPistonUrl = null, stdin = '', libraries = [], tabId = null, overrideFilename = null) {
   if (!isConsoleOpen()) openConsole();
 
   setExecTime('Running…');
@@ -324,7 +324,7 @@ export async function executeViaCloud(code, language, customPistonUrl = null, st
   }
 
   // Otherwise default to Godbolt
-  return executeViaGodbolt(code, language, stdin, libraries, tabId);
+  return executeViaGodbolt(code, language, stdin, libraries, tabId, overrideFilename);
 }
 
 /**

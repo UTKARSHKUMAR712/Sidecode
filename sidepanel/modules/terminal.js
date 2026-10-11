@@ -865,7 +865,7 @@ async function handleRunFileByCommand(filename, forcedLanguage = null, candidate
   appendLine('system', `▶ Executing ${fileData.name} (${lang})...`);
 
   if (executionBridge && typeof executionBridge.executeCode === 'function') {
-    await executionBridge.executeCode(fileData.content, lang, fileData.name);
+    await executionBridge.executeCode(fileData.content, lang, fileData.path || fileData.name);
   } else {
     appendLine('warn', 'Execution bridge not available.');
   }

@@ -158,8 +158,9 @@ async function handleRunCode() {
     return;
   }
 
+  const activePath = tab.filePath || tab.label || '';
   if (runner === 'sandbox') {
-    await executeCode(code, tab.language, model);
+    await executeCode(code, tab.language, model, activePath);
   } else {
     const stdin = getStdin();
     if (!stdin.valid) {
@@ -171,7 +172,7 @@ async function handleRunCode() {
       return;
     }
     const activeLibs = getSelectedLibrariesForLanguage(tab.language);
-    await executeViaCloud(code, tab.language, customPistonUrl, stdin.value, activeLibs, tab.id);
+    await executeViaCloud(code, tab.language, customPistonUrl, stdin.value, activeLibs, tab.id, activePath);
   }
 }
 
@@ -765,13 +766,13 @@ async function init() {
     refreshTree: () => refreshWorkspaceTree(),
     createTab: (label) => createTab(label),
     runActiveTab: () => handleRunCode(),
-    executeCode: async (code, lang, filename) => {
+    executeCode: async (code, lang, filenameOrPath) => {
       if (SANDBOX_LANGUAGES.has(lang)) {
-        await executeCode(code, lang);
+        await executeCode(code, lang, null, filenameOrPath);
       } else {
         const stdin = getStdin();
         const activeLibs = getSelectedLibrariesForLanguage(lang);
-        await executeViaCloud(code, lang, customPistonUrl, stdin.valid ? stdin.value : '', activeLibs);
+        await executeViaCloud(code, lang, customPistonUrl, stdin.valid ? stdin.value : '', activeLibs, null, filenameOrPath);
       }
     },
     executeRawJs: async (code) => {

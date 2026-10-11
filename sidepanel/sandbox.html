@@ -155,35 +155,73 @@
 
         try {
           const companionFiles = data.files || {};
+          const activeFilePath = (data.activeFilePath || '').replace(/\\/g, '/');
+          const initialDir = activeFilePath.includes('/') ? activeFilePath.substring(0, activeFilePath.lastIndexOf('/')) : '';
+
           const vCache = {};
-          function virtualRequire(relPath) {
-            const clean = String(relPath).replace(/^(\.\/|\/)/, '');
-            for (const k in companionFiles) {
-              const normK = k.replace(/\\/g, '/');
-              if (normK === clean || normK.endsWith('/' + clean) ||
-                  normK === clean + '.js' || normK.endsWith('/' + clean + '.js')) {
-                if (vCache[normK]) return vCache[normK].exports;
-                const subMod = { exports: {} };
-                vCache[normK] = subMod;
-                const subFn = new Function('module', 'exports', 'require', companionFiles[k]);
-                subFn(subMod, subMod.exports, virtualRequire);
-                return subMod.exports;
+          function resolveRel(base, req) {
+            const clean = String(req).replace(/\\/g, '/');
+            if (!clean.startsWith('./') && !clean.startsWith('../')) return clean;
+            const b = base ? base.split('/').filter(Boolean) : [];
+            const parts = clean.split('/').filter(Boolean);
+            for (let i = 0; i < parts.length; i++) {
+              if (parts[i] === '.') continue;
+              if (parts[i] === '..') {
+                if (b.length > 0) b.pop();
+              } else {
+                b.push(parts[i]);
               }
             }
-            throw new Error("Cannot find module '" + relPath + "' in workspace");
+            return b.join('/');
           }
+
+          function createRequireForDir(dir) {
+            return function virtualRequire(relPath) {
+              const target = resolveRel(dir, relPath);
+              const clean = target.replace(/^(\.\/|\/)/, '');
+              const baseName = clean.split('/').pop();
+              const cands = [
+                clean,
+                clean + '.js',
+                clean + '/index.js',
+                String(relPath).replace(/^(\.\/|\/)/, ''),
+                String(relPath).replace(/^(\.\/|\/)/, '') + '.js',
+                baseName,
+                baseName + '.js'
+              ];
+              for (let ci = 0; ci < cands.length; ci++) {
+                const c = cands[ci];
+                for (const k in companionFiles) {
+                  const normK = k.replace(/\\/g, '/');
+                  if (normK === c || normK.endsWith('/' + c)) {
+                    if (vCache[normK]) return vCache[normK].exports;
+                    const subMod = { exports: {} };
+                    vCache[normK] = subMod;
+                    const subDir = normK.includes('/') ? normK.substring(0, normK.lastIndexOf('/')) : '';
+                    const subRequire = createRequireForDir(subDir);
+                    const subFn = new Function('module', 'exports', 'require', '__dirname', '__filename', companionFiles[k]);
+                    subFn(subMod, subMod.exports, subRequire, subDir, normK);
+                    return subMod.exports;
+                  }
+                }
+              }
+              throw new Error("Cannot find module '" + relPath + "' in workspace");
+            };
+          }
+
+          const virtualRequire = createRequireForDir(initialDir);
 
           const mod = { exports: {} };
           // Execute asynchronously allowing top-level await if supported
           const AsyncFunction = Object.getPrototypeOf(async function(){}).constructor;
           let fn;
           try {
-            fn = new AsyncFunction('module', 'exports', 'require', code);
+            fn = new AsyncFunction('module', 'exports', 'require', '__dirname', '__filename', code);
           } catch (syntaxErr) {
             // Direct eval fallback for expressions
-            fn = new AsyncFunction('module', 'exports', 'require', 'return (' + code + ')');
+            fn = new AsyncFunction('module', 'exports', 'require', '__dirname', '__filename', 'return (' + code + ')');
           }
-          const result = await fn(mod, mod.exports, virtualRequire);
+          const result = await fn(mod, mod.exports, virtualRequire, initialDir, activeFilePath);
           if (result !== undefined) {
             post('output', { level: 'result', text: serializeArg(result) });
           }

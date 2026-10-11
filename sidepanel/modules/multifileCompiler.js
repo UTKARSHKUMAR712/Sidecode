@@ -34,11 +34,12 @@ export async function prepareMultiFilePayload(mainCode, mainLanguage, mainFilena
 
   for (const item of allFiles) {
     // Skip the primary file itself from companion files
-    if (item.filename === mainFilename) {
+    if (item.filename === mainFilename || item.path === mainFilename) {
       continue;
     }
 
     filesPayload.push({
+      path: item.path,
       filename: item.filename,
       contents: item.contents
     });
@@ -55,9 +56,6 @@ export async function prepareMultiFilePayload(mainCode, mainLanguage, mainFilena
   let finalSource = mainCode;
 
   // For C/C++ projects with multiple .cpp/.c files:
-  // Godbolt compiles `source` as the primary translation unit and places `files` on disk.
-  // To link secondary translation units without linker errors, we append virtual unity inclusions
-  // if they are not already manually included in the main source.
   if ((mainLanguage === 'cpp' || mainLanguage === 'c') && secondaryCppFiles.length > 0) {
     const virtualIncludes = [];
     for (const secFile of secondaryCppFiles) {
@@ -68,33 +66,60 @@ export async function prepareMultiFilePayload(mainCode, mainLanguage, mainFilena
     if (virtualIncludes.length > 0) {
       finalSource = mainCode + '\n' + virtualIncludes.join('\n');
     }
+  }
+
   // For JavaScript / TypeScript projects:
-  // If companion files exist in workspace, inject virtual require module bundle for Cloud V8
   const isJs = mainLanguage === 'javascript' || mainLanguage === 'js' || mainLanguage === 'typescript' || mainLanguage === 'ts';
   if (isJs && filesPayload.length > 0) {
     const filesObj = {};
     for (const f of filesPayload) {
+      if (f.path) filesObj[f.path.replace(/\\/g, '/')] = f.contents;
       filesObj[f.filename] = f.contents;
     }
+    const cleanMain = String(mainFilename || '').replace(/\\/g, '/');
+    const mainDir = cleanMain.includes('/') ? cleanMain.substring(0, cleanMain.lastIndexOf('/')) : '';
+
     const virtualBundle = `/* Sidecode Virtual CommonJS Bundle */
 if (typeof require === 'undefined') {
   var _vFiles = ${JSON.stringify(filesObj)};
   var _vCache = {};
-  var require = function(p) {
-    var clean = String(p).replace(/^(\\.\\/|\\/)/, '');
-    for (var k in _vFiles) {
-      var normK = k.replace(/\\\\/g, '/');
-      if (normK === clean || normK.endsWith('/' + clean) || normK === clean + '.js' || normK.endsWith('/' + clean + '.js')) {
-        if (_vCache[normK]) return _vCache[normK].exports;
-        var m = { exports: {} };
-        _vCache[normK] = m;
-        var fn = new Function('module', 'exports', 'require', _vFiles[k]);
-        fn(m, m.exports, require);
-        return m.exports;
-      }
+  var _resolveRel = function(base, req) {
+    var clean = String(req).replace(/\\\\/g, '/');
+    if (!clean.startsWith('./') && !clean.startsWith('../')) return clean;
+    var b = base ? base.split('/').filter(Boolean) : [];
+    var parts = clean.split('/').filter(Boolean);
+    for (var i = 0; i < parts.length; i++) {
+      if (parts[i] === '.') continue;
+      if (parts[i] === '..') { if (b.length > 0) b.pop(); }
+      else b.push(parts[i]);
     }
-    throw new Error("Cannot find module '" + p + "' in workspace");
+    return b.join('/');
   };
+  var _createRequire = function(dir) {
+    return function(p) {
+      var target = _resolveRel(dir, p);
+      var clean = target.replace(/^(\\.\\/|\\/)/, '');
+      var base = clean.split('/').pop();
+      var cands = [clean, clean + '.js', clean + '/index.js', String(p).replace(/^(\\.\\/|\\/)/, ''), String(p).replace(/^(\\.\\/|\\/)/, '') + '.js', base, base + '.js'];
+      for (var ci = 0; ci < cands.length; ci++) {
+        var c = cands[ci];
+        for (var k in _vFiles) {
+          var normK = k.replace(/\\\\/g, '/');
+          if (normK === c || normK.endsWith('/' + c)) {
+            if (_vCache[normK]) return _vCache[normK].exports;
+            var m = { exports: {} };
+            _vCache[normK] = m;
+            var subDir = normK.includes('/') ? normK.substring(0, normK.lastIndexOf('/')) : '';
+            var fn = new Function('module', 'exports', 'require', '__dirname', '__filename', _vFiles[k]);
+            fn(m, m.exports, _createRequire(subDir), subDir, normK);
+            return m.exports;
+          }
+        }
+      }
+      throw new Error("Cannot find module '" + p + "' in workspace");
+    };
+  };
+  var require = _createRequire(${JSON.stringify(mainDir)});
 }\n`;
     finalSource = virtualBundle + finalSource;
   }
