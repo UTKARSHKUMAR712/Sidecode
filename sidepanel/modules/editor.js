@@ -239,6 +239,15 @@ export function initMonaco(containerEl, onRunCommand) {
         }
       });
 
+      // Auto-save on blur when Auto Save is enabled
+      editor.onDidBlurEditorText(() => {
+        import('./tabs.js').then(({ autoSaveAllDirtyTabs, getAutoSave }) => {
+          if (getAutoSave()) {
+            autoSaveAllDirtyTabs();
+          }
+        });
+      });
+
       isMonacoReady = true;
       resolve(editor);
     });

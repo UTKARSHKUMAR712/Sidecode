@@ -14,7 +14,7 @@ let activeTabId = null;
 let defaultLang = 'javascript';
 let untitledCount = 1;
 let isAutoSaveEnabled = false;
-let autoSaveTimer = null;
+let autoSaveTimers = new Map();
 
 let onTabActivate = null;
 let onTabCreate = null;
@@ -64,7 +64,17 @@ export function detectLanguageByFilename(filename) {
 }
 
 export function initTabs(savedTabs = [], savedActiveId = null, listeners = {}, initialDefaultLang = 'javascript') {
-  tabs = savedTabs || [];
+  tabs = (savedTabs || []).map((t) => ({
+    id: t.id,
+    label: t.label,
+    language: t.language,
+    content: t.content,
+    originalContent: t.originalContent !== undefined ? t.originalContent : t.content,
+    filePath: t.filePath || null,
+    fileHandle: t.fileHandle || null,
+    parentHandle: t.parentHandle || null,
+    isDirty: !!t.isDirty
+  }));
   activeTabId = savedActiveId || (tabs.length > 0 ? tabs[0].id : null);
   defaultLang = initialDefaultLang || 'javascript';
 
@@ -106,10 +116,32 @@ export function getDirtyPaths() {
 
 export function setAutoSave(enabled) {
   isAutoSaveEnabled = !!enabled;
+  if (isAutoSaveEnabled) {
+    autoSaveAllDirtyTabs();
+  }
 }
 
 export function getAutoSave() {
   return isAutoSaveEnabled;
+}
+
+/**
+ * Re-link open tabs to their physical FileSystemFileHandles from the workspace tree
+ */
+export async function relinkTabsToWorkspace(tree) {
+  if (!tree) return;
+  const { findNodeInTree } = await import('./workspace.js');
+  tabs.forEach((tab) => {
+    if (!tab.fileHandle) {
+      const lookup = tab.filePath || tab.label;
+      const node = findNodeInTree(lookup, tree);
+      if (node && node.handle) {
+        tab.fileHandle = node.handle;
+        if (node.parentHandle) tab.parentHandle = node.parentHandle;
+        if (!tab.filePath && node.path) tab.filePath = node.path;
+      }
+    }
+  });
 }
 
 export function createTab(language = null, customLabel = null) {
@@ -177,8 +209,17 @@ export function activateTab(id) {
   const tab = tabs.find((t) => t.id === id);
   if (!tab) return;
 
+  const previousTabId = activeTabId;
   activeTabId = id;
   renderTabs();
+
+  // If previous active tab was dirty and auto-save is enabled, auto-save it immediately
+  if (isAutoSaveEnabled && previousTabId && previousTabId !== id) {
+    const prev = tabs.find((t) => t.id === previousTabId);
+    if (prev && prev.isDirty) {
+      performAutoSave(prev);
+    }
+  }
 
   // Auto-detect and sync language on Monaco model
   import('./editor.js').then(({ setModelLanguage }) => {
@@ -198,6 +239,31 @@ export function activateTab(id) {
 export async function saveActiveTabToDisk() {
   const tab = getActiveTab();
   if (!tab) return false;
+
+  // Try to resolve missing fileHandle from workspace tree
+  if (!tab.fileHandle) {
+    try {
+      const { isWorkspaceOpen, findNodeInTree, createFileInWorkspace, getWorkspaceRootHandle } = await import('./workspace.js');
+      if (isWorkspaceOpen()) {
+        const lookup = tab.filePath || tab.label;
+        let node = findNodeInTree(lookup);
+        if (node && node.handle) {
+          tab.fileHandle = node.handle;
+          if (node.parentHandle) tab.parentHandle = node.parentHandle;
+          if (!tab.filePath && node.path) tab.filePath = node.path;
+        } else if (tab.label && !tab.label.startsWith('Untitled-')) {
+          const root = getWorkspaceRootHandle();
+          if (root) {
+            const handle = await createFileInWorkspace(root, tab.label, tab.content);
+            tab.fileHandle = handle;
+            tab.filePath = tab.label;
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('Could not resolve file handle for save:', err);
+    }
+  }
 
   if (tab.fileHandle) {
     try {
@@ -266,12 +332,18 @@ export async function closeTab(id) {
 
   const tab = tabs[idx];
 
-  // Intercept dirty changes with prompt
+  // Intercept dirty changes: auto-save if enabled, else prompt user
   if (tab.isDirty) {
-    const choice = confirm(`Do you want to save the changes you made to "${tab.label}"?\n\nClick OK to Save and Close, or Cancel to Discard Changes.`);
-    if (choice) {
-      if (tab.fileHandle) {
-        await saveFileToDisk(tab.fileHandle, tab.content);
+    if (isAutoSaveEnabled) {
+      await performAutoSave(tab);
+    } else {
+      const choice = confirm(`Do you want to save the changes you made to "${tab.label}"?\n\nClick OK to Save and Close, or Cancel to Discard Changes.`);
+      if (choice) {
+        if (tab.fileHandle) {
+          await saveFileToDisk(tab.fileHandle, tab.content);
+        } else {
+          await saveActiveTabAs();
+        }
       }
     }
   }
@@ -313,6 +385,86 @@ export function setTabLanguage(id, language) {
   if (onTabsChange) onTabsChange(tabs);
 }
 
+/**
+ * Perform auto-save for a tab:
+ * 1. Resolves fileHandle from workspace tree if missing
+ * 2. Writes to physical disk if handle exists
+ * 3. Falls back to chrome.storage.local persistence
+ * 4. Clears dirty flag and updates tab + explorer indicators
+ */
+export async function performAutoSave(tab) {
+  if (!tab || !tab.isDirty) return false;
+
+  // 1. Try to resolve missing fileHandle from workspace if open
+  if (!tab.fileHandle) {
+    try {
+      const { isWorkspaceOpen, findNodeInTree, createFileInWorkspace, getWorkspaceRootHandle } = await import('./workspace.js');
+      if (isWorkspaceOpen()) {
+        const lookup = tab.filePath || tab.label;
+        let node = findNodeInTree(lookup);
+        if (node && node.handle) {
+          tab.fileHandle = node.handle;
+          if (node.parentHandle) tab.parentHandle = node.parentHandle;
+          if (!tab.filePath && node.path) tab.filePath = node.path;
+        } else if (tab.label && !tab.label.startsWith('Untitled-')) {
+          const root = getWorkspaceRootHandle();
+          if (root) {
+            const handle = await createFileInWorkspace(root, tab.label, tab.content);
+            tab.fileHandle = handle;
+            tab.filePath = tab.label;
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('Auto-save workspace resolve error:', err);
+    }
+  }
+
+  // 2. If tab has fileHandle, save directly to physical disk
+  if (tab.fileHandle) {
+    try {
+      await saveFileToDisk(tab.fileHandle, tab.content);
+      tab.originalContent = tab.content;
+      tab.isDirty = false;
+      renderTabs();
+
+      import('./explorer.js').then(({ renderExplorerTree }) => {
+        renderExplorerTree(getDirtyPaths());
+      });
+      return true;
+    } catch (e) {
+      console.warn('Auto-save disk write failed, falling back to storage:', e);
+    }
+  }
+
+  // 3. Fallback / Scratchpad / Storage mode:
+  // Persist to storage cache and clear dirty indicator so state is saved
+  try {
+    const { storage } = await import('../storage.js');
+    storage.saveTabContent(tab.id, tab.content);
+    storage.saveTabs(tabs);
+    tab.originalContent = tab.content;
+    tab.isDirty = false;
+    renderTabs();
+
+    import('./explorer.js').then(({ renderExplorerTree }) => {
+      renderExplorerTree(getDirtyPaths());
+    });
+    return true;
+  } catch (e) {
+    console.warn('Auto-save storage fallback error:', e);
+  }
+
+  return false;
+}
+
+export async function autoSaveAllDirtyTabs() {
+  const dirtyTabs = tabs.filter((t) => t.isDirty);
+  for (const t of dirtyTabs) {
+    await performAutoSave(t);
+  }
+}
+
 export function updateTabContent(id, content) {
   const tab = tabs.find((t) => t.id === id);
   if (tab) {
@@ -327,22 +479,16 @@ export function updateTabContent(id, content) {
       });
     }
 
-    // Debounced Auto Save to disk when enabled
-    if (isAutoSaveEnabled && tab.fileHandle && tab.isDirty) {
-      if (autoSaveTimer) clearTimeout(autoSaveTimer);
-      autoSaveTimer = setTimeout(async () => {
-        try {
-          await saveFileToDisk(tab.fileHandle, tab.content);
-          tab.originalContent = tab.content;
-          tab.isDirty = false;
-          renderTabs();
-          import('./explorer.js').then(({ renderExplorerTree }) => {
-            renderExplorerTree(getDirtyPaths());
-          });
-        } catch (e) {
-          console.warn('Auto-save error:', e);
-        }
-      }, 750);
+    // Debounced Auto Save when enabled
+    if (isAutoSaveEnabled && tab.isDirty) {
+      if (autoSaveTimers.has(tab.id)) {
+        clearTimeout(autoSaveTimers.get(tab.id));
+      }
+      const timer = setTimeout(async () => {
+        autoSaveTimers.delete(tab.id);
+        await performAutoSave(tab);
+      }, 500);
+      autoSaveTimers.set(tab.id, timer);
     }
   }
 }

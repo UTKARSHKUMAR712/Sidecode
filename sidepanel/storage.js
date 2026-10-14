@@ -32,6 +32,7 @@ export const storage = {
       label: t.label,
       language: t.language,
       content: t.content,
+      originalContent: t.originalContent !== undefined ? t.originalContent : t.content,
       filePath: t.filePath || null,
       isDirty: !!t.isDirty
     }));

@@ -62,7 +62,10 @@ import {
   saveActiveTabAs,
   setAutoSave,
   getAutoSave,
-  getDirtyPaths
+  getDirtyPaths,
+  relinkTabsToWorkspace,
+  autoSaveAllDirtyTabs,
+  performAutoSave
 } from './modules/tabs.js';
 import {
   openWorkspaceFolder,
@@ -151,6 +154,11 @@ function pickRunner(language) {
 async function handleRunCode() {
   const tab = getActiveTab();
   if (!tab) return;
+
+  // Auto-save changes before running so latest edits are on disk/storage
+  if (getAutoSave()) {
+    await autoSaveAllDirtyTabs();
+  }
 
   const model = getModel(tab.id);
   if (!model) return;
@@ -498,6 +506,7 @@ async function handleOpenFile() {
 
     const existingTab = getTabByPath(result.path);
     if (existingTab) {
+      if (result.handle) existingTab.fileHandle = result.handle;
       activateTab(existingTab.id);
       let model = getModel(existingTab.id);
       if (!model || model.isDisposed()) {
@@ -635,6 +644,8 @@ async function handleExplorerFileSelect(node) {
     // 1. If tab is already open, smoothly switch to that exact tab
     const existingTab = getTabByPath(node.path);
     if (existingTab) {
+      if (node.handle) existingTab.fileHandle = node.handle;
+      if (node.parentHandle) existingTab.parentHandle = node.parentHandle;
       activateTab(existingTab.id);
       let model = getModel(existingTab.id);
       if (!model || model.isDisposed()) {
@@ -689,6 +700,13 @@ async function handleReconnectWorkspace() {
       $('workspace-reconnect-bar')?.classList.add('hidden');
       toggleExplorer(true);
       renderExplorerTree(getDirtyPaths());
+      const tree = getWorkspaceTree();
+      if (tree) {
+        await relinkTabsToWorkspace(tree);
+        if (getAutoSave()) {
+          await autoSaveAllDirtyTabs();
+        }
+      }
       await restoreWorkspaceFilesFromDisk();
     }
   } catch (err) {
@@ -1168,7 +1186,7 @@ async function init() {
   setTerminalFontSize(savedIdeSettings.fontSize);
 
   // Listen to workspace state changes
-  onWorkspaceChange(async ({ action }) => {
+  onWorkspaceChange(async ({ action, tree }) => {
     updateTerminalPrompt();
     if (action === 'closed') {
       import('./modules/terminal.js').then(({ resetTerminalCwd, setLocalResolvedPath, writePrompt }) => {
@@ -1178,6 +1196,12 @@ async function init() {
       });
       toggleExplorer(false);
     } else {
+      if (tree) {
+        await relinkTabsToWorkspace(tree);
+        if (getAutoSave()) {
+          await autoSaveAllDirtyTabs();
+        }
+      }
       renderExplorerTree(getDirtyPaths());
       const { getTerminalMode, setLocalResolvedPath, writePrompt } = await import('./modules/terminal.js');
       if (getTerminalMode() === 'local') {
@@ -1215,6 +1239,12 @@ async function init() {
   if (restored.status === 'granted') {
     toggleExplorer(true);
     renderExplorerTree(getDirtyPaths());
+    if (restored.tree) {
+      await relinkTabsToWorkspace(restored.tree);
+      if (getAutoSave()) {
+        await autoSaveAllDirtyTabs();
+      }
+    }
     await restoreWorkspaceFilesFromDisk();
   } else if (restored.status === 'prompt' && restored.handle) {
     toggleExplorer(true);
@@ -1405,6 +1435,13 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       sendResponse({ ok: true, cleanedModels: cleaned, trimmedConsoleLines: trimmed });
     })();
     return true;
+  }
+});
+
+// Auto-save on window blur if Auto Save is enabled
+window.addEventListener('blur', () => {
+  if (getAutoSave()) {
+    autoSaveAllDirtyTabs();
   }
 });
 
