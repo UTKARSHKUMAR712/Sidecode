@@ -451,7 +451,9 @@ export async function deleteWorkspaceEntry(parentDirHandle, name, isDirectory = 
 }
 
 /**
- * Gather all workspace files for multi-file cloud compilation
+ * Gather all workspace files for multi-file cloud compilation,
+ * overlaying any unsaved editor buffers from active/open tabs so the compiler
+ * always receives the latest in-memory code rather than stale disk contents.
  * @returns {Promise<Array<{ path: string, filename: string, contents: string, handle: FileSystemFileHandle }>>}
  */
 export async function collectAllWorkspaceFiles(node = currentTree) {
@@ -479,6 +481,41 @@ export async function collectAllWorkspaceFiles(node = currentTree) {
   }
 
   await traverse(node);
+
+  // Overlay unsaved changes from open tabs
+  try {
+    const { getTabs } = await import('./tabs.js');
+    const { getModel } = await import('./editor.js');
+    const openTabs = getTabs();
+    if (Array.isArray(openTabs)) {
+      for (const tab of openTabs) {
+        const model = getModel(tab.id);
+        const liveText = model ? model.getValue() : (tab.content !== undefined ? tab.content : null);
+        if (liveText === null || liveText === undefined) continue;
+
+        const tabPath = (tab.filePath || tab.label || '').replace(/\\/g, '/');
+        const tabBaseName = (tab.label || tab.filePath || '').split(/[\\/]/).pop();
+
+        const existing = results.find((r) => {
+          const rPath = (r.path || '').replace(/\\/g, '/');
+          return (tabPath && rPath.toLowerCase() === tabPath.toLowerCase()) ||
+                 (tabBaseName && r.filename.toLowerCase() === tabBaseName.toLowerCase());
+        });
+
+        if (existing) {
+          existing.contents = liveText;
+        } else if (tabBaseName) {
+          results.push({
+            path: tab.filePath || tabBaseName,
+            filename: tabBaseName,
+            contents: liveText,
+            handle: null
+          });
+        }
+      }
+    }
+  } catch (_) {}
+
   return results;
 }
 

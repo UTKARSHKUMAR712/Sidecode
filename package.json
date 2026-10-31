@@ -17,6 +17,7 @@
   },
   "license": "MIT",
   "scripts": {
+    "test": "node --test tests/*.test.mjs",
     "bridge": "node bridge.js"
   },
   "keywords": [

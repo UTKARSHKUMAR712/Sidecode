@@ -418,6 +418,9 @@ export async function runStandaloneAnalysis(tab) {
     if (multi.files && multi.files.length > 0) {
       payload.files = multi.files;
     }
+    if (multi.compilerArgs) {
+      payload.options.userArguments = multi.compilerArgs;
+    }
   } catch (_) {}
 
   try {

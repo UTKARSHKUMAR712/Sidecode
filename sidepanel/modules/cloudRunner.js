@@ -85,7 +85,7 @@ export function isCloudSupported(lang) {
 /**
  * Execute code via Godbolt Compiler Explorer
  */
-async function executeViaGodbolt(code, language, stdin = '', libraries = [], tabId = null, overrideFilename = null) {
+async function executeViaGodbolt(code, language, stdin = '', libraries = [], tabId = null, overrideFilename = null, extraCompilerArgs = null) {
   const config = GODBOLT_MAP[language];
   if (!config) {
     appendLine('error', `✖ Language "${language}" is not supported by cloud runner.`);
@@ -98,6 +98,7 @@ async function executeViaGodbolt(code, language, stdin = '', libraries = [], tab
 
   let codeToRun = code;
   let companionFiles = [];
+  let userArguments = (extraCompilerArgs || '').trim();
 
   // Multi-file workspace support
   try {
@@ -108,6 +109,9 @@ async function executeViaGodbolt(code, language, stdin = '', libraries = [], tab
     const multi = await prepareMultiFilePayload(code, language, activeFilename);
     codeToRun = multi.source;
     companionFiles = multi.files || [];
+    if (multi.compilerArgs) {
+      userArguments = userArguments ? `${userArguments} ${multi.compilerArgs}` : multi.compilerArgs;
+    }
   } catch (err) {
     console.warn('Could not prepare multi-file payload:', err);
   }
@@ -130,7 +134,7 @@ async function executeViaGodbolt(code, language, stdin = '', libraries = [], tab
     source: execSource,
     compiler: config.compiler,
     options: {
-      userArguments: '',
+      userArguments: userArguments.trim(),
       compilerOptions: { executorRequest: true },
       filters: { execute: true },
       executeParameters: { args: [], stdin: stdin }
@@ -143,7 +147,7 @@ async function executeViaGodbolt(code, language, stdin = '', libraries = [], tab
     source: codeToRun,
     compiler: config.compiler,
     options: {
-      userArguments: '',
+      userArguments: userArguments.trim(),
       compilerOptions: { executorRequest: false },
       filters: {
         intel: true,
@@ -313,7 +317,7 @@ async function executeViaGodbolt(code, language, stdin = '', libraries = [], tab
 /**
  * Main entry point for Cloud Execution
  */
-export async function executeViaCloud(code, language, customPistonUrl = null, stdin = '', libraries = [], tabId = null, overrideFilename = null) {
+export async function executeViaCloud(code, language, customPistonUrl = null, stdin = '', libraries = [], tabId = null, overrideFilename = null, extraCompilerArgs = null) {
   if (!isConsoleOpen()) openConsole();
 
   setExecTime('Running…');
@@ -324,7 +328,7 @@ export async function executeViaCloud(code, language, customPistonUrl = null, st
   }
 
   // Otherwise default to Godbolt
-  return executeViaGodbolt(code, language, stdin, libraries, tabId, overrideFilename);
+  return executeViaGodbolt(code, language, stdin, libraries, tabId, overrideFilename, extraCompilerArgs);
 }
 
 /**

@@ -226,7 +226,6 @@ function codeExpectsInput(code, lang) {
       }
 
       const isWin = bridgeStatus.data?.platform === 'win32';
-      const exeName = isWin ? 'a.exe' : './a.out';
       const extMap = {
         c: 'c',
         cpp: 'cpp',
@@ -245,15 +244,29 @@ function codeExpectsInput(code, lang) {
         targetFile = `${targetFile}.${extMap[tab.language] || 'txt'}`;
       }
 
+      const { getExecutableName, detectExplicitSources } = await import('./modules/multifileCompiler.js');
+      const { outBinary, runCmd } = getExecutableName(targetFile, isWin);
+
       let localCmd = '';
-      if (tab.language === 'c') localCmd = `gcc "${targetFile}" -o ${isWin ? 'a.exe' : 'a.out'} && ${exeName}`;
-      else if (tab.language === 'cpp') localCmd = `g++ "${targetFile}" -o ${isWin ? 'a.exe' : 'a.out'} && ${exeName}`;
-      else if (tab.language === 'python' || tab.language === 'py') localCmd = `python -u "${targetFile}"`;
-      else if (tab.language === 'javascript' || tab.language === 'js') localCmd = `node "${targetFile}"`;
-      else if (tab.language === 'typescript' || tab.language === 'ts') localCmd = `node "${targetFile}"`;
-      else if (tab.language === 'rust') localCmd = `rustc "${targetFile}" && ${exeName}`;
-      else if (tab.language === 'go') localCmd = `go run "${targetFile}"`;
-      else if (tab.language === 'java') localCmd = `java "${targetFile}"`;
+      if (tab.language === 'c' || tab.language === 'cpp') {
+        const compilerBin = tab.language === 'c' ? 'gcc' : 'g++';
+        const explicit = detectExplicitSources(code, tab.language, targetFile);
+        const compileFiles = [targetFile, ...explicit.companionSources];
+        const quotedFiles = compileFiles.map(f => `"${f}"`).join(' ');
+        localCmd = `${compilerBin} ${quotedFiles} -o "${outBinary}" && ${runCmd}`;
+      } else if (tab.language === 'python' || tab.language === 'py') {
+        localCmd = `python -u "${targetFile}"`;
+      } else if (tab.language === 'javascript' || tab.language === 'js') {
+        localCmd = `node "${targetFile}"`;
+      } else if (tab.language === 'typescript' || tab.language === 'ts') {
+        localCmd = `node "${targetFile}"`;
+      } else if (tab.language === 'rust') {
+        localCmd = `rustc "${targetFile}" -o "${outBinary}" && ${runCmd}`;
+      } else if (tab.language === 'go') {
+        localCmd = `go run "${targetFile}"`;
+      } else if (tab.language === 'java') {
+        localCmd = `java "${targetFile}"`;
+      }
 
       if (localCmd) {
         writeLineToTerminal('system', `▶ Running via Local Native Bridge (${targetFile})...`);
@@ -1164,7 +1177,7 @@ async function init() {
     refreshTree: () => refreshWorkspaceTree(),
     createTab: (label) => createTab(label),
     runActiveTab: () => handleRunCode(),
-    executeCode: async (code, lang, filenameOrPath) => {
+    executeCode: async (code, lang, filenameOrPath, extraCompilerArgs = null) => {
       if (SANDBOX_LANGUAGES.has(lang)) {
         await executeCode(code, lang, null, filenameOrPath);
       } else {
@@ -1176,7 +1189,7 @@ async function init() {
           stdinVal = await promptStdinFromTerminal('? Enter input for program:');
         }
         const activeLibs = getSelectedLibrariesForLanguage(lang);
-        await executeViaCloud(code, lang, customPistonUrl, stdinVal, activeLibs, null, filenameOrPath);
+        await executeViaCloud(code, lang, customPistonUrl, stdinVal, activeLibs, null, filenameOrPath, extraCompilerArgs);
       }
     },
     executeRawJs: async (code) => {

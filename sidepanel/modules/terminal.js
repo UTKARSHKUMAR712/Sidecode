@@ -913,21 +913,13 @@ async function executeCommandLine(raw) {
 
     case 'g++':
     case 'clang++': {
-      if (!args[0]) {
-        writeLineToTerminal('warn', 'Usage: g++ <filename.cpp> (e.g. g++ main.cpp)');
-        return;
-      }
-      await handleRunFileByCommand(args[0], 'cpp', ['cpp', 'cc', 'cxx']);
+      await handleCompilerCliCommand(cmd, args, 'cpp');
       return;
     }
 
     case 'gcc':
     case 'clang': {
-      if (!args[0]) {
-        writeLineToTerminal('warn', 'Usage: gcc <filename.c> (e.g. gcc main.c)');
-        return;
-      }
-      await handleRunFileByCommand(args[0], 'c', ['c']);
+      await handleCompilerCliCommand(cmd, args, 'c');
       return;
     }
 
@@ -1323,6 +1315,140 @@ async function resolveFileContent(filename) {
 }
 
 /**
+ * Execute C/C++ compiler commands from the terminal (e.g. gcc main.c functions.c -o program)
+ * Compiles only specified source files, ignores header files as translation units,
+ * assigns unique output executable name, and supports multi-file linking.
+ */
+async function handleCompilerCliCommand(compilerName, rawArgs, defaultLang) {
+  if (!rawArgs || rawArgs.length === 0) {
+    const ext = defaultLang === 'c' ? 'c' : 'cpp';
+    writeLineToTerminal('warn', `Usage: ${compilerName} <file.${ext}> [helper.${ext} ...] [-o output]`);
+    return;
+  }
+
+  const flags = [];
+  const specifiedSources = [];
+  let customOutput = null;
+
+  for (let i = 0; i < rawArgs.length; i++) {
+    const arg = rawArgs[i];
+    if (arg === '-o') {
+      if (i + 1 < rawArgs.length) {
+        customOutput = rawArgs[++i];
+      }
+    } else if (arg.startsWith('-o') && arg.length > 2) {
+      customOutput = arg.slice(2);
+    } else if (arg.startsWith('-')) {
+      flags.push(arg);
+    } else {
+      const lower = arg.toLowerCase();
+      if (lower.endsWith('.h') || lower.endsWith('.hpp') || lower.endsWith('.hh') || lower.endsWith('.hxx')) {
+        writeLineToTerminal('info', `Note: Header '${arg}' is not a compilation unit; excluded from compiler arguments.`);
+        continue;
+      }
+      specifiedSources.push(arg);
+    }
+  }
+
+  if (specifiedSources.length === 0) {
+    writeLineToTerminal('warn', `${compilerName}: no input source files specified`);
+    return;
+  }
+
+  const resolvedFiles = [];
+  const candidateExtensions = defaultLang === 'c' ? ['c'] : ['cpp', 'cc', 'cxx', 'c'];
+  for (const src of specifiedSources) {
+    let fileData = await resolveFileContent(src);
+    if (!fileData && candidateExtensions.length > 0) {
+      for (const ext of candidateExtensions) {
+        fileData = await resolveFileContent(`${src}.${ext}`);
+        if (fileData) break;
+      }
+    }
+    if (!fileData) {
+      writeLineToTerminal('error', `${compilerName}: cannot open '${src}': No such file in workspace`);
+      writeBadgeToTerminal('Failed', true);
+      return;
+    }
+    resolvedFiles.push(fileData);
+  }
+
+  const primaryFile = resolvedFiles[0];
+  const companionFiles = resolvedFiles.slice(1);
+  const lang = defaultLang || primaryFile.language || 'c';
+
+  if (activeTerminalMode === 'local') {
+    const folderName = executionBridge?.getWorkspaceName ? executionBridge.getWorkspaceName() : 'workspace';
+    const bridgeStatus = await ensureBridgeRunning(folderName);
+    if (!bridgeStatus.ok) {
+      writeLineToTerminal('warn', '⚠ Local PC Bridge not running on port 3888. (See README.md for 1-click setup)');
+      return;
+    }
+    if (bridgeStatus.resolvedPath) {
+      setLocalResolvedPath(bridgeStatus.resolvedPath);
+    }
+
+    const isWin = bridgeStatus.data?.platform === 'win32';
+    const { getExecutableName } = await import('./multifileCompiler.js');
+    let outBinary, runCmd;
+    if (customOutput) {
+      const cleanCustom = customOutput.replace(/^.*[\\/]/, '');
+      outBinary = isWin && !cleanCustom.endsWith('.exe') ? `${cleanCustom}.exe` : cleanCustom;
+      runCmd = isWin ? `"${outBinary}"` : `./"${outBinary}"`;
+    } else {
+      const execInfo = getExecutableName(primaryFile.name, isWin);
+      outBinary = execInfo.outBinary;
+      runCmd = execInfo.runCmd;
+    }
+
+    const sourcePaths = resolvedFiles.map((f) => `"${f.name}"`).join(' ');
+    const flagStr = flags.length > 0 ? ` ${flags.join(' ')}` : '';
+    const localCmd = `${compilerName}${flagStr} ${sourcePaths} -o "${outBinary}" && ${runCmd}`;
+
+    writeLineToTerminal('system', `▶ Running via Local Native Bridge (${compilerName} ${resolvedFiles.map((f) => f.name).join(' ')})...`);
+
+    const filesToSync = resolvedFiles.map((f) => ({ path: f.name, content: f.content }));
+    if (executionBridge && typeof executionBridge.getTabs === 'function') {
+      for (const t of executionBridge.getTabs()) {
+        const p = t.filePath || t.label;
+        if (p && !filesToSync.some((fs) => fs.path === p || fs.path === t.label)) {
+          let text = t.content || '';
+          if (typeof executionBridge.getModelContent === 'function') {
+            const live = executionBridge.getModelContent(t.id);
+            if (live !== null && live !== undefined) text = live;
+          }
+          filesToSync.push({ path: p, content: text });
+        }
+      }
+    }
+
+    try {
+      await executeViaBridge(localCmd, {
+        folder: folderName,
+        files: filesToSync,
+        onData: (chunk) => {
+          if (term) term.write(chunk);
+        }
+      });
+      return;
+    } catch (err) {
+      writeLineToTerminal('warn', `Local bridge error: ${err.message}. Falling back to Cloud...`);
+    }
+  }
+
+  // Cloud execution mode
+  writeLineToTerminal('system', `▶ Compiling ${resolvedFiles.map((f) => f.name).join(' ')} (${lang})...`);
+
+  if (executionBridge && typeof executionBridge.executeCode === 'function') {
+    const companionArgs = companionFiles.map((f) => `"${f.name}"`).join(' ');
+    const extraArgs = [companionArgs, ...flags].filter(Boolean).join(' ');
+    await executionBridge.executeCode(primaryFile.content, lang, primaryFile.path || primaryFile.name, extraArgs);
+  } else {
+    writeLineToTerminal('warn', 'Execution bridge not available.');
+  }
+}
+
+/**
  * Execute a file by CLI command (e.g. node main.js, python main.py, g++ main.cpp)
  */
 async function handleRunFileByCommand(filename, forcedLanguage = null, candidateExtensions = []) {
@@ -1357,20 +1483,21 @@ async function handleRunFileByCommand(filename, forcedLanguage = null, candidate
     }
 
     const isWin = bridgeStatus.data?.platform === 'win32';
-    const exeName = isWin ? 'a.exe' : './a.out';
     const targetFile = fileData.name; // Target file name inside the synced workspace folder
+    const { getExecutableName } = await import('./multifileCompiler.js');
+    const { outBinary, runCmd } = getExecutableName(targetFile, isWin);
     let localCmd = '';
 
     if (lang === 'c') {
-      localCmd = `gcc "${targetFile}" -o ${isWin ? 'a.exe' : 'a.out'} && ${exeName}`;
+      localCmd = `gcc "${targetFile}" -o "${outBinary}" && ${runCmd}`;
     } else if (lang === 'cpp') {
-      localCmd = `g++ "${targetFile}" -o ${isWin ? 'a.exe' : 'a.out'} && ${exeName}`;
+      localCmd = `g++ "${targetFile}" -o "${outBinary}" && ${runCmd}`;
     } else if (lang === 'python') {
       localCmd = `python -u "${targetFile}"`;
     } else if (lang === 'javascript' || lang === 'js') {
       localCmd = `node "${targetFile}"`;
     } else if (lang === 'rust') {
-      localCmd = `rustc "${targetFile}" && ${exeName}`;
+      localCmd = `rustc "${targetFile}" -o "${outBinary}" && ${runCmd}`;
     } else if (lang === 'go') {
       localCmd = `go run "${targetFile}"`;
     } else if (lang === 'java') {
